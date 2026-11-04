@@ -260,7 +260,8 @@ async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     try:
         svc = onto.service(code)
     except KeyError:
-        return ToolOutput({"motivo": "Serviço não encontrado."})
+        valid = [c for c in onto.service_codes() if onto.service(c).mode == "agent"]
+        return ToolOutput({"erro": "serviço não encontrado", "servicos_validos": valid})
     if svc.mode != "agent":  # só orienta (ACA-010/012/013/014) e oferece a secretaria
         return ToolOutput(
             {**orientation(code), "alternativa": onto.service("GEN-090").ui_label},

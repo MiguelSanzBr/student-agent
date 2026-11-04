@@ -54,3 +54,13 @@ def test_wrap_tool_result_only_data() -> None:
                   "", "aviso", "conv", "1")  # fmt: skip
     out = wrap_tool_result(ToolOutput({"a": "b"}, draft=d, untrusted=True))
     assert out == {"a": "b"} and "TOKEN" not in str(out)
+
+
+def test_iter1_rules_in_prompt() -> None:
+    for frag in (
+        "chame a ferramenta do assunto antes de responder",
+        "chame draft_protocol na hora",
+        "também é fora do escopo",
+        "Pedido vago",
+    ):
+        assert frag in SYSTEM_PREFIX

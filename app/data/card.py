@@ -62,7 +62,8 @@ async def build_student_card(
         drafts=None,  # type: ignore[arg-type]  # o cartão só lê
     )  # fmt: skip
     onto = default_ontology()
-    lines, facts = [f"Data de referência: {fmt_date(today)}"], {}
+    facts = {"geral.data_referencia": fmt_date(today)}
+    lines = [f"Data de referência: {facts['geral.data_referencia']}"]
     for e in scope.enrollments:
         i = e.index
         lines.append(f"{i}. {e.label} ({onto.label_pt('enrollment_status', e.status).lower()})")

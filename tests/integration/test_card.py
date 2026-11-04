@@ -123,3 +123,27 @@ def test_card_open_protocol_without_prazo(
     card = harness.card(1)  # nenhum prazo legível: o cartão sai sem a data
     assert card.facts["geral.protocolos_abertos"] == "1"
     assert "geral.proximo_prazo" not in card.facts
+
+
+def test_card_reference_date_is_evidence(harness: Harness) -> None:
+    from pathlib import Path
+
+    from app.guards.evidence import check_evidence
+    from core.ontology import Ontology
+
+    card = harness.card(1)
+    ref = card.facts["geral.data_referencia"]
+    assert f"Data de referência: {ref}" in card.text
+    r = check_evidence(
+        f"A data de referência do seu cartão é {ref}.",
+        question="",
+        records_by_entity={},
+        card_facts=card.facts,
+        enrollment_indices=("1",),
+        tool_calls_this_turn=(),
+        system_notes=(),
+        canary="c" * 32,
+        prompt_prefix="x",
+        ontology=Ontology.load(Path("ontology")),
+    )
+    assert r.ok, r
