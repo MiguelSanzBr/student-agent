@@ -5,6 +5,7 @@ const log = $("log"), form = $("form"), input = $("text"), sendBtn = $("send");
 // O rótulo do GEN-090 vem do código do serviço; o código nunca é exibido.
 const SERVICE_LABELS = { "GEN-090": "Falar com a secretaria" };
 const ERR = "Algo deu errado. Tente de novo em instantes.";
+let busy = false, ctrl = null;
 
 function convId() {
   let id = sessionStorage.getItem("conv");
@@ -22,13 +23,23 @@ function el(tag, text, cls) {
 function add(node) { log.appendChild(node); node.scrollIntoView({ block: "end" }); return node; }
 const bubble = (text, cls) => add(el("div", text, "msg " + (cls || "bot")));
 
+class ApiError extends Error {
+  constructor(message, status) { super(message); this.status = status; }
+}
+
 async function api(path, body) {
-  const r = await fetch(path, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
+  let r;
+  try {
+    r = await fetch(path, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+  } catch { throw new ApiError(ERR, 0); } // nunca mostrar o texto em inglês do navegador
   let data = {};
   try { data = await r.json(); } catch { /* corpo vazio */ }
-  if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : ERR);
+  if (!r.ok) {
+    const m = typeof data.mensagem === "string" ? data.mensagem : data.detail;
+    throw new ApiError(typeof m === "string" ? m : ERR, r.status);
+  }
   return data;
 }
 
@@ -40,7 +51,9 @@ function feedback(traceId) {
     b.onclick = async () => {
       box.querySelectorAll("button").forEach((x) => { x.disabled = true; });
       try { await api("/feedback", { trace_id: traceId, useful }); box.replaceChildren(el("span", "Obrigado pelo retorno.")); }
-      catch (e) { box.replaceChildren(el("span", e.message)); }
+      catch (e) {
+        box.replaceChildren(el("span", e.status === 404 ? "Obrigado pelo retorno." : "Não foi possível registrar."));
+      }
     };
     box.appendChild(b);
   }
@@ -57,7 +70,7 @@ function draftCard(d) {
   card.appendChild(el("p", d.warning, "warn"));
   const lab = el("label", "Descrição (você pode editar)");
   const desc = el("textarea", undefined);
-  desc.value = d.description; desc.rows = 3; desc.maxLength = 1000;
+  desc.value = d.description; desc.rows = 3; desc.maxLength = 500;
   lab.appendChild(desc); card.appendChild(lab);
   const ok = el("button", "Confirmar", "primary");
   ok.type = "button";
@@ -66,17 +79,31 @@ function draftCard(d) {
     ok.disabled = true; desc.disabled = true;
     try {
       const r = await api("/protocols/confirm", { draft_id: d.draft_id, description: desc.value });
-      card.replaceChildren(el("p", r.mensagem));
-    } catch (e) { out.textContent = e.message; ok.disabled = false; desc.disabled = false; }
+      const done = el("p", r.mensagem);
+      done.setAttribute("role", "status");
+      card.replaceChildren(done);
+    } catch (e) {
+      out.textContent = e.message;
+      if (e.status !== 409) { ok.disabled = false; desc.disabled = false; } // 409: rascunho já usado
+    }
   };
   card.append(ok, out);
   add(card);
 }
 
+function setBusy(on) {
+  sendBtn.disabled = on;
+  document.querySelectorAll("#suggested button").forEach((b) => { b.disabled = on; });
+}
+
 async function send(text) {
+  if (busy) return;
+  busy = true;
+  ctrl = new AbortController();
+  const mine = ctrl;
+  setBusy(true);
   $("suggested").replaceChildren();
   bubble(text, "user");
-  sendBtn.disabled = true;
   let progress = null, trace = "", answered = false;
   const clear = () => { if (progress) { progress.remove(); progress = null; } };
   const handle = (ev, d) => {
@@ -90,7 +117,7 @@ async function send(text) {
   try {
     const r = await fetch("/chat", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversation_id: convId(), text }),
+      body: JSON.stringify({ conversation_id: convId(), text }), signal: mine.signal,
     });
     if (r.status === 401) { bubble("Sua sessão expirou. Abra o link de acesso de novo.", "error"); return; }
     if (!r.ok || !r.body) {
@@ -103,7 +130,7 @@ async function send(text) {
     for (;;) {
       const { value, done } = await reader.read();
       if (done) break;
-      buf += value;
+      buf += value.replace(/\r\n/g, "\n");
       let i;
       while ((i = buf.indexOf("\n\n")) >= 0) {
         const block = buf.slice(0, i); buf = buf.slice(i + 2);
@@ -116,8 +143,10 @@ async function send(text) {
       }
     }
     if (answered && trace) add(feedback(trace));
-  } catch { clear(); bubble(ERR, "error"); }
-  finally { sendBtn.disabled = false; input.focus(); }
+  } catch { clear(); if (!mine.signal.aborted) bubble(ERR, "error"); }
+  finally {
+    if (ctrl === mine) { busy = false; setBusy(false); input.focus(); }
+  }
 }
 
 function suggestions(list) {
@@ -146,7 +175,7 @@ async function start() {
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   const t = input.value.trim();
-  if (!t) return;
+  if (!t || busy) return;
   input.value = "";
   send(t);
 });
@@ -154,6 +183,8 @@ input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
 });
 $("new-chat").onclick = () => {
+  if (ctrl) ctrl.abort();
+  ctrl = null; busy = false; setBusy(false);
   sessionStorage.removeItem("conv");
   log.replaceChildren(); $("suggested").replaceChildren();
   start();
