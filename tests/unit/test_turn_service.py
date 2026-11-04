@@ -558,3 +558,15 @@ async def test_demo_replay_label_is_priced_zero_without_warning(
     svc = make_service(AppSettings(), scripted(OK))
     await svc._charge(Usage(1000, 100), "demo-replay")
     assert await spent(svc) == 0 and "sem preço" not in caplog.text
+
+
+async def test_daily_budget_counts_only_uncached_tokens() -> None:
+    # cache lido custa ~10% da entrada: a cota diária por aluno mede o que pesa no custo
+    from app.agent.graph import bare_result
+    from app.agent.llm import Usage
+
+    svc = make_service(AppSettings(), scripted(OK))
+    adm = await svc.admit(scope=SCOPE, channel="web")
+    u = Usage(input_tokens=13_500, output_tokens=500, thinking_tokens=400, cached_tokens=11_600)
+    await svc.settle(adm, bare_result("ok", "x", "claude-haiku-5-5", usage=u))
+    assert await svc.budget.used(SUB) == 13_500 - 11_600 + 500 + 400

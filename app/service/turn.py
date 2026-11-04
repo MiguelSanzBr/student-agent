@@ -90,6 +90,11 @@ def _tokens(u: Usage) -> int:
     return u.input_tokens + u.output_tokens + u.thinking_tokens
 
 
+def _billable_tokens(u: Usage) -> int:
+    """Cota diária por aluno: o cache lido custa ~10% da entrada e não entra na conta."""
+    return u.input_tokens - u.cached_tokens + u.output_tokens + u.thinking_tokens
+
+
 class _Meter:
     """Acumula o uso real do LLM no turno (sobrevive ao cancelamento) e se o taint já ocorreu."""
 
@@ -374,7 +379,7 @@ class DefaultTurnService:
         if cancelled:
             METRICS["agent_turns_total"].labels(status="cancelled", channel=admission.channel).inc()  # type: ignore[union-attr]
         await self._safe("balde", self.bucket.settle(admission.ticket, calls, _tokens(u)))
-        await self._safe("cota diária", self.budget.add(admission.sub, _tokens(u)))
+        await self._safe("cota diária", self.budget.add(admission.sub, _billable_tokens(u)))
         for kind, n in (("input", u.input_tokens), ("output", u.output_tokens),
                         ("thinking", u.thinking_tokens), ("cached", u.cached_tokens)):  # fmt: skip
             METRICS["agent_tokens_total"].labels(kind=kind).inc(n)  # type: ignore[union-attr]
