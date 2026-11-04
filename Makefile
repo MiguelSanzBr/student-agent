@@ -40,6 +40,8 @@ test:
 test-full:
 	uv run pytest -q
 
+# Exporte as chaves antes (sem imprimir): set -a; . ./.env; set +a; make test-live
+# Modelos: ANTHROPIC_MODEL / OPENAI_MODEL (padrão de cada provedor), nunca o LLM_MODEL.
 test-live:
 	uv run pytest -m live -q
 
@@ -54,6 +56,7 @@ check: lint test
 # volume; só dados.zip é montado). Antes: o ETL precisa ter rodado (eval_students.json,
 # golden_login.json). O container não tem git: GIT_SHA/GIT_DIRTY/FROZEN_SHA vêm daqui.
 #   make eval-dev  MODEL=gemini-3.8-flash ROUND=1 [ARGS=...]    (dev: ARGS=--rehearsal = ensaio)
+#   (MODEL=claude-opus-5-5 ou gpt-6.1-terra também; MODEL vira o LLM_MODEL da api-eval)
 #   make eval-test MODEL=gemini-3.8-flash ROUND=1 HOLDOUT=/caminho/templates_test_only.yaml \
 #                  ARGS="--dev-json /eval-out/quality/dev-r2/quality.json --spend-today X --rpd-left N"
 # HOLDOUT (opt-in, nunca padrão): o YAML decifrado pelo autor, montado só nesta execução.
@@ -70,7 +73,7 @@ eval-dev eval-test:
 	@test -n "$(MODEL)" -a -n "$(ROUND)" || { echo "use MODEL=... ROUND=N" >&2; exit 1; }
 	@test -z "$(HOLDOUT)" -o -f "$(HOLDOUT)" || { echo "HOLDOUT=$(HOLDOUT): arquivo inexistente" >&2; exit 1; }
 	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
-	$(GIT_ENV) $(EVAL_DC) up -d --build --wait api-eval
+	$(GIT_ENV) LLM_MODEL=$(MODEL) $(EVAL_DC) up -d --build --wait api-eval
 	$(EVAL_DC) build evals
 	$(EVALS) evals.golden.run --split $(patsubst eval-%,%,$@) --model $(MODEL) --round $(ROUND) \
 	  --record $(if $(HOLDOUT),--holdout-yaml /holdout/templates.yaml) $(ARGS)
@@ -96,14 +99,15 @@ eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] MODEL=gemini-3.8-flash [
 # Escadas (a) e (b) contra a API (LLM_PROVIDER=loadtest, Redis e limitador reais), sem gastar:
 # make load-test LANE=d [LADDER=a|b] [WORKERS=1|2] [CPUS=1.0] [ARGS=--duration 30]; roda sozinho na
 # máquina; a raia fica de pé (make lane-down LANE=x). Precisa do ETL carregado na raia (`etl` com DATA_SRC=...), que grava o golden_login.json.
-LDC = $(LANE_ENV) UVICORN_WORKERS=$(or $(WORKERS),1) API_CPUS=$(or $(CPUS),1.0) \
+LOAD_MODEL ?= gemini-3.8-flash  # API (compose.load.yml) e runner usam o mesmo
+LDC = $(LANE_ENV) LOAD_MODEL=$(LOAD_MODEL) UVICORN_WORKERS=$(or $(WORKERS),1) API_CPUS=$(or $(CPUS),1.0) \
       SLO_FILE=$(LANE_DIR)-slo.yaml docker compose -f docker-compose.yml -f ops/compose.lane.yml -f ops/compose.eval.yml -f ops/compose.load.yml --profile eval
 load-test:
 	@test -n "$(call lv,API_PORT)" || { echo "use LANE=a|b|c|d" >&2; exit 1; }
-	uv run python -m evals.latency.load_test --ladder $(or $(LADDER),a) --write-slo $(LANE_DIR)-slo.yaml
+	uv run python -m evals.latency.load_test --ladder $(or $(LADDER),a) --model $(LOAD_MODEL) --write-slo $(LANE_DIR)-slo.yaml
 	$(LDC) up -d --build --wait api
 	@$(LDC) run --build --rm --no-deps -e EVAL_OUT_DIR=/out redteam python -m evals.latency.load_test \
-	  --base-url http://api:8000 --ladder $(or $(LADDER),a) --workers $(or $(WORKERS),1) $(ARGS); \
+	  --base-url http://api:8000 --model $(LOAD_MODEL) --ladder $(or $(LADDER),a) --workers $(or $(WORKERS),1) $(ARGS); \
 	  rc=$$?; $(LDC) rm -sf api; exit $$rc
 
 EVAL_DC = docker compose -f docker-compose.yml -f ops/compose.eval.yml --profile eval

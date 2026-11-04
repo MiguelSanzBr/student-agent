@@ -16,7 +16,7 @@ pytestmark = [
     pytest.mark.live,
     pytest.mark.skipif(not os.environ.get("OPENAI_API_KEY"), reason="pendente: sem OPENAI_API_KEY"),
 ]
-MODEL = os.environ.get("LLM_MODEL", "gpt-6.1-terra")
+MODEL = os.environ.get("OPENAI_MODEL") or "gpt-6.1-terra"
 TOOL = ToolSpec(
     "get_clima", "Devolve o clima de uma cidade.",
     {"type": "object", "properties": {"cidade": {"type": "string"}},
@@ -25,7 +25,7 @@ TOOL = ToolSpec(
 SYSTEM = "Responda em português. Para perguntas de clima, use a ferramenta get_clima."
 
 
-async def test_roundtrip_with_card_tool_and_reasoning() -> None:
+async def test_roundtrip_with_card_tool_and_reasoning(app_secrets: object) -> None:
     p = OpenAIProvider(AppSettings(openai_api_key=os.environ["OPENAI_API_KEY"]))
     hist = [*card_messages(StudentCard(text="Aluno de teste", facts={})),
             Message("user", "Qual o clima em Recife?")]  # fmt: skip
