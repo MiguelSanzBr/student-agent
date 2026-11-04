@@ -1,0 +1,2 @@
+{"split": "dev", "round": 1, "sha": "678270e124bbbadb42c9951f9df40a7128d90181", "model": "claude-haiku-5-5", "primary_run": false, "items": 553, "status": "started"}
+{"split": "dev", "round": 1, "sha": "678270e124bbbadb42c9951f9df40a7128d90181", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 58, "items": 553, "status": "done"}
