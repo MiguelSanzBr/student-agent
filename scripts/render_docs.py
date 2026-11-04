@@ -163,15 +163,24 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
     return out
 
 
-def render_docs(paths: Sequence[Path], numbers: Mapping[str, str]) -> None:
-    """Troca o miolo de cada marcador. Chave ausente → KeyError antes de gravar qualquer arquivo."""
+def render_docs(
+    paths: Sequence[Path], numbers: Mapping[str, str], allow_missing: bool = False
+) -> list[str]:
+    """Troca o miolo de cada marcador. Chave ausente → KeyError antes de gravar qualquer arquivo;
+    com `allow_missing`, mantém o miolo atual desses marcadores. Devolve as chaves faltantes."""
     texts = {p: p.read_text() for p in paths}
+    missing = sorted(
+        {k for text in texts.values() for k, _ in MARKER.findall(text) if k not in numbers}
+    )
+    if missing and not allow_missing:
+        raise KeyError(f"chave sem número: {', '.join(missing)}")
     for p, text in texts.items():
-        for key in MARKER.findall(text):
-            if key[0] not in numbers:
-                raise KeyError(f"{p.name}: chave sem número: {key[0]}")
-    for p, text in texts.items():
-        p.write_text(MARKER.sub(lambda m: f"<!-- num:{m[1]} -->{numbers[m[1]]}<!-- /num -->", text))
+        p.write_text(MARKER.sub(lambda m: _keep(m, numbers), text))
+    return missing
+
+
+def _keep(m: re.Match[str], numbers: Mapping[str, str]) -> str:
+    return f"<!-- num:{m[1]} -->{numbers.get(m[1], m[2])}<!-- /num -->"
 
 
 def _norm(s: str) -> str:
@@ -194,7 +203,9 @@ def main() -> int:
     (EVIDENCE / "numbers.json").write_text(
         json.dumps(numbers, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     )
-    render_docs(DOCS, numbers)
+    missing = render_docs(DOCS, numbers, allow_missing="--allow-missing" in sys.argv[1:])
+    if missing:
+        print("a medir (mantidos):", ", ".join(missing))
     return 0
 
 

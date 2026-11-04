@@ -255,3 +255,17 @@ def test_build_numbers_refuses_simulated_latency(tmp_path: Path) -> None:
     p.write_text(json.dumps({**json.loads(p.read_text()), "simulated": True}))
     with pytest.raises(ValueError, match="simulated"):
         build_numbers(tmp_path)
+
+
+def test_allow_missing_keeps_old_content_and_lists_missing(tmp_path: Path) -> None:
+    f = tmp_path / "a.md"
+    f.write_text("<!-- num:ok -->?<!-- /num --> <!-- num:falta -->a medir<!-- /num -->")
+    missing = render_docs([f], {"ok": "1"}, allow_missing=True)
+    assert missing == ["falta"]
+    assert f.read_text() == "<!-- num:ok -->1<!-- /num --> <!-- num:falta -->a medir<!-- /num -->"
+
+
+def test_strict_is_default_and_returns_no_missing(tmp_path: Path) -> None:
+    f = tmp_path / "a.md"
+    f.write_text("<!-- num:ok -->?<!-- /num -->")
+    assert render_docs([f], {"ok": "1"}) == []
