@@ -40,7 +40,7 @@ services:
         python -m evals.redteam.plant_csv /data /tmp/planted
         python -m etl load --source /tmp/planted --database eval_redteam --no-oracle --out /tmp/rt-out --eval-out /tmp/rt-out
     volumes:
-      - ${DATA_ZIP:-./data/dados.zip}:/data/dados.zip:ro  # só o zip, nunca ./data inteiro
+      - ${DATA_SRC:-./data/dados.zip}:/data/dados.zip:ro  # só o zip, nunca ./data inteiro
       - secrets-etl:/run/secrets/etl:ro
     depends_on:
       init-secrets: {condition: service_completed_successfully}
@@ -61,7 +61,7 @@ services:
       - secrets-app:/run/secrets/app:ro
       - etl-out:/etl-out:ro
       - eval-out:/out
-      - ${DATA_ZIP:-./data/dados.zip}:/data/dados.zip:ro  # só o zip, nunca ./data inteiro
+      - ${DATA_SRC:-./data/dados.zip}:/data/dados.zip:ro  # só o zip, nunca ./data inteiro
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-auto}
       LLM_BACKEND: ${LLM_BACKEND:-aistudio}

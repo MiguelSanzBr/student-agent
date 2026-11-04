@@ -3,7 +3,8 @@
     uv run python -m evals.holdout.seal [plaintext] [--out evals/holdout]
 
 O texto claro (data/holdout/templates_test_only.yaml, fora do git) só é lido aqui: nada dele
-é impresso. O manifesto guarda o SHA-256 do `.age`, o do texto claro e a contagem de templates `test_only`.
+é impresso. O manifesto guarda o SHA-256 do `.age`, o do texto claro e a contagem de
+templates `test_only`.
 """
 
 from __future__ import annotations

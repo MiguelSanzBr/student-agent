@@ -39,6 +39,7 @@ import httpx
 from evals.client import ChatClient, Rejected
 from evals.golden.error_cause import attribute_cause
 from evals.golden.score import DatasetItem, TurnRecord, is_refusal, score_item
+from evals.holdout.verify import verify_plain
 from evals.stats import (
     CI,
     ItemResult,
@@ -579,6 +580,7 @@ def load_dataset(split: str, *, raw: Any, hmac_key: bytes, holdout_yaml: Path | 
     else:
         if holdout_yaml is None:
             raise SystemExit("--split test exige --holdout-yaml (templates test_only decifrados)")
+        verify_plain(holdout_yaml, "templates_test_only.yaml.age")  # antes de ler/usar o YAML
         templates += build.load_templates(holdout_yaml)
         people = resolve_people(raw["sag/person"], hmac_key)
         by_pk = {p.person_key: p for p in people.values()}
@@ -635,7 +637,13 @@ def publish(out: Path, evidence: Path | None, tag: str) -> None:
         return
     dest = evidence / tag
     dest.mkdir(parents=True, exist_ok=True)
-    for n in ("quality.json", "quality.md", "p_meta.json"):
+    for n in (
+        "quality.json",
+        "quality.md",
+        "quality.resummarized.json",
+        "quality.resummarized.md",
+        "p_meta.json",
+    ):
         if (out / n).exists():
             shutil.copyfile(out / n, dest / n)
 
@@ -674,9 +682,9 @@ def build_summary(
     return s
 
 
-def write_summary(out: Path, s: Mapping[str, Any]) -> None:
-    (out / "quality.json").write_text(json.dumps(s, indent=2, ensure_ascii=False))
-    (out / "quality.md").write_text(render_md(s), encoding="utf-8")
+def write_summary(out: Path, s: Mapping[str, Any], stem: str = "quality") -> None:
+    (out / f"{stem}.json").write_text(json.dumps(s, indent=2, ensure_ascii=False))
+    (out / f"{stem}.md").write_text(render_md(s), encoding="utf-8")
 
 
 _META_KEYS = ("split", "round", "model", "sha", "dirty", "paraphrase", "perfil", "rehearsal",
@@ -687,8 +695,11 @@ def resummarize(
     d: Path, *, labels: Path | None = None, utility: Path | None = None,
     judge: Path | None = None, dev_dir: Path | None = None, n_boot: int = 10_000,
 ) -> dict[str, Any]:  # fmt: skip
-    """Reconstrói quality.json/md de uma rodada já feita, sem chamar a API."""
+    """Reconstrói a sumarização de uma rodada já feita, sem chamar a API, em
+    quality.resummarized.json/md: o quality.json original nunca é sobrescrito."""
     old = json.loads((d / "quality.json").read_text(encoding="utf-8"))
+    if old.get("split") == "test" and n_boot != N_BOOT:
+        raise SystemExit(f"teste: --n-boot fixo em {N_BOOT}")
     rows = [json.loads(x) for x in (d / "transcripts.jsonl").read_text().splitlines() if x.strip()]
     outs = [
         Outcome(
@@ -704,7 +715,7 @@ def resummarize(
     meta = {k: old[k] for k in _META_KEYS if k in old}
     s = build_summary(rr, strata, meta, n_boot=n_boot, labels=labels, utility=utility, judge=judge,
                       dev_dir=dev_dir, p_meta=old.get("p_meta"))  # fmt: skip
-    write_summary(d, s)
+    write_summary(d, s, "quality.resummarized")
     return s
 
 

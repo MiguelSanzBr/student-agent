@@ -63,17 +63,22 @@ check: lint test
 # então um reset aparece.
 GIT_ENV = GIT_SHA=$$(git rev-parse HEAD) GIT_DIRTY=$$(test -n "$$(git status --porcelain)" && echo 1 || echo 0) \
           FROZEN_SHA=$$(git rev-list -n 1 eval-frozen 2>/dev/null || true)
-EVALS = $(GIT_ENV) $(EVAL_DC) run --rm $(if $(HOLDOUT),-v $(abspath $(HOLDOUT)):/holdout/templates.yaml:ro) \
+# Rodada dev deixa evidência não rastreada em docs/evidence/quality: commitar antes do eval-test
+# (o teste exige árvore limpa, SHA congelado). DATA_SRC (um nome só, como no etl) aponta o zip.
+EVALS = $(GIT_ENV) $(EVAL_DC) run --rm $(ND) $(if $(HOLDOUT),-v $(abspath $(HOLDOUT)):/holdout/templates.yaml:ro) \
         evals python -m
 eval-dev eval-test:
 	@test -n "$(MODEL)" -a -n "$(ROUND)" || { echo "use MODEL=... ROUND=N" >&2; exit 1; }
+	@test -z "$(HOLDOUT)" -o -f "$(HOLDOUT)" || { echo "HOLDOUT=$(HOLDOUT): arquivo inexistente" >&2; exit 1; }
 	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
 	$(GIT_ENV) $(EVAL_DC) up -d --build --wait api-eval
 	$(EVAL_DC) build evals
 	$(EVALS) evals.golden.run --split $(patsubst eval-%,%,$@) --model $(MODEL) --round $(ROUND) \
 	  --record $(if $(HOLDOUT),--holdout-yaml /holdout/templates.yaml) $(ARGS)
 
+eval-guard: ND = --no-deps  # o guard não precisa da API (api-eval); segredos/volumes vêm do eval anterior
 eval-guard:  # cego medido 1x (semente pré-registrada); ARGS="--dev-transcripts /eval-out/quality/dev-rN/transcripts.jsonl"
+	@test -z "$(HOLDOUT)" -o -f "$(HOLDOUT)" || { echo "HOLDOUT=$(HOLDOUT): arquivo inexistente" >&2; exit 1; }
 	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
 	$(EVAL_DC) build evals
 	$(EVALS) evals.guard.run $(ARGS)

@@ -362,7 +362,7 @@ def _fixture_dir(tmp_path, name, split, n=20):
 
 def test_resummarize_offline_with_labels_utility_judge_and_dev(tmp_path):
     dev, _ = _fixture_dir(tmp_path, "dev", "dev")
-    d, outs = _fixture_dir(tmp_path, "test", "test")
+    d, outs = _fixture_dir(tmp_path, "d2", "dev")  # no test, n_boot é fixo (N_BOOT)
     labels = tmp_path / "labels.csv"
     labels.write_text("item_id,pergunta,resposta,author_correct\n" + "".join(
         f"{o.item_id},q,a,{'s' if (o.status == 'pass') or k % 2 else 'n'}\n"
@@ -376,6 +376,47 @@ def test_resummarize_offline_with_labels_utility_judge_and_dev(tmp_path):
     assert s["sensitivity"]["n_labels"] == 20 and "pass_corrigido" in s["sensitivity"]
     assert s["kappa_juiz"]["n"] == 20 and s["utility"]["n"] == 3
     assert s["redone"] == 2 and s["items"] == 20 and s["dev_vs_test"]
-    md = (d / "quality.md").read_text()
+    md = (d / "quality.resummarized.md").read_text()
     assert "VPP" in md and "kappa" in md and "Dev x teste" in md
-    assert json.loads((d / "quality.json").read_text())["sensitivity"] is not None
+    assert json.loads((d / "quality.resummarized.json").read_text())["sensitivity"] is not None
+
+
+def test_resummarize_writes_new_files_and_keeps_original(tmp_path):
+    d, _ = _fixture_dir(tmp_path, "dev", "dev")
+    before = (d / "quality.json").read_text()
+    resummarize(d, n_boot=30)
+    assert (d / "quality.json").read_text() == before
+    assert (d / "quality.resummarized.json").exists() and (d / "quality.resummarized.md").exists()
+
+
+def test_resummarize_test_split_requires_preregistered_n_boot(tmp_path):
+    from evals.golden.run import N_BOOT
+
+    d, _ = _fixture_dir(tmp_path, "test", "test")
+    with pytest.raises(SystemExit, match="n-boot"):
+        resummarize(d, n_boot=N_BOOT + 1)
+
+
+def test_load_dataset_test_checks_holdout_sha_against_manifest(tmp_path, monkeypatch):
+    import hashlib
+
+    from evals.golden.run import load_dataset
+    from evals.holdout import verify
+
+    y = tmp_path / "t.yaml"
+    y.write_text("templates: []\n")
+    man = tmp_path / "manifest.json"
+    man.write_text(json.dumps({"templates_test_only.yaml.age": {"plain_sha256": "0" * 64}}))
+    monkeypatch.setattr(verify, "MANIFEST", man)
+    with pytest.raises(SystemExit, match="SHA-256"):
+        load_dataset("test", raw=None, hmac_key=b"k", holdout_yaml=y)
+    man.write_text(
+        json.dumps(
+            {
+                "templates_test_only.yaml.age": {
+                    "plain_sha256": hashlib.sha256(y.read_bytes()).hexdigest()
+                }
+            }
+        )
+    )
+    verify.verify_plain(y, "templates_test_only.yaml.age")  # confere: sem erro
