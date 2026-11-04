@@ -3,7 +3,10 @@ from app.config import AppSettings
 
 
 def make_llm(settings: AppSettings) -> LLMProvider:
-    match settings.llm_provider:
+    provider: str = settings.llm_provider
+    if provider == "auto":
+        provider = "gemini" if settings.gemini_api_key else "replay"
+    match provider:
         case "gemini":
             from app.agent.gemini import GeminiProvider
 
@@ -12,5 +15,10 @@ def make_llm(settings: AppSettings) -> LLMProvider:
             from app.agent.fakes import ScriptedLLM
 
             return ScriptedLLM([])
+        case "replay":
+            from app.agent.replay import DEFAULT_REPLAY, ReplayLLM
+
+            settings.demo_mode = True  # a faixa "modo demonstração" da UI depende disto
+            return ReplayLLM(DEFAULT_REPLAY)
         case other:
-            raise NotImplementedError(f"llm_provider={other!r} chega na Task 23")
+            raise NotImplementedError(f"llm_provider={other!r}")

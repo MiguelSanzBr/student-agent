@@ -9,6 +9,7 @@ COPY app ./app
 COPY etl ./etl
 COPY ontology ./ontology
 COPY evals/__init__.py evals/oracle.py ./evals/
+COPY evals/replays ./evals/replays
 COPY tests/fixtures/golden.json ./tests/fixtures/golden.json
 COPY scripts ./scripts
 COPY slo_targets.yaml ./

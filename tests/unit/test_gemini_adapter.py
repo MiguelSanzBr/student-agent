@@ -11,6 +11,7 @@ from app.agent import make_llm
 from app.agent.fakes import ScriptedLLM
 from app.agent.gemini import GeminiProvider
 from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
+from app.agent.replay import ReplayLLM
 from app.config import AppSettings
 from app.tools.base import ToolSpec
 from core.clock import monotonic
@@ -193,8 +194,7 @@ async def test_scripted_llm_records_calls_and_make_llm(app_secrets: object) -> N
     assert out[0] is r and out[1].text == "1"
     assert llm.calls[0].messages[0].text == "x" and llm.calls[0].system == "s"
     assert isinstance(make_llm(AppSettings(llm_provider="fake")), ScriptedLLM)
-    with pytest.raises(NotImplementedError):
-        make_llm(AppSettings(llm_provider="auto"))
+    assert isinstance(make_llm(AppSettings(llm_provider="auto")), ReplayLLM)  # sem chave
 
 
 async def test_multi_tool_call_turn_rebuilt_in_single_contents(app_secrets: object) -> None:
