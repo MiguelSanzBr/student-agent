@@ -5,4 +5,4 @@ tools:
   get_protocol:
     outputs: [protocolo, servico, status, aberto_em, prazo, solicitante, historico, de, para, em, mensagens, autor, documentos, tipo, emitido_em, entrega, historico_N, mensagem_N, documento_N, fatura_vinculada, fatura, competencia, vencimento, valor, mensagem]
   draft_protocol:
-    outputs: [rascunho_exibido, rascunho_ja_exibido, servico, taxa, prazo, orientacao, motivo, alternativa, canais, porque_agente_nao_executa, data_limite]
+    outputs: [rascunho_exibido, rascunho_ja_exibido, servico, taxa, prazo, orientacao, motivo, alternativa, canais, porque_agente_nao_executa, data_limite, erro, servicos_validos]
