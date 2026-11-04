@@ -138,3 +138,9 @@ async def test_multi_enrollment_summary_passes_guard(app_secrets: object) -> Non
 async def test_next_due_script_uses_tool_values(app_secrets: object) -> None:
     r = await _turn("Qual é o meu próximo vencimento?", OTHER)
     assert r.guard == "pass" and "12/11/2026" in r.answer and "R$ 477,10" in r.answer, r.answer
+
+
+def test_chips_are_script_keys() -> None:
+    from app.agent.replay import _CHIPS, _SCRIPT, _norm
+
+    assert all(_norm(c) in _SCRIPT for c in _CHIPS)

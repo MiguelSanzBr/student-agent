@@ -74,7 +74,8 @@ _SCRIPT: dict[str, tuple[str, Callable[[Mapping[str, Any]], str]]] = {
     "qual é o meu próximo vencimento?": ("get_financial_summary", _fin_next),
     "quais são minhas atividades no lms?": ("get_lms_activity", _lms),
 }
-# Chips do front (as demais chaves do roteiro respondem, mas não são sugeridas).
+# Chips: grafia de exibição; as chaves de _SCRIPT são normalizadas (casefold), então não dá
+# para derivá-los de lá. Chaves fora daqui (a2a_demo) respondem mas não são sugeridas.
 _CHIPS = ["Quanto eu devo?", "Qual é o meu próximo vencimento?",
           "Quais são minhas atividades no LMS?"]  # fmt: skip
 

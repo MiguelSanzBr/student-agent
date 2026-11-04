@@ -94,7 +94,9 @@ async def test_suggested_lists_recorded_questions(tmp_path: Path) -> None:
     await rec.generate(
         model="m", system="s", messages=[Message("user", "Pergunta B")], tools=[], deadline=1.0
     )
-    assert ReplayLLM(path).suggested()[-2:] == ["Pergunta A", "Pergunta B"]  # após os chips
+    got = ReplayLLM(path).suggested()
+    assert "Pergunta A" in got and "Pergunta B" in got
+    assert got.index("Pergunta A") < got.index("Pergunta B")
 
 
 async def test_auto_without_key_uses_replay(app_secrets: object) -> None:
@@ -112,3 +114,13 @@ async def test_auto_with_key_uses_gemini(app_secrets: object) -> None:
 async def test_replay_provider_ships_recordings(app_secrets: object) -> None:
     s = AppSettings(llm_provider="replay")
     assert isinstance(make_llm(s), ReplayLLM)
+
+
+async def test_hedge_lever_only_wraps_gemini(app_secrets: object) -> None:
+    from app.agent.levers import HedgedLLM
+
+    rep = make_llm(AppSettings(llm_provider="replay", lever_hedge_first_call=True))
+    assert isinstance(rep, ReplayLLM) and callable(rep.suggested)  # chips e faixa preservados
+    gem = make_llm(AppSettings(llm_provider="gemini", gemini_api_key="k" * 32,
+                               lever_hedge_first_call=True))  # fmt: skip
+    assert isinstance(gem, HedgedLLM)

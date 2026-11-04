@@ -6,7 +6,11 @@ from app.config import AppSettings
 
 def make_llm(settings: AppSettings) -> LLMProvider:
     llm = _make_provider(settings)
-    if settings.lever_hedge_first_call:
+    from app.agent.gemini import GeminiProvider
+
+    if settings.lever_hedge_first_call and isinstance(
+        llm, GeminiProvider
+    ):  # replay/fake: sem hedge
         from app.agent.levers import HedgedLLM
 
         c = settings.slo.components["tool_call"]

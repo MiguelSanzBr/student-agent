@@ -15,7 +15,7 @@ def test_levers_off_by_default(app_secrets: Path) -> None:
 
 
 def test_hedge_flag_wraps_provider(app_secrets: Path) -> None:
-    s = AppSettings(lever_hedge_first_call=True, llm_provider="fake")
+    s = AppSettings(lever_hedge_first_call=True, llm_provider="gemini", gemini_api_key="k" * 32)
     assert isinstance(make_llm(s), HedgedLLM)
 
 
