@@ -2,7 +2,6 @@
 são escopados pelo `sub` do JWT; exceções nunca vazam a mensagem original."""
 
 import logging
-import os
 from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
@@ -46,7 +45,6 @@ from app.infra.stores.labels import LabelCache
 from app.service.turn import TurnService
 from core.scope import StudentScope
 
-os.environ.setdefault("OTEL_INSTRUMENTATION_A2A_SDK_ENABLED", "false")
 _a2a_log = logging.getLogger("a2a")  # o SDK loga str(e) das exceções: silencia tudo
 _a2a_log.setLevel(logging.CRITICAL + 1)
 _a2a_log.propagate = False
@@ -59,8 +57,8 @@ NO_ENROLLMENT_TEXT = "Não encontrei matrícula ativa para este acesso."
 TEXT_ONLY = "Envie uma única mensagem de texto."
 
 
-def build_agent_card(settings: AppSettings, base_url: str | None = None) -> AgentCard:
-    url = (base_url or os.environ.get("A2A_PUBLIC_URL", "http://localhost:8000")).rstrip("/")
+def build_agent_card(settings: AppSettings) -> AgentCard:
+    url = settings.a2a_public_url.rstrip("/")
     return AgentCard(
         name="Atendimento ao aluno",
         description=(

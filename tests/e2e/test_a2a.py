@@ -1,5 +1,8 @@
+import asyncio
+import json
 import logging
 from collections.abc import Iterator
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
@@ -14,6 +17,7 @@ from app.api import ROUTERS
 from app.api.auth import issue_token
 from app.config import AppSettings
 from app.tools.base import FERRAMENTA_INDISPONIVEL
+from core.rkey import rkey
 from core.scope import StudentScope
 from tests.e2e import a2a_codes as C
 from tests.unit.redis_fake import FakeRedis
@@ -22,6 +26,7 @@ from tests.unit.turn_env import (
     OTHER,
     SCOPE,
     SUB,
+    HangLLM,
     make_service,
     patch_db,
     scripted,
@@ -126,12 +131,14 @@ def test_identity_in_text_ignored(client: TestClient, settings: AppSettings) -> 
     assert SEEN == [SUB]
 
 
-def test_datapart_rejected(client: TestClient, settings: AppSettings) -> None:
-    p = {"message": {"messageId": "m", "role": "ROLE_USER", "parts": [{"data": {"a": 1}}]}}
-    r = rpc(client, "SendMessage", p, bearer(settings))
-    body = r.json()
-    state = body.get("result", {}).get("task", {}).get("status", {}).get("state")
-    assert "error" in body or state == "TASK_STATE_FAILED"
+@pytest.mark.parametrize(
+    "parts", [[{"data": {"a": 1}}], [{"text": "oi"}, {"text": "de novo"}]], ids=["data", "multi"]
+)
+def test_datapart_rejected(client: TestClient, settings: AppSettings, parts: list[Any]) -> None:
+    p = {"message": {"messageId": "m", "role": "ROLE_USER", "parts": parts}}
+    t = rpc(client, "SendMessage", p, bearer(settings)).json()["result"]["task"]
+    assert t["status"]["state"] == "TASK_STATE_FAILED"
+    assert "única mensagem de texto" in str(t["status"]["message"])
 
 
 def test_draft_refused_over_a2a(settings: AppSettings) -> None:
@@ -171,22 +178,24 @@ def test_ownership_task_methods(client: TestClient, settings: AppSettings, who: 
     ("method", "params", "expected"),
     [
         ("SendStreamingMessage", msg("oi"), C.UNSUPPORTED),
-        ("SubscribeToTask", {"id": "x"}, C.UNSUPPORTED),
+        ("SubscribeToTask", {"id": "TID"}, C.UNSUPPORTED),
         (
             "CreateTaskPushNotificationConfig",
-            {"taskId": "x", "url": "http://x"},
+            {"taskId": "TID", "url": "http://x"},
             C.PUSH_UNSUPPORTED,
         ),
-        ("GetTaskPushNotificationConfig", {"taskId": "x", "id": "y"}, C.PUSH_UNSUPPORTED),
-        ("ListTaskPushNotificationConfigs", {"taskId": "x"}, C.PUSH_UNSUPPORTED),
-        ("DeleteTaskPushNotificationConfig", {"taskId": "x", "id": "y"}, C.PUSH_UNSUPPORTED),
+        ("GetTaskPushNotificationConfig", {"taskId": "TID", "id": "y"}, C.PUSH_UNSUPPORTED),
+        ("ListTaskPushNotificationConfigs", {"taskId": "TID"}, C.PUSH_UNSUPPORTED),
+        ("DeleteTaskPushNotificationConfig", {"taskId": "TID", "id": "y"}, C.PUSH_UNSUPPORTED),
         ("GetExtendedAgentCard", {}, C.EXTENDED_CARD_UNSUPPORTED),
     ],
 )
 def test_ownership_unsupported_methods(
     client: TestClient, settings: AppSettings, who: str, method: str, params: Any, expected: int
 ) -> None:
+    t = send(client, bearer(settings))  # a tarefa é do SUB; "other" aponta para a tarefa alheia
     h = bearer(settings, SUB if who == "owner" else OTHER)
+    params = json.loads(json.dumps(params).replace("TID", t["id"]))
     assert code(rpc(client, method, params, h)) == expected
 
 
@@ -285,12 +294,145 @@ def test_v03_method_names_not_served(client: TestClient, settings: AppSettings) 
 
 
 async def test_task_ttl_and_owner_key(settings: AppSettings) -> None:
-    from core.rkey import rkey
-
     app = make_app(settings, scripted(OK))
     with TestClient(app) as c:
         t = send(c, bearer(settings))
     r = app.state.redis._r
-    ttl = await r.ttl(rkey("a2a_task", SUB, "a2a", t["id"]))
+    ttl = await r.ttl(rkey("a2a_task", SUB, "a2a", f"t:{t['id']}"))
     assert 0 < ttl <= settings.limits.a2a_task_ttl_s == 3600
-    assert await r.exists(rkey("a2a_task", OTHER, "a2a", t["id"])) == 0
+    assert await r.exists(rkey("a2a_task", OTHER, "a2a", f"t:{t['id']}")) == 0
+
+
+def test_client_task_id_cannot_hit_index(client: TestClient, settings: AppSettings) -> None:
+    h = bearer(settings)
+    send(client, h)
+    for tid in ("i", "_index", "t:i"):
+        assert code(rpc(client, "GetTask", {"id": tid}, h)) == C.TASK_NOT_FOUND
+    assert len(rpc(client, "ListTasks", {}, h).json()["result"]["tasks"]) == 1
+
+
+async def test_rejected_task_short_ttl(settings: AppSettings) -> None:
+    app = make_app(settings, scripted(*[OK] * 40))
+    with TestClient(app) as c:
+        for _ in range(settings.limits.msgs_per_min + 1):
+            t = send(c, bearer(settings))
+    assert t["status"]["state"] == "TASK_STATE_REJECTED"
+    ttl = await app.state.redis._r.ttl(rkey("a2a_task", SUB, "a2a", f"t:{t['id']}"))
+    assert 0 < ttl <= 60
+
+
+def test_card_url_from_settings(settings: AppSettings) -> None:
+    card = a2a_mod.build_agent_card(settings)
+    assert card.supported_interfaces[0].url == f"{settings.a2a_public_url}/a2a"
+
+
+def test_exception_never_reaches_spans(
+    settings: AppSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    exp = InMemorySpanExporter()
+    prov = TracerProvider()
+    prov.add_span_processor(SimpleSpanProcessor(exp))
+    trace.set_tracer_provider(prov)  # no-op se outro teste já fixou: o spy abaixo cobre
+    monkeypatch.setattr(trace, "get_tracer", prov.get_tracer)
+
+    async def boom(*a: Any, **k: Any) -> Any:
+        raise RuntimeError(SECRET)
+
+    class Boom(ScriptedLLM):
+        async def generate(self, **k: Any) -> Any:
+            raise RuntimeError(SECRET)
+
+    monkeypatch.setattr(a2a_mod.RedisTaskStore, "get", boom)
+    with TestClient(make_app(settings, Boom([]))) as c:
+        h = bearer(settings)
+        rpc(c, "SendMessage", msg("oi"), h)  # executor/store falham
+        rpc(c, "GetTask", {"id": "x"}, h)  # store falha
+    dump = " ".join(
+        f"{sp.name} {sp.status.description} {dict(sp.attributes or {})} "
+        f"{[dict(e.attributes or {}) for e in sp.events]}"
+        for sp in exp.get_finished_spans()
+    )
+    assert "postgresql" not in dump
+    import a2a.utils.telemetry as tel
+
+    assert tel.otel_enabled is False  # a variável valeu antes do import do SDK
+
+
+class _Spy:
+    """Grava as chamadas a settle do TurnService real e devolve a vaga/ticket para conferência."""
+
+    def __init__(self, svc: Any) -> None:
+        self.calls: list[tuple[Any, Any, bool]] = []
+        orig = svc.settle
+
+        async def settle(adm: Any, result: Any, *, cancelled: bool = False) -> None:
+            self.calls.append((adm, result, cancelled))
+            await orig(adm, result, cancelled=cancelled)
+
+        svc.settle = settle
+
+
+async def _ticket_open(svc: Any, adm: Any) -> bool:
+    return bool(await svc.redis.get(svc.bucket._ticket_key(adm.ticket)))
+
+
+async def test_settle_on_executor_exception(settings: AppSettings) -> None:
+    class Boom(ScriptedLLM):
+        async def generate(self, **k: Any) -> Any:
+            raise RuntimeError(SECRET)
+
+    app = make_app(settings, Boom([]))
+    spy = _Spy(app.state.turns)
+    with TestClient(app) as c:
+        send(c, bearer(settings))
+    ((adm, result, cancelled),) = spy.calls
+    assert result is None and not cancelled
+    assert await slots_in_use(app.state.turns) == 0
+    assert not await _ticket_open(app.state.turns, adm)
+
+
+async def test_rejected_holds_no_slot_or_ticket(settings: AppSettings) -> None:
+    app = make_app(settings, scripted(*[OK] * 40))
+    svc = app.state.turns
+    with TestClient(app) as c:
+        for _ in range(settings.limits.msgs_per_min + 1):
+            t = send(c, bearer(settings))
+    assert t["status"]["state"] == "TASK_STATE_REJECTED"
+    assert await slots_in_use(svc) == 0
+    r = svc.redis._r
+    keys = [k.decode() for k in await r.keys("sa:bucket:*:t:*")]
+    assert keys == []  # nenhum ticket de reserva ficou aberto
+
+
+async def test_cancellation_settles_and_releases(settings: AppSettings) -> None:
+    app = make_app(settings, HangLLM())
+    svc = app.state.turns
+    spy = _Spy(svc)
+    app.state.settings = settings
+    ex = a2a_mod.StudentAgentExecutor(app.state)
+
+    class Q:
+        async def enqueue_event(self, ev: Any) -> None:
+            pass
+
+    from a2a.helpers.proto_helpers import new_text_message
+
+    m = new_text_message("oi", role=1)
+    ctx = SimpleNamespace(
+        message=m, current_task=object(), task_id="t1", context_id="c1",
+        call_context=SimpleNamespace(user=SimpleNamespace(user_name=str(SUB))),
+    )  # fmt: skip
+    task = asyncio.create_task(ex.execute(ctx, Q()))  # type: ignore[arg-type]
+    while not await slots_in_use(svc):
+        await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    ((adm, result, cancelled),) = spy.calls
+    assert cancelled and result is None
+    assert await slots_in_use(svc) == 0 and not await _ticket_open(svc, adm)
