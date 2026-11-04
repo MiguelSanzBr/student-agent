@@ -41,7 +41,7 @@ def simulate_class(
 ) -> ClassQuantiles:
     """Soma, por sorteio: k chamadas que emitem ferramenta (k de `k_tool_calls`) + 1 que responde
     (+1 se o guard pedir retry) + overhead (SQL, guard, infra). Componentes: tool_call, answer_call,
-    overhead. TTFE = 1ª chamada que emite ferramenta (1º `progress`); card (sem ferramenta) = total."""
+    overhead. TTFE = 1ª chamada que emite ferramenta (1º `progress`); card = total."""
     rng = random.Random(seed)
     draw = {k: (lambda v=v: rng.lognormvariate(v.mu, v.sigma)) for k, v in components.items()}
     totals, ttfes = [], []
