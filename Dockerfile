@@ -8,7 +8,10 @@ COPY core ./core
 COPY app ./app
 COPY etl ./etl
 COPY ontology ./ontology
-COPY evals/__init__.py evals/oracle.py ./evals/
+COPY evals/__init__.py evals/oracle.py evals/client.py evals/stats.py evals/preflight.py \
+     evals/tokens.py ./evals/
+COPY evals/golden ./evals/golden
+COPY evals/redteam ./evals/redteam
 COPY evals/replays ./evals/replays
 COPY tests/fixtures/golden.json ./tests/fixtures/golden.json
 COPY scripts ./scripts

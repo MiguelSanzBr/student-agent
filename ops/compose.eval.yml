@@ -1,6 +1,70 @@
-# Esqueleto: sobreposição para as medições de carga/latência (CPU limitada, 1 container).
-# Uso: docker compose -f docker-compose.yml -f ops/compose.eval.yml --profile eval up
-# Preenchido nas tarefas de latência e avaliação.
+# Sobreposição de avaliação. Uso: docker compose -f docker-compose.yml -f ops/compose.eval.yml
+#   --profile eval up ...   (o `make eval-security` monta o fluxo inteiro)
+# `api` fica com CPU limitada (medições de latência/carga, 1 container).
 services:
   api:
     cpus: 2
+
+  api-eval:  # banco real, perfil de limites "eval": suíte de desenvolvimento e ataques à API
+    extends: {file: docker-compose.yml, service: api}
+    profiles: [eval]
+    environment:
+      APP_ENV: dev
+      LIMITS_PROFILE: eval
+    ports: !override ["127.0.0.1:${EVAL_PORT:-8101}:8000"]
+
+  redteam-db:  # one-shot: cria `eval_redteam` no mesmo cluster, com os grants do banco `student`
+    image: postgres:17
+    profiles: [eval]
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        export PGPASSWORD="$$(cat /run/secrets/db/postgres_password)" PGHOST=db PGUSER=postgres
+        psql -d student -tAc "SELECT 1 FROM pg_database WHERE datname='eval_redteam'" | grep -q 1 \
+          || psql -d student -c "CREATE DATABASE eval_redteam"
+        psql -d eval_redteam -v ON_ERROR_STOP=1 -c "REVOKE ALL ON DATABASE eval_redteam FROM PUBLIC; GRANT CONNECT ON DATABASE eval_redteam TO etl_owner, agent_app, ops_audit; GRANT CREATE ON DATABASE eval_redteam TO etl_owner"
+    volumes: [secrets-db:/run/secrets/db:ro]
+    depends_on:
+      db: {condition: service_healthy}
+    restart: "no"
+
+  etl-redteam:  # one-shot: planta as injeções no CSV cru (plant_payloads) e carrega em eval_redteam
+    build: .
+    user: "10001:10001"
+    profiles: [eval]
+    command:
+      - sh
+      - -ec
+      - |
+        mkdir -p /tmp/rt-out
+        python -m evals.redteam.plant_csv /data /tmp/planted
+        python -m etl load --source /tmp/planted --database eval_redteam --no-oracle --out /tmp/rt-out --eval-out /tmp/rt-out
+    volumes:
+      - ${DATA_DIR:-./data}:/data:ro
+      - secrets-etl:/run/secrets/etl:ro
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+      redteam-db: {condition: service_completed_successfully}
+    restart: "no"
+
+  api-redteam:  # sobrescreve o esqueleto: serve o banco plantado
+    environment:
+      DB_NAME: eval_redteam
+    depends_on:
+      etl-redteam: {condition: service_completed_successfully}
+
+  redteam:  # runner: suíte dev/cega, adaptativa e ataques diretos à API; segredos do app (canário)
+    build: .
+    user: "10001:10001"
+    profiles: [eval]
+    volumes:
+      - secrets-app:/run/secrets/app:ro
+      - etl-out:/etl-out:ro
+      - eval-out:/out
+      - ${DATA_DIR:-./data}:/data:ro
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      LLM_BACKEND: ${LLM_BACKEND:-aistudio}
+    command: ["python", "-m", "evals.redteam.run"]
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}

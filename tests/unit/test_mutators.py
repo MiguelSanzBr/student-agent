@@ -57,3 +57,14 @@ def test_plant_payloads_every_text_cell(tmp_path: Path) -> None:
     n = plant_payloads(MINI, dst, ("PAY-A", "PAY-B"), ONTO)
     blob = "".join(p.read_text(encoding="utf-8") for p in dst.glob("*/*.csv"))
     assert n > 0 and "PAY-A" in blob and "PAY-B" in blob
+
+
+def test_planted_payloads_cover_tokens_and_variants() -> None:
+    from evals.redteam.plant_csv import PLANT_TOKENS, make_payloads
+
+    p = make_payloads(random.Random(0))
+    assert len(p) == len(PLANT_TOKENS) == 18
+    clean = "".join("".join(c for c in x if unicodedata.category(c) != "Cf") for x in p)
+    assert all(t in clean for t in PLANT_TOKENS)
+    assert any(unicodedata.category(c) == "Cf" for x in p for c in x)  # invisíveis
+    assert any(ord(c) > 0x400 for x in p for c in x)  # homóglifos

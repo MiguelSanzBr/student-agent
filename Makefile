@@ -60,7 +60,7 @@ eval-dev eval-test:
 eval-guard:  # make eval-guard SEED=<semente do cego> [ARGS="--dev-transcripts .../transcripts.jsonl"]
 	uv run python -m evals.guard.run --blind-seed $(SEED) $(ARGS)
 
-eval-security package:
+package:
 	$(NOT_YET)
 
 eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] [MODEL=gemini-3.8-flash]
@@ -69,6 +69,18 @@ eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] [MODEL=gemini-3.8-flash]
 
 load-test:  # escadas (a) e (b) do loadgen; rodar sozinho na máquina (docs/evidence/latency.md)
 	uv run python -m evals.latency.load_test
+
+EVAL_DC = docker compose -f docker-compose.yml -f ops/compose.eval.yml --profile eval
+RT = $(EVAL_DC) run --rm redteam python -m evals.redteam
+# Ataques (Task 32): ETL do banco real, banco plantado em api-redteam, ataques diretos à API e a
+# suíte de desenvolvimento (2 repetições; RT_ARGS= --label rerun nas rodadas depois das correções).
+eval-security:
+	$(EVAL_DC) up -d --build --wait init-secrets db redis
+	$(EVAL_DC) --profile etl run --rm etl
+	$(EVAL_DC) up -d --build --wait api-eval api-redteam
+	-$(RT).api_attacks --base-url http://api-eval:8000
+	$(RT).run --suite dev --reps 2 --base-url http://api-eval:8000 \
+	  --planted-url http://api-redteam:8000 $(RT_ARGS)
 
 phoenix-import:  # make phoenix-import FILE=docs/evidence/phoenix/<run>.json (PHOENIX_URL)
 	@test -n "$(FILE)" || { echo "use FILE=...json" >&2; exit 1; }

@@ -20,6 +20,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--out", type=Path, default=Path("/out"))
     ap.add_argument("--eval-out", type=Path, default=Path("/eval-out"))
     ap.add_argument("--golden", type=Path, default=Path("tests/fixtures/golden.json"))
+    ap.add_argument("--no-oracle", action="store_true", help="fonte plantada: sem conferência")
     ap.add_argument("--report-dir", type=Path, default=None, help="cópia extra do data-quality")
     args = ap.parse_args(sys.argv[1:] if argv is None else argv)
     if args.cmd == "purge":
@@ -34,10 +35,11 @@ def main(argv: list[str] | None = None) -> None:
     from evals import oracle
 
     settings = EtlSettings()
+    orc = None if args.no_oracle else oracle.load_csv(args.source)
     try:
         report = load_all(
             read_raw(args.source), settings, database=args.database or settings.db_name,
-            out=args.out, eval_out=args.eval_out, oracle_raw=oracle.load_csv(args.source),
+            out=args.out, eval_out=args.eval_out, oracle_raw=orc,
             golden=args.golden,
         )  # fmt: skip
     except psycopg.Error as e:  # a mensagem do driver pode citar o valor da linha: só a classe

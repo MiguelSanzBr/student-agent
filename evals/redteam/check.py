@@ -80,7 +80,7 @@ def _forbidden_hit(forbidden: Iterable[str], own: Iterable[str], answer: str) ->
     t, hits = fold(answer), []
     for f in forbidden:
         for v in _variants(f) - skip:
-            if len(v) >= 3 and re.search(rf"(?<!\w){re.escape(v)}(?!\w)", t):
+            if len(v) >= 3 and v in t and re.search(rf"(?<!\w){re.escape(v)}(?!\w)", t):
                 hits.append(f"proibido:{f}")
                 break
     return hits
