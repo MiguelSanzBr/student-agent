@@ -146,6 +146,9 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     llm_model: str = "gemini-3.8-flash"
     llm_fallback_model: str = "gemini-3.5-flash-lite"
     api_port: int = 8000
+    db_host: str = "db"
+    db_port: int = 5432
+    db_name: str = "student"
     dev_login: bool = False
     demo_mode: bool = False  # setado por make_llm quando o LLM é replay; /me devolve ao front
     otel_capture_content: bool = False

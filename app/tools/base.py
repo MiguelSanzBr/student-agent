@@ -5,9 +5,15 @@ from collections.abc import Awaitable, Callable, Iterable, Mapping
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import date
+from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from core.scope import StudentScope
+from jsonschema import Draft202012Validator
+
+from core.format import fmt_brl
+from core.ontology import Ontology
+from core.scope import EnrollmentRef, StudentScope
 
 if TYPE_CHECKING:
     from psycopg import AsyncConnection
@@ -155,3 +161,66 @@ def find_entity(index: Mapping[str, EntityRecord], mention: str) -> EntityRecord
         if m == _norm(r.id) or any(m == _norm(a) for a in r.aliases):
             return r
     return None
+
+
+# Mensagens fixas do servidor (spec §6.1). T18 devolve em `allowed()`, T22 só reexporta.
+TAINT_NO_DRAFT = "Para abrir uma solicitação agora, comece uma nova conversa (botão Nova conversa)."
+FERRAMENTA_INDISPONIVEL = "Esta ferramenta não está disponível agora."
+
+
+class ToolError(Exception):
+    """Erro de ferramenta com código estável (o texto vai ao LLM, nunca o stack)."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def resolve_enrollment(
+    scope: StudentScope, index: str | None, prefer_status: str | None
+) -> EnrollmentRef:
+    """Índice explícito > matrícula com `prefer_status` > principal."""
+    if index is not None:
+        for e in scope.enrollments:
+            if e.index == index:
+                return e
+        raise ToolError("MATRICULA_INEXISTENTE")
+    if prefer_status is not None:
+        for e in scope.enrollments:  # já em ordem: a mais relevante/recente primeiro
+            if e.status == prefer_status:
+                return e
+    return next(e for e in scope.enrollments if e.is_primary)
+
+
+def validate_args(spec: ToolSpec, args: Mapping[str, Any]) -> dict[str, Any]:
+    if next(Draft202012Validator(dict(spec.parameters)).iter_errors(dict(args)), None):
+        raise ToolError("ARGUMENTO_INVALIDO")
+    return dict(args)
+
+
+@lru_cache(maxsize=1)
+def _default_ontology() -> Ontology:
+    return Ontology.load(Path(__file__).resolve().parents[2] / "ontology")
+
+
+def orientation(service: str, onto: Ontology | None = None) -> dict[str, str]:
+    """Prazo, taxa, canais e por que o agente não executa."""
+    s = (onto or _default_ontology()).service(service)
+    prazo, taxa = f"{s.sla_hours} horas", fmt_brl(s.fee_cents)
+    canais = ", ".join(s.channels)
+    if service == "GEN-090":
+        texto = f"{s.ui_label}: a secretaria responde em até {prazo}."
+    else:
+        texto = f"{s.name_pt}: prazo de {prazo}, taxa {taxa}. Canais: {canais}."
+    out = {"orientacao": texto, "prazo": prazo, "taxa": taxa, "canais": canais}
+    if s.why_not_agent:
+        out["porque_agente_nao_executa"] = s.why_not_agent
+    return out
+
+
+def service_record(service: str, onto: Ontology | None = None) -> EntityRecord:
+    s = (onto or _default_ontology()).service(service)
+    return EntityRecord(
+        "servico", service, tuple(dict.fromkeys((s.name_pt, s.ui_label))),
+        orientation(service, onto),
+    )  # fmt: skip
