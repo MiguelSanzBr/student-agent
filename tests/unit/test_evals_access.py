@@ -33,6 +33,17 @@ async def test_ask_builds_turn_record() -> None:
     assert json.loads(seen[0].content) == {"conversation_id": "conv", "text": "oi"}
 
 
+async def test_ask_parses_crlf_sse() -> None:
+    body = sse(("answer", {"text": "ok"}), ("done", {"status": "ok", "trace_id": "t"}))
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body.replace("\n", "\r\n").encode())
+
+    c = ChatClient("http://api", transport=httpx.MockTransport(handler))
+    rec = await c.ask("jwt", "conv", "oi")
+    assert rec.answer == "ok" and rec.trace_id == "t"
+
+
 async def test_ask_rejected_carries_retry_after() -> None:
     def handler(req: httpx.Request) -> httpx.Response:
         return httpx.Response(503, json={}, headers={"Retry-After": "7"})

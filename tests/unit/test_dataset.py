@@ -38,7 +38,7 @@ def pool(n: int = 800, seed: int = 1) -> list[dict[str, object]]:
 
 
 def test_quotas() -> None:
-    sel = build.select_test_students(students=pool())
+    sel = build.select_test_students(students=pool(), golden_keys=set())
     assert len(sel) == 40 and len({s.person_key for s in sel}) == 40
     assert sum(s.n_matriculas >= 2 for s in sel) >= 3
     for q in QUOTAS:
@@ -47,7 +47,19 @@ def test_quotas() -> None:
         assert sum(s.payer_type == p for s in sel) >= 3, p
     strata = Counter((s.modalidade, s.ativo) for s in sel)
     assert len(strata) == 4 and min(strata.values()) >= 5
-    assert build.select_test_students(students=pool()) == sel  # semente fixa
+    assert build.select_test_students(students=pool(), golden_keys=set()) == sel  # semente fixa
+
+
+def test_default_excludes_golden(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    rows = pool()
+    gl = {"cases": [{"case": i, "person_key": r["person_key"]} for i, r in enumerate(rows[:300])]}
+    (tmp_path / "golden_login.json").write_text(json.dumps(gl))
+    monkeypatch.setenv("ETL_OUT_DIR", str(tmp_path))
+    sel = build.select_test_students(students=rows)  # sem golden_keys: lê o golden_login.json
+    assert not {s.person_key for s in sel} & {r["person_key"] for r in rows[:300]}
+    monkeypatch.setenv("ETL_OUT_DIR", str(tmp_path / "vazio"))
+    with pytest.raises(FileNotFoundError):  # falha alto em vez de não excluir
+        build.select_test_students(students=rows)
 
 
 def test_disjoint_from_golden() -> None:
@@ -153,8 +165,11 @@ def test_hash_covers_plan_score_and_ciphertext(tmp_path: Path) -> None:
     lines = dict(
         reversed(ln.split("  ", 1)) for ln in (GOLD / "dataset.sha256").read_text().splitlines()
     )
-    need = {"evals/golden/analysis_plan.md", "evals/golden/score.py",
-            "evals/golden/templates.yaml"}  # fmt: skip
+    need = {
+        "evals/golden/analysis_plan.md", "evals/golden/score.py", "evals/golden/templates.yaml",
+        "evals/golden/build.py", "evals/oracle.py", "evals/holdout/manifest.json",
+        "evals/holdout/author.pub",
+    }  # fmt: skip
     need |= {f"evals/holdout/{a.name}" for a in HOLD.glob("*.age")}
     assert need <= set(lines)
     for path, digest in lines.items():
@@ -204,3 +219,43 @@ def test_seal_roundtrip(tmp_path: Path) -> None:
 def test_make_stamp_target() -> None:
     mk = (ROOT / "Makefile").read_text()
     assert "stamp:" in mk and "ots stamp evals/golden/dataset.sha256" in mk
+
+
+def test_mutated_categorical_and_multiturn_fail() -> None:
+    items, raw = _items()
+    status = set(o.ENROLLMENT_STATUS_PT.values())
+    n = 0
+    for it in items:
+        if len(it.steps) != 1:
+            continue
+        (t,) = build.ideal_turns(it, raw)
+        for f in it.steps[0].required:
+            if f in status:
+                other = next(x for x in sorted(status) if x != f)
+                bad = t.__class__(**{**t.__dict__, "answer": t.answer.replace(f, other)})
+                assert not score_item(it, [bad]).passed, it.id
+                n += 1
+    assert n > 10
+    n_multi = 0
+    for it in (i for i in items if len(i.steps) > 1):
+        good = build.ideal_turns(it, raw)
+        assert score_item(it, good).passed, it.id
+        for k, st in enumerate(it.steps):
+            if not st.required:
+                continue
+            try:
+                bad = [*good[:k], build.mutate_turn(good[k], random.Random(3)), *good[k + 1 :]]
+            except ValueError:
+                continue
+            assert not score_item(it, bad).passed, it.id  # 1 turno errado reprova o item todo
+            n_multi += 1
+            break
+    assert n_multi >= 8
+
+
+def test_wrong_status_and_other_enrollment_forbidden() -> None:
+    items, raw = _items()
+    t = next(i for i in items if i.id == "ac-01@g1")  # 1 matrícula ativa
+    assert any("trancada" in f for f in t.steps[0].forbidden)
+    t3 = next(i for i in items if i.id == "fi-01@g3")  # 2 matrículas: valores da outra proibidos
+    assert t3.steps[0].forbidden != ()

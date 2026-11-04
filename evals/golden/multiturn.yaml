@@ -46,7 +46,7 @@
     oracle_fn: oracle_financial
     required: oracle
     forbidden:
-    - perdoad
+    - '(?<!não foi )(?<!não está )perdoad'
     expect_draft: false
     expect_refusal: false
   - text: Então quanto falta para quitar?
@@ -65,7 +65,7 @@
     oracle_fn: null
     required: []
     forbidden:
-    - R$
+    - 'r\$'
     expect_draft: false
     expect_refusal: false
   - text: Quero saber o status da minha matrícula.

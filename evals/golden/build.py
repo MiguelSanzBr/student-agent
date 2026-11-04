@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
@@ -23,7 +24,7 @@ import yaml
 
 from evals import oracle as o
 from evals.golden.constants import REFUSAL_PREFIX
-from evals.golden.score import Check, DatasetItem, TurnRecord
+from evals.golden.score import Check, DatasetItem, TurnRecord, fact_rx
 
 ROOT = Path(__file__).resolve().parents[2]
 GOLD = Path(__file__).resolve().parent
@@ -35,6 +36,8 @@ N_TEST = 40
 HASHED = [
     "evals/golden/templates.yaml", "evals/golden/paraphrases.yaml", "evals/golden/multiturn.yaml",
     "evals/golden/analysis_plan.md", "evals/golden/score.py", "evals/golden/constants.py",
+    "evals/golden/build.py", "evals/oracle.py", "evals/holdout/manifest.json",
+    "evals/holdout/author.pub",
 ]  # fmt: skip
 
 __all__ = ["DatasetItem", "EvalStudent", "build_items", "ideal_turns", "select_test_students"]
@@ -59,14 +62,52 @@ def _facts(fns: Sequence[str], args: Mapping[str, Any], raw: o.Raw) -> tuple[str
     return " ".join(p[0] for p in parts), [f for p in parts for f in p[1]]
 
 
+# Zero fatos no gabarito = "não há nada": qualquer valor desse tipo na resposta é inventado.
+_EMPTY_FORBIDS = {
+    "oracle_financial": r"r\$\s*\d",
+    "oracle_catalog": r"r\$\s*\d",
+    "oracle_protocols": r"prt-\d",
+    "oracle_forecast": r"\b\d{4}/[12]\b",
+}
+_NOT_ACTIVE = r"(?<!não )(?<!não está )(?<!\w)ativa(?!\w)"
+
+
+def _auto_forbidden(fns: Sequence[str], args: Mapping[str, Any], enr: Enr, raw: o.Raw) -> list[str]:
+    """Padrões de resposta obviamente errada, derivados do oráculo: status trocado (só para quem
+    tem 1 matrícula), valores exclusivos de outra matrícula da pessoa e valores onde não há nada."""
+    own = o.enrollments(raw)[enr]
+    others = [
+        k for k, e in o.enrollments(raw).items() if e["PERSON_ID"] == own["PERSON_ID"] and k != enr
+    ]
+    out: list[str] = []
+    for fn in fns:
+        mine = o.ideal_answer({"oracle_fn": fn, "args": args}, raw)[1]
+        if not mine and fn in _EMPTY_FORBIDS:
+            out.append(_EMPTY_FORBIDS[fn])
+        for k in others:
+            theirs = o.ideal_answer({"oracle_fn": fn, "args": {**args, "enr": list(k)}}, raw)[1]
+            out += [fact_rx(f) for f in theirs if f not in mine and re.search(r"\d.*[,/]|R\$", f)]
+        if fn == "oracle_courses" and not others:
+            status = own["ENROLLMENT_STATUS"]
+            wrong = [w for st, w in o.ENROLLMENT_STATUS_PT.items() if st != status]
+            out += [fact_rx(w) for w in wrong]
+            if status == "ACTIVE":
+                out.append(fact_rx("inativa"))
+            else:
+                out.append(_NOT_ACTIVE)
+    return out
+
+
 def _check(t: Mapping[str, Any], enr: Enr, raw: o.Raw) -> Check:
     fns = t.get("oracle_fn") or ()
     fns = (fns,) if isinstance(fns, str) else tuple(fns)
     args = {**t.get("args", {}), "enr": list(enr)}
-    required = tuple(_facts(fns, args, raw)[1]) if t.get("required") == "oracle" else ()
+    oracle = t.get("required") == "oracle"
+    required = tuple(_facts(fns, args, raw)[1]) if oracle else ()
+    forbidden = (*t.get("forbidden", ()), *(_auto_forbidden(fns, args, enr, raw) if oracle else ()))
     return Check(
         text=t["text"], expected_tools=tuple(t.get("expected_tools", ())), required=required,
-        forbidden=tuple(t.get("forbidden", ())), expect_draft=bool(t.get("expect_draft")),
+        forbidden=tuple(dict.fromkeys(forbidden)), expect_draft=bool(t.get("expect_draft")),
         expect_refusal=bool(t.get("expect_refusal")), oracle_fns=fns, args=args,
     )  # fmt: skip
 
@@ -157,14 +198,21 @@ def _load_students(path: Path | None = None) -> list[dict[str, Any]]:
     return list(json.loads(p.read_text(encoding="utf-8")))
 
 
+def _load_golden_keys(path: Path | None = None) -> set[str]:
+    """person_keys dos golden (`golden_login.json` do etl-out); falha alto se não existir."""
+    p = path or Path(os.environ.get("ETL_OUT_DIR", "/etl-out")) / "golden_login.json"
+    return {str(c["person_key"]) for c in json.loads(p.read_text(encoding="utf-8"))["cases"]}
+
+
 def select_test_students(
     seed: int = SEED, *, students: Sequence[Mapping[str, Any]] | None = None,
     golden_keys: set[str] | None = None,
 ) -> list[EvalStudent]:  # fmt: skip
     """40 alunos: cotas >= 3 em cada traço raro, o resto distribuído pelos estratos
-    modalidade x {ativo, inativo} (sempre o estrato menos representado). Sem os golden."""
+    modalidade x {ativo, inativo} (sempre o estrato menos representado). Sem os golden (`golden_keys`; por padrão lê
+    o golden_login.json de ETL_OUT_DIR)."""
     rows = students if students is not None else _load_students()
-    gold = golden_keys or set()
+    gold = golden_keys if golden_keys is not None else _load_golden_keys()
     pool = [EvalStudent(**{k: r[k] for k in EvalStudent.__dataclass_fields__})
             for r in rows if r["person_key"] not in gold]  # fmt: skip
     pool.sort(key=lambda s: s.person_key)

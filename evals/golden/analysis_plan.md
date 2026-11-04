@@ -41,8 +41,15 @@ Reportados com IC pelo mesmo bootstrap de dois fatores: recusa correta (itens
 fixo `REFUSAL_PREFIX`) e itens de cruzamento.
 
 ## 8. Sensibilidade
-pass@1 corrigido pela validação do scorer (secao 12): VPP e VPN entram como Beta (Wilson como
-prior de largura) e propagam-se ao bootstrap; IC por bootstrap x Beta.
+pass@1 corrigido pela validação do scorer (seção 12). A validação rende contagens
+TP, FP (aprovadas pelo scorer que o autor rotulou erradas/corretas) e TN, FN (idem nas
+reprovadas). Priors: VPP ~ Beta(1 + TP, 1 + FP) e VPN ~ Beta(1 + TN, 1 + FN), com prior
+uniforme Beta(1, 1). Em cada réplica b do bootstrap de dois fatores (seção 2), com pass@1
+observado p_b, sorteia-se (vpp_b, vpn_b) das duas Betas e calcula-se
+`p_corr_b = vpp_b * p_b + (1 - vpn_b) * (1 - p_b)`. O IC de 95% é o percentil 2,5 e 97,5 das
+10.000 réplicas de `p_corr_b`. Como VPP e VPN são condicionais ao rótulo do scorer, a
+amostra 24/6 (não proporcional) não os enviesa. O intervalo de Wilson (95%) só é reportado
+para o próprio VPP e VPN.
 
 ## 9. Escolha do modelo
 Na 1ª rodada do dev, com margem pareada >= 3 p.p. em pass@1 (mesmos itens), vence o modelo mais
@@ -60,8 +67,12 @@ resposta errada), guard bloqueou resposta certa (rascunho pré-guard passa no sc
 indevida, ou gabarito (marcado à mão). O estágio vira o `label` da anotação no Phoenix.
 
 ## 12. Validação do scorer
-O autor rotula às cegas 30 respostas do teste: 24 aprovadas e 6 reprovadas pelo scorer
-(sorteio com semente fixa). Saem VPP e VPN com intervalo de Wilson.
+Do teste (1ª execução no SHA congelado), ordenam-se os itens por `item_id` e estratificam-se
+por categoria. Sorteiam-se 24 itens aprovados e 6 reprovados pelo scorer com
+`random.Random(20261104)`; a alocação por categoria é proporcional ao número de itens da
+categoria em cada grupo (aprovados/reprovados), arredondada pelo método do maior resto. Se
+houver menos de 6 reprovações, entram todas e os aprovados completam 30. O autor rotula às
+cegas (vê pergunta e resposta, não o veredito); saem TP/FP/TN/FN, VPP e VPN com Wilson.
 
 ## 13. Juiz
 Rubrica binária com gabarito, rodada sobre o teste **só para medir a concordância (kappa) com o
@@ -69,8 +80,11 @@ scorer**. Não é métrica de qualidade e não entra em nenhuma meta.
 
 ## 14. Efeitos do 2º nível de corte
 O 2º nível de corte (degradação do agente sob pressão de custo/latência) é analisado nos
-roteiros-núcleo (multi-turno 1 a 4): reporta-se pass dos 4 núcleos com e sem o 2º nível, por
-contagem exata (n = 4 x alunos), sem inferência além do IC de dois fatores.
+roteiros-núcleo (multi-turno mt-01 a mt-04). Unidade: o item (roteiro x aluno). O n é a soma
+dos itens desses 4 roteiros nos alunos aos quais se aplicam (mt-02 só vale para aluno ativo;
+os demais para todos os 40), no máximo 160. Compara-se o pass dos itens com e sem o 2º nível,
+pareado por item, com teste exato de McNemar nos pares discordantes e a diferença pareada
+com IC por bootstrap só no eixo aluno (cluster). Sem meta; descritivo.
 
 ## 15. Rodadas do teste
 Toda rodada do teste (inclusive abortada ou repetida por vazamento) é contada e declarada em
@@ -81,5 +95,36 @@ Toda rodada do teste (inclusive abortada ou repetida por vazamento) é contada e
   ferramentas ou guard) e cifrados com `age` para a chave pública do autor
   (`evals/holdout/author.pub`). Só o `.age` e o `manifest.json` ficam no git.
 - Fatos exigidos (`required`) vêm só do oráculo (`oracle_fn`); nenhum template os escreve.
-- Os 40 alunos de teste (semente 20261103) são disjuntos dos 10 golden.
+- Os 40 alunos de teste (`select_test_students`, semente 20261103) excluem os person_keys do
+  `golden_login.json`; estratos modalidade x {ativo, inativo}; cotas >= 3 nos oito traços.
 - 20 itens sorteados do dataset são conferidos à mão pelo autor (`oracle_check.csv`).
+- Texto por item: o **texto base** (`text`) de cada template, em toda rodada primária. As
+  paráfrases entram só numa rodada secundária de robustez (não é o primário): cada item usa a
+  paráfrase de índice `int(sha256(item_id)[:8], 16) % len(paraphrases)`; templates sem
+  paráfrase mantêm o texto base.
+- Matrícula por aluno: o oráculo avalia uma matrícula por item. Para aluno com 2+ matrículas, a
+  escolhida é a de menor (marca, RA) entre as ATIVAS se o aluno é ativo, senão a de menor
+  (marca, RA) entre todas. O texto do template não nomeia a matrícula; um agente que pergunta
+  "qual matrícula?" em vez de responder reprova o item (contado, não corrigido).
+- Regra `student` (`_applies` em `build.py`): template ou roteiro com `student: ativo` só
+  gera item para aluno cuja matrícula escolhida tem `ENROLLMENT_STATUS == ACTIVE`; com
+  `student: inativo`, só para os demais. Sem o campo, vale para todos. Logo o denominador por
+  template varia e é declarado.
+
+## 17. Escopo e limites do scorer
+O scorer é determinístico: fatos exigidos (do oráculo) com fronteiras de palavra e
+multiplicidade, datas por extenso normalizadas, **fato negado na mesma oração não conta**
+("não está ativa" não satisfaz "ativa"), padrões `forbidden` (regex) e ferramentas, rascunho e
+recusa (prefixo fixo; recusa com valor em R$ ou data inventados reprova). O `forbidden`
+automático do `build.py` inclui: status trocado (alunos com 1 matrícula), valores exclusivos da
+outra matrícula da pessoa e valores monetários/datas onde o gabarito é "nada".
+Leniência residual declarada: (a) negação fora da oração do fato ou parafraseada
+("deixou de estar ativa") pode passar; (b) fatos soltos corretos ao lado de afirmações extras
+erradas não detectadas pelos padrões passam; (c) o `forbidden` é estrito demais quando o
+agente cita legitimamente a outra matrícula (reprova). A validação 24/6 (seção 12) mede (a) e
+(b) como VPP/VPN; a seção 8 propaga essa incerteza.
+
+## 18. Nota datada sobre o carimbo
+2026-11-04: o carimbo OpenTimestamps (`dataset.sha256.ots`) está **pendente por decisão do
+autor** (publica o hash em servidores externos). Até o carimbo existir, o commit git que
+contém este arquivo e o `dataset.sha256` é a única prova temporal do pré-registro.

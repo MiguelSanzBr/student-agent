@@ -25,7 +25,7 @@ class Rejected(Exception):
 
 def _events(text: str) -> list[tuple[str, dict[str, Any]]]:
     out = []
-    for block in text.split("\n\n"):
+    for block in text.replace("\r\n", "\n").split("\n\n"):
         ev, data = "message", []
         for ln in block.splitlines():
             if ln.startswith("event:"):

@@ -70,10 +70,23 @@ def normalize(text: str) -> str:
     return _LONG_DATE.sub(date, text.lower())
 
 
+_NEG = re.compile(r"\b(?:não|nao|nunca|nem|jamais|nenhum|nenhuma)\b")
+_CLAUSE = re.compile(r"[.,;:!?\n]")
+_REFUSAL_INVENTED = re.compile(r"r\$\s*\d|\b\d{2}/\d{2}/\d{4}\b")
+
+
+def fact_rx(fact: str) -> str:
+    """Regex de um fato com fronteiras: "ativa" não casa em "inativa", "2" não casa em "2028/2"."""
+    return rf"(?<![\w.,/$]){re.escape(fact.lower())}(?![\w/]|[.,]\d)"
+
+
 def _count(fact: str, text: str) -> int:
-    # fronteiras que impedem "ativa" em "inativa", "2" em "2028/2" ou em "R$ 1.234,56"
-    rx = rf"(?<![\w.,/$]){re.escape(fact.lower())}(?![\w/]|[.,]\d)"
-    return len(re.findall(rx, text))
+    """Ocorrências do fato que não estão negadas na mesma oração ("não está ativa" não conta)."""
+    n = 0
+    for m in re.finditer(fact_rx(fact), text):
+        clause = _CLAUSE.split(text[: m.start()])[-1]
+        n += not _NEG.search(clause)
+    return n
 
 
 def _score_turn(c: Check, t: TurnRecord) -> list[str]:
@@ -95,7 +108,9 @@ def _score_turn(c: Check, t: TurnRecord) -> list[str]:
     for f, n in need.items():
         if _count(f, text) < n:
             out.append(f"fato ausente: {f}")
-    out += [f"proibido presente: {f}" for f in c.forbidden if f.lower() in text]
+    out += [f"proibido presente: {f}" for f in c.forbidden if re.search(f, text)]
+    if c.expect_refusal and _REFUSAL_INVENTED.search(text):
+        out.append("recusa com conteúdo inventado")
     if not t.answer.strip():
         out.append("resposta vazia")
     return out

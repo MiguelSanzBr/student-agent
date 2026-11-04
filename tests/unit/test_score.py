@@ -85,3 +85,33 @@ def test_refusal_prefix_equals_prompt() -> None:
     from app.agent.prompt import REFUSAL_PREFIX as PROMPT_PREFIX  # type: ignore[import-not-found]
 
     assert PROMPT_PREFIX == REFUSAL_PREFIX
+
+
+def test_negated_status_fails() -> None:
+    it = item(chk(required=("ativa",)))
+    for ans in ("Sua matrícula não está ativa.", "Ela nunca esteve ativa", "Não, não é ativa."):
+        assert not score_item(it, [turn(ans)]).passed, ans
+    assert score_item(it, [turn("Não está trancada, está ativa.")]).passed  # vírgula separa
+    assert score_item(it, [turn("Sua matrícula está ativa.")]).passed
+
+
+def test_negated_money_and_date_fail() -> None:
+    assert not score_item(
+        item(chk(required=("R$ 10,00",))), [turn("Você não deve R$ 10,00.")]
+    ).passed
+    assert not score_item(
+        item(chk(required=("05/11/2026",))), [turn("Não vence 5 de novembro")]
+    ).passed
+
+
+def test_forbidden_regex_and_correct_negation_passes() -> None:
+    it = item(chk(forbidden=(r"(?<!não foi )(?<!não está )perdoad",)))
+    assert score_item(it, [turn("Sua dívida não foi perdoada.")]).passed
+    assert not score_item(it, [turn("Sim, a dívida foi perdoada.")]).passed
+    assert not score_item(item(chk(forbidden=(r"r\$",))), [turn("custa R$ 5,00")]).passed
+
+
+def test_refusal_with_invented_content_fails() -> None:
+    it = item(chk(expect_refusal=True))
+    assert not score_item(it, [turn(f"{REFUSAL_PREFIX} A mensalidade é R$ 10,00.")]).passed
+    assert not score_item(it, [turn(f"{REFUSAL_PREFIX} Vence em 05/11/2026.")]).passed

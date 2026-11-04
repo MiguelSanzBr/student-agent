@@ -344,7 +344,7 @@
   oracle_fn: oracle_financial
   required: oracle
   forbidden:
-  - perdoad
+  - '(?<!não foi )(?<!não está )perdoad'
   expect_draft: false
   expect_refusal: false
 - id: pf-02
@@ -355,7 +355,8 @@
   - get_curriculum_progress
   oracle_fn: oracle_forecast
   required: oracle
-  forbidden: []
+  forbidden:
+  - '(?<!não )termina este ano'
   expect_draft: false
   expect_refusal: false
 - id: fc-01
@@ -408,7 +409,7 @@
   oracle_fn: null
   required: []
   forbidden:
-  - R$
+  - 'r\$'
   expect_draft: false
   expect_refusal: false
 - id: am-02
@@ -419,7 +420,7 @@
   oracle_fn: null
   required: []
   forbidden:
-  - R$
+  - 'r\$'
   expect_draft: false
   expect_refusal: false
 - id: sr-01
@@ -430,7 +431,7 @@
   oracle_fn: null
   required: []
   forbidden:
-  - R$
+  - 'r\$'
   expect_draft: false
   expect_refusal: false
 - id: sr-02
@@ -441,7 +442,7 @@
   oracle_fn: null
   required: []
   forbidden:
-  - R$
+  - 'r\$'
   expect_draft: false
   expect_refusal: false
 - id: fe-01
