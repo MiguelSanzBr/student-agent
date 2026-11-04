@@ -25,3 +25,94 @@ def test_summarize_checks_every_quantile_against_targets() -> None:
     assert rep["cost_per_turn_usd"] == 0.002 and rep["budget_exceeded_rate"] == 0.0
     assert rep["cache_ratio"] == 0.1
     assert "answer_call" in rep["classes"]["card"]["cascade"]
+
+
+def test_summarize_empty_class_and_empty_samples() -> None:
+    import pytest
+
+    rep = summarize(_samples(30, "card", 4.0, 4.0), seed=1, n_boot=50)
+    assert rep["classes"]["2+"] == {"n": 0, "pass": False}  # classe sem amostra reprova
+    with pytest.raises(ValueError):
+        summarize([], seed=1)
+
+
+def test_sim_runner_needs_allow_sim_and_is_marked(tmp_path, capsys) -> None:
+    import json
+
+    from evals.latency.bench import main
+
+    args = [
+        "--per-class",
+        "10",
+        "--window",
+        "A",
+        "--runner",
+        "sim",
+        "--out",
+        str(tmp_path / "o.json"),
+    ]
+    assert main(args) == 2 and not (tmp_path / "o.json").exists()
+    assert main([*args, "--allow-sim"]) == 0
+    assert json.loads((tmp_path / "o.json").read_text())["simulated"] is True
+
+
+def test_default_runner_is_http() -> None:
+    import inspect
+
+    from evals.latency import bench
+
+    src = inspect.getsource(bench.main)
+    assert 'default="http"' in src
+
+
+def test_class_of_and_pick_items() -> None:
+    from types import SimpleNamespace as NS
+
+    from evals.latency.bench import class_of, pick_items
+
+    assert [class_of(n) for n in (0, 1, 2, 5)] == ["card", "1", "2+", "2+"]
+
+    def it(i: str, sid: str, n: int, steps: int = 1) -> NS:
+        return NS(id=f"{i}@{sid}", steps=[NS(expected_tools=("t",) * n)] * steps)
+
+    items = [it("a", "s1", 0), it("a", "s2", 0), it("b", "s1", 1), it("c", "s2", 3),
+             it("m", "s1", 1, steps=2)]  # fmt: skip
+    plan = pick_items(items, 4)
+    assert {c: len(v) for c, v in plan.items()} == {"card": 4, "1": 4, "2+": 4}
+    assert {x.id.rsplit("@")[-1] for x in plan["card"]} == {"s1", "s2"}  # alterna os alunos
+    assert all(len(x.steps) == 1 for v in plan.values() for x in v)  # multi-turno fica de fora
+
+
+async def test_ask_timed_reads_sse_debug_and_ttfe() -> None:
+    import json
+    from datetime import date
+
+    import httpx
+
+    from evals.latency.bench import ask_timed
+
+    dbg = {"tools_class": "1", "model": "gemini-3.8-flash", "timings_ms": {
+        "total": 5, "llm": 3000, "tools": 100, "guard": 5},
+        "usage": {"input_tokens": 1000, "output_tokens": 100, "thinking_tokens": 0,
+                  "cached_tokens": 200}}  # fmt: skip
+
+    def ev(n: str, d: dict) -> str:
+        return f"event: {n}\ndata: {json.dumps(d)}\n\n"
+
+    body = (ev("meta", {}) + ev("progress", {}) + ev("answer", {"text": "x"}) + ev("debug", dbg)
+            + ev("done", {"status": "ok"}))  # fmt: skip
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body.encode())
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://t") as h:
+        s = await ask_timed(h, "tok", "c", "oi", student="s1", on=date(2026, 10, 31))
+    assert s is not None and s.cls == "1" and s.status == "ok" and s.model == "gemini-3.8-flash"
+    assert 0 <= s.ttfe_s <= s.total_s and s.cached == 200 and s.input_tokens == 1000
+    assert s.components_s["llm"] == 3.0 and s.cost_usd > 0
+
+    def rej(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, headers={"Retry-After": "3"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(rej), base_url="http://t") as h:
+        assert await ask_timed(h, "tok", "c", "oi", student="s1", on=date(2026, 10, 31)) is None

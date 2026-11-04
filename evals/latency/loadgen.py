@@ -2,7 +2,7 @@
 
 import math
 import random
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 
@@ -25,6 +25,7 @@ class StepResult:
     retries: int
     cut: int
     latencies: list[float] = field(default_factory=list)  # só dos admitidos
+    reasons: Mapping[str, int] = field(default_factory=dict)  # recusas por motivo (quota, slots...)
 
     @property
     def p95(self) -> float:
@@ -69,16 +70,26 @@ def run_ladder(
     return LadderResult(steps)
 
 
-def ladder_a_pass(result: LadderResult, baseline_p95: float) -> bool:
-    """Escada (a): goodput em platô (o último degrau não cai abaixo de 90% do pico); toda rejeição
-    é 503 com Retry-After; retries ≤ 10%; cortes ≤ 0,5%; p95 dos admitidos no degrau mais alto
-    (2× a cota) ≤ 1,1 × baseline."""
+def ladder_a_pass(
+    result: LadderResult, baseline_p95: float, *, plateau: float = 0.9, p95_factor: float = 1.1,
+    retry_max: float = 0.10, cut_max: float = 0.005,
+) -> bool:  # fmt: skip
+    """Escada (a): goodput em platô (o último degrau não cai abaixo de `plateau` do pico); toda
+    rejeição é 503 com Retry-After; retries ≤ `retry_max`; cortes ≤ `cut_max`; p95 dos admitidos no
+    degrau mais alto (2× a cota) ≤ `p95_factor` × baseline; nesse degrau há recusas e a maioria é
+    pelo motivo `quota` (senão mediu as vagas, não o limitador). Padrões =
+    `model_constants.ladder_a`
+    do slo_targets.yaml (teste os amarra). Escada vazia ou sem admitidos no topo não passa."""
     s = result.steps
+    if not s or s[-1].ok == 0:
+        return False
     top = s[-1]
     return (
-        top.ok >= 0.9 * max(x.ok for x in s)  # duração igual por degrau: ok compara goodput
+        top.ok >= plateau * max(x.ok for x in s)  # duração igual por degrau: ok compara goodput
         and all(x.rejected_no_retry_after == 0 for x in s)
-        and all(x.retries <= 0.10 * x.sent for x in s)
-        and all(x.cut <= 0.005 * x.sent for x in s)
-        and top.p95 <= 1.1 * baseline_p95
+        and all(x.retries <= retry_max * x.sent for x in s)
+        and all(x.cut <= cut_max * x.sent for x in s)
+        and top.p95 <= p95_factor * baseline_p95
+        and top.rejected > 0
+        and top.reasons.get("quota", 0) > 0.5 * top.rejected
     )

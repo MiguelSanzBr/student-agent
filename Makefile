@@ -86,12 +86,26 @@ eval-guard:  # cego medido 1x (semente pré-registrada); ARGS="--dev-transcripts
 package:  # MODE=a|b (ver scripts/package.sh)
 	@bash scripts/package.sh
 
-eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] [MODEL=gemini-3.8-flash]
+# Latência (Task 33): o runner roda em container (segredos do app para o JWT, ETL_OUT_DIR, dados em
+# /data); a API alvo é a de perfil eval (api-eval; API_URL=... troca) iniciada com LLM_MODEL=$(MODEL).
+LAT = $(EVAL_DC) run --build --rm -e EVAL_OUT_DIR=/out redteam python -m evals.latency
+eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] MODEL=gemini-3.8-flash [ARGS=...]
 	@test -n "$(WINDOW)" || { echo "use WINDOW=A|B|C" >&2; exit 1; }
-	uv run python -m evals.latency.bench --window $(WINDOW) --per-class $(or $(N),100) $(if $(MODEL),--model $(MODEL))
+	$(LAT).bench --window $(WINDOW) --per-class $(or $(N),100) --data /data/dados.zip \
+	  --base-url $(or $(API_URL),http://api-eval:8000) --model $(or $(MODEL),gemini-3.8-flash) $(ARGS)
 
-load-test:  # escadas (a) e (b) do loadgen; rodar sozinho na máquina (docs/evidence/latency.md)
-	uv run python -m evals.latency.load_test
+# Escadas (a) e (b) contra a API (LLM_PROVIDER=loadtest, Redis e limitador reais), sem gastar:
+# make load-test LANE=d [LADDER=a|b] [WORKERS=1|2] [CPUS=1.0] [ARGS=--duration 30]; roda sozinho na
+# máquina; a raia fica de pé (make lane-down LANE=x). Precisa do ETL carregado na raia (`etl` com DATA_SRC=...), que grava o golden_login.json.
+LDC = $(LANE_ENV) UVICORN_WORKERS=$(or $(WORKERS),1) API_CPUS=$(or $(CPUS),1.0) \
+      SLO_FILE=$(LANE_DIR)-slo.yaml docker compose -f docker-compose.yml -f ops/compose.lane.yml -f ops/compose.eval.yml -f ops/compose.load.yml --profile eval
+load-test:
+	@test -n "$(call lv,API_PORT)" || { echo "use LANE=a|b|c|d" >&2; exit 1; }
+	uv run python -m evals.latency.load_test --ladder $(or $(LADDER),a) --write-slo $(LANE_DIR)-slo.yaml
+	$(LDC) up -d --build --wait api
+	@$(LDC) run --build --rm --no-deps -e EVAL_OUT_DIR=/out redteam python -m evals.latency.load_test \
+	  --base-url http://api:8000 --ladder $(or $(LADDER),a) --workers $(or $(WORKERS),1) $(ARGS); \
+	  rc=$$?; $(LDC) rm -sf api; exit $$rc
 
 EVAL_DC = docker compose -f docker-compose.yml -f ops/compose.eval.yml --profile eval
 RT = $(EVAL_DC) run --rm --build redteam python -m evals.redteam

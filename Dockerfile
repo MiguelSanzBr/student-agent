@@ -27,6 +27,7 @@ COPY evals/holdout/__init__.py evals/holdout/verify.py evals/holdout/manifest.js
 # o guard importa perturb_dev, que usa estes fixtures de teste
 COPY tests/__init__.py ./tests/__init__.py
 COPY tests/fixtures/__init__.py tests/fixtures/entity_records.py ./tests/fixtures/
+COPY evals/latency ./evals/latency
 USER 10001
 
 FROM base AS api

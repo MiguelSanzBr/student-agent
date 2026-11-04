@@ -1,0 +1,15 @@
+# Escadas de carga (make load-test): a API com o LoadTestLLM no lugar do Gemini (nada é gasto),
+# Redis/limitador/vagas reais, sem limite por aluno (perfil "load"), workers e CPUs por variável.
+# Escada (b): SLO_FILE aponta para o yaml sem limitador (load_test --write-unlimited).
+services:
+  api:
+    cpus: ${API_CPUS:-1.0}
+    command: ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers $${UVICORN_WORKERS:-1}"]
+    environment:
+      APP_ENV: dev
+      LIMITS_PROFILE: ${LIMITS_PROFILE:-load}  # eval no smoke do bench (evento debug)
+      LLM_PROVIDER: loadtest
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
+      SLO_TARGETS_PATH: /slo/slo_targets.yaml
+    volumes:
+      - ${SLO_FILE:-./slo_targets.yaml}:/slo/slo_targets.yaml:ro
