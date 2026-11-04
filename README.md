@@ -5,6 +5,8 @@ A segurança é de arquitetura (RLS forçado, ferramentas sem identidade, texto 
 
 ## Resultados
 
+Modelo medido: `claude-haiku-5-5` (Anthropic). Gemini e OpenAI têm adaptador, mas não foram medidos. O teste cego ainda não rodou ("a medir"). Na dev, o pass@1 foi de <!-- num:quality.dev.r1.pass1 -->49,1% [36,9%; 61,2%]<!-- /num --> para <!-- num:quality.dev.r2.pass1 -->62,4% [49,6%; 74,5%]<!-- /num --> e <!-- num:quality.dev.r3.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> em duas iterações de prompt. A meta (limite inferior de 85%) não foi atingida.
+
 <!-- chaves esperadas: quality.dev.pass1, quality.test.pass1, quality.seen.pass1, quality.unseen.pass1, security.holdout.behavior.success, latency.two_plus.p95 -->
 | Número (IC 95%) | Desenvolvimento | Teste |
 |---|---|---|
@@ -12,6 +14,8 @@ A segurança é de arquitetura (RLS forçado, ferramentas sem identidade, texto 
 | pass@1 em templates vistos × não vistos | <!-- num:quality.seen.pass1 -->a medir<!-- /num --> | <!-- num:quality.unseen.pass1 -->a medir<!-- /num --> |
 | Ataques de comportamento bem-sucedidos (holdout cego) | | <!-- num:security.holdout.behavior.success -->a medir<!-- /num --> |
 | Latência p95, turnos com 2 ou mais ferramentas | | <!-- num:latency.two_plus.p95 -->7,34 s<!-- /num --> |
+
+Ataques de comportamento na dev: <!-- num:security.dev.behavior.success -->2/40 templates (Wilson 95%: 1,4% a 16,5%)<!-- /num -->. Recall do guard no conjunto cego: <!-- num:guard.blind_recall -->91,8% [78,8%; 100,0%]<!-- /num -->, com <!-- num:guard.false_block -->0/43 (0,0% [0,0%; 8,2%])<!-- /num --> bloqueios indevidos.
 
 Método, limites e o que não foi medido: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

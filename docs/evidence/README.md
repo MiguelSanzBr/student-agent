@@ -1,17 +1,17 @@
 # Evidências
 
-Cada arquivo de evidência é gerado por script, com um `.json` de números e um `.md` legível (os que ainda não existem estão marcados "A gerar"). Os números de `README.md` e de `docs/ARCHITECTURE.md` vêm desses JSONs por `scripts/render_docs.py` (que também grava `numbers.json`); nenhum é digitado à mão. Os resultados de avaliação são publicados como saíram, inclusive quando ficam abaixo da meta. `make publish-evidence` copia as saídas públicas dos runners (security, latência, escada a) do volume para esta pasta; `python scripts/render_docs.py` renderiza os números (o guard grava em `quality/guard/`).
+Cada arquivo de evidência é gerado por script, com um `.json` de números e um `.md` legível (os que ainda não existem estão marcados "A gerar"). Modelo sob teste: `claude-haiku-5-5`. Rodadas reais já publicadas: dev 1 a 3, guard, ataques e janela A de latência. Teste cego, janelas B e C e carga: a medir. Os números de `README.md` e de `docs/ARCHITECTURE.md` vêm desses JSONs por `scripts/render_docs.py` (que também grava `numbers.json`); nenhum é digitado à mão. Os resultados de avaliação são publicados como saíram, inclusive quando ficam abaixo da meta. `make publish-evidence` copia as saídas públicas dos runners (security, latência, escada a) do volume para esta pasta; `python scripts/render_docs.py` renderiza os números (o guard grava em `quality/guard/`).
 
 ## Arquivos
 
 | Arquivo | Conteúdo | Estado |
 |---|---|---|
 | `data-quality` | Contagens da carga (SQL contra memória), resolução por regra, invariantes, cobertura | Gerado |
-| `spikes` | Comportamento medido do A2A 1.0, do LangGraph e do Phoenix; versões fixadas | Gerado; o LLM real está pendente por falta de chave |
-| `quality` | pass@1 com IC, vistos e não vistos, recusa, cruzamento, erro por causa | A gerar (`make eval-dev`, `make eval-test`; exige chave) |
-| `guard` | Recall por tipo, bloqueio indevido, perturbação cega | A gerar (`make eval-guard`); ver a nota sobre o conjunto cego |
-| `security` | Testes de arquitetura e ataques com LLM real | A gerar (`make eval-security`; exige chave) |
-| `latency` | Previsto contra medido por classe, cascata por componente, carga, custo | `latency.md` traz os critérios, escritos antes das rodadas; resultados a gerar (`make eval-latency`, `make load-test`) |
+| `spikes` | Comportamento medido do A2A 1.0, do LangGraph e do Phoenix; versões fixadas | Gerado |
+| `quality` | pass@1 com IC, vistos e não vistos, recusa, cruzamento, erro por causa | Dev 1 a 3 gerados (`quality/dev-r{1,2,3}`, `rounds.jsonl`); teste a gerar (`make eval-test`) |
+| `guard` | Recall por tipo, bloqueio indevido, perturbação cega | Gerado (`quality/guard/`); ver a nota sobre o conjunto cego e o viés da seção "rascunhos do dev × scorer" |
+| `security` | Testes de arquitetura e ataques com LLM real | Gerado: dev e rodada plantada; holdout cego a gerar. Rotulagem do autor pendente |
+| `latency` | Previsto contra medido por classe, cascata por componente, carga, custo | `latency.md` traz os critérios, escritos antes das rodadas; `latency-A.json` (300 turnos reais) gerado; janelas B e C e carga a gerar (`make eval-latency`, `make load-test`) |
 | `conversations` | Roteiros do vídeo e falhas rotuladas | A gerar |
 | `observability` | Spans, anotações e métricas | `observability.md` traz o smoke contra um Phoenix real; a rodada de teste fica a gerar |
 | `graph.md` | Grafo gerado por `draw_mermaid` | Gerado |
@@ -38,7 +38,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 
 ## Integridade da avaliação cega do guard
 
-Em 2026-11-04, um smoke do runner do guard mediu o conjunto cego real em um volume descartável (código em 3d67e20). O smoke é divulgado com o SHA e sem o número: o número oficial vem da rodada oficial. Com o mesmo guard e a mesma semente, ele reproduz o do smoke; divergência indicaria que o guard mudou, e então os dois números serão reportados. A semente do conjunto cego está fixa em `evals/guard/run.py` (`BLIND_SEED`) e o runner grava um marcador de medição única.
+Em 2026-11-04, um smoke do runner do guard mediu o conjunto cego real em um volume descartável (código em 3d67e20). O smoke é divulgado com o SHA e sem o número: o número oficial está em `quality/guard/guard.md`. A rodada oficial (semente 20261106, guard congelado) reproduziu o ponto e os controles do smoke. Divergência indicaria que o guard mudou, e então os dois números seriam reportados. A semente do conjunto cego está fixa em `evals/guard/run.py` (`BLIND_SEED`) e o runner grava um marcador de medição única.
 
 ## Evidência do fluxo web
 
