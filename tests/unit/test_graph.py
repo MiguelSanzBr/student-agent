@@ -427,7 +427,11 @@ async def test_degraded_mode_two_rounds_no_retry() -> None:
 async def test_eval_profile_never_degrades() -> None:
     step = R(None, C("get_financial_summary"))
     llm = ScriptedLLM([step] * 3 + [R("Você deve R$ 1,00."), R(OK)])
-    r = await run(llm, spend_level="degraded", settings=AppSettings(limits_profile="eval"))
+    r = await run(
+        llm,
+        spend_level="degraded",
+        settings=AppSettings(limits_profile="eval", llm_provider="gemini"),
+    )
     assert r.llm_calls == 5 and not r.cost_degraded and r.guard == "retry_pass"
 
 

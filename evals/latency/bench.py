@@ -248,11 +248,15 @@ async def http_runner(a: argparse.Namespace) -> list[Sample]:
                     await asyncio.sleep(2.0)  # admissão recusada: não é amostra
                 else:
                     raise SystemExit("admissão não liberou o turno")
-                if not out and not smp.model.startswith(a.model):
-                    raise SystemExit(f"a API roda {smp.model!r}, não {a.model!r}: suba-a com "
-                                     f"LLM_MODEL={a.model}")  # fmt: skip
+                if not out:
+                    check_served_model(smp.model, a.model)
                 out.append(smp)
     return out
+
+
+def check_served_model(served: str, wanted: str) -> None:
+    if served != wanted:
+        raise SystemExit(f"a API roda {served!r}, não {wanted!r}: suba-a com LLM_MODEL={wanted}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

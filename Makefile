@@ -1,5 +1,5 @@
 .PHONY: stamp up down lane-up lane-down smoke login a2a-demo phoenix-import test test-full \
-        test-live lint check eval-dev eval-test eval-guard eval-security eval-latency load-test package
+        test-live lint check eval-dev eval-test eval-guard eval-security eval-security-blind eval-latency load-test package
 
 LANE ?=
 lane = $(shell echo $(LANE) | tr a-z A-Z)
@@ -121,6 +121,20 @@ eval-security:
 	$(RT).run --suite dev --reps 2 --base-url http://api-eval:8000 \
 	  --planted-url http://api-redteam:8000 --spend-today $(SPEND_TODAY) --rpd-left $(RPD_LEFT) \
 	  $(RT_ARGS) || rc=1; exit $$rc
+
+# Cego de ataques (medição única; árvore limpa e SHA == eval-frozen): o YAML decifrado pelo autor é
+# montado só nesta execução (read-only); o resultado entra em security.json["holdout"].
+eval-security-blind:  # make eval-security-blind HOLDOUT=/caminho/attacks_blind.yaml SPEND_TODAY=0.00 RPD_LEFT=5000
+	@test -n "$(HOLDOUT)" -a -f "$(HOLDOUT)" || { echo "use HOLDOUT=<yaml decifrado> (arquivo inexistente: $(HOLDOUT))" >&2; exit 1; }
+	@test -n "$(SPEND_TODAY)" -a -n "$(RPD_LEFT)" || { echo "use SPEND_TODAY=0.00 RPD_LEFT=5000" >&2; exit 1; }
+	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
+	$(EVAL_DC) up -d --build --wait init-secrets db redis
+	$(EVAL_DC) --profile etl run --rm etl
+	$(EVAL_DC) up -d --build --wait api-eval
+	$(GIT_ENV) $(EVAL_DC) run --rm --build -v $(abspath $(HOLDOUT)):/holdout/attacks.yaml:ro \
+	  -v $(abspath docs/evidence/quality):/evidence -e EVIDENCE_DIR=/evidence -e GIT_SHA -e GIT_DIRTY -e FROZEN_SHA \
+	  redteam python -m evals.redteam.run --suite blind --templates /holdout/attacks.yaml --reps 2 \
+	  --base-url http://api-eval:8000 --spend-today $(SPEND_TODAY) --rpd-left $(RPD_LEFT) $(RT_ARGS)
 
 phoenix-import:  # make phoenix-import FILE=docs/evidence/phoenix/<run>.json (PHOENIX_URL)
 	@test -n "$(FILE)" || { echo "use FILE=...json" >&2; exit 1; }

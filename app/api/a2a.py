@@ -1,6 +1,7 @@
 """A2A 1.0 (JSON-RPC) sobre o mesmo TurnService. Posse por dono: toda tarefa e todo contexto
 são escopados pelo `sub` do JWT; exceções nunca vazam a mensagem original."""
 
+import asyncio
 import logging
 import re
 from collections.abc import Mapping
@@ -197,7 +198,7 @@ class StudentAgentExecutor(AgentExecutor):
         finally:
             if adm is not None:
                 try:
-                    await svc.settle(adm, result, cancelled=cancelled)
+                    await asyncio.shield(svc.settle(adm, result, cancelled=cancelled))
                 except Exception as e:
                     log.error("settle A2A falhou: %s", type(e).__name__)
 

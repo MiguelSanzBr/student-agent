@@ -71,7 +71,7 @@ async def test_capture_content_only_dev_eval(
 ) -> None:
     with pytest.raises(ValueError):
         AppSettings(otel_capture_content=True)  # dev + default: recusado
-    s = AppSettings(otel_capture_content=True, limits_profile="eval")
+    s = AppSettings(otel_capture_content=True, limits_profile="eval", llm_provider="gemini")
     setup_tracing(s, exporter=exp)
     await run(make_service(s, scripted(OK)))
     d = dump(exp)
@@ -364,7 +364,7 @@ async def test_meta_span_id_only_dev_eval(exp: InMemorySpanExporter) -> None:
         return dict(got[0])
 
     assert "span_id" not in await metas(AppSettings())
-    m = await metas(AppSettings(limits_profile="eval"))
+    m = await metas(AppSettings(limits_profile="eval", llm_provider="gemini"))
     root = next(s for s in exp.get_finished_spans() if s.name == "chat.turn" and s.context.span_id
                 == int(m["span_id"], 16))  # fmt: skip
     assert format(root.context.trace_id, "032x") == m["trace_id"]

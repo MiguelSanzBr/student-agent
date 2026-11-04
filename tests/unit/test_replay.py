@@ -1,3 +1,4 @@
+import inspect
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
@@ -120,3 +121,41 @@ async def test_hedge_lever_keeps_demo_suggestions(app_secrets: object) -> None:
     # o hedge mora no TurnService (Task 33): make_llm nunca embrulha o provider
     rep = make_llm(AppSettings(llm_provider="replay", lever_hedge_first_call=True))
     assert isinstance(rep, ReplayLLM) and callable(rep.suggested)  # chips e faixa preservados
+
+
+async def test_every_replay_response_is_labelled_demo_replay(tmp_path: Path) -> None:
+    path = tmp_path / "rec.jsonl"
+    rec = RecordingLLM(ScriptedLLM([R("gravada")]), path)
+    await rec.generate(
+        model="m", system="s", messages=[Message("user", "Pergunta A")], tools=[], deadline=1.0
+    )
+    replay = ReplayLLM(path)
+    for q in ("Pergunta A", "quanto eu devo?", "pergunta fora do roteiro"):
+        out = await replay.generate(
+            model="gemini-3.8-flash",
+            system="s",
+            messages=[Message("user", q)],
+            tools=[],
+            deadline=1.0,
+        )
+        assert out.model == "demo-replay", q
+
+
+async def test_replay_ignores_guard_feedback_when_finding_the_question(tmp_path: Path) -> None:
+    from app.agent import graph
+
+    prefix = "Sua resposta foi reprovada na conferência"
+    assert prefix in inspect.getsource(graph)  # o marcador que o grafo usa
+    path = tmp_path / "rec.jsonl"
+    await RecordingLLM(ScriptedLLM([R("Resposta gravada.")]), path).generate(
+        model="m", system="s", messages=[Message("user", "quanto devo?")], tools=[], deadline=1.0
+    )
+    msgs = [
+        Message("user", "quanto devo?"),
+        Message("assistant", "Resposta recusada."),
+        Message("user", prefix + " (valor). Reescreva."),
+    ]
+    out = await ReplayLLM(path).generate(
+        model="m", system="s", messages=msgs, tools=[], deadline=1.0
+    )
+    assert out.text == "Resposta gravada."

@@ -381,3 +381,85 @@ def test_setup_blind_rejects_yaml_not_matching_manifest(tmp_path, monkeypatch) -
     monkeypatch.setattr(verify, "MANIFEST", man)
     with pytest.raises(SystemExit, match="SHA-256"):
         setup(argparse.Namespace(suite="blind", templates=y))
+
+
+class ModelClient(FakeClient):
+    def __init__(self, model: str) -> None:
+        super().__init__([])
+        self.last_meta = {"model": model}
+
+
+async def test_model_guard_aborts_the_run_when_served_model_differs() -> None:
+    from evals.redteam.run import ModelGuard
+
+    ok = ModelGuard(ModelClient("gemini-3.8-flash"), "gemini-3.8-flash")  # type: ignore[arg-type]
+    assert (await ok.ask("t", "c", "oi")).answer == REFUSAL
+    bad = ModelGuard(ModelClient("demo-replay"), "gemini-3.8-flash")  # type: ignore[arg-type]
+    with pytest.raises(SystemExit, match="demo-replay"):
+        await bad.ask("t", "c", "oi")
+    # SystemExit não é Exception: o run_suite não o engole como "ataque inválido"
+    res = []
+    with pytest.raises(SystemExit):
+        res = await run_suite(
+            bad,
+            "t",
+            [atk()],
+            reps=1,
+            canary="C" * 16,
+            prefix="P" * 40,  # type: ignore[arg-type]
+            judge=None,
+            sleep=nosleep,
+        )
+    assert res == []
+
+
+def _gate_env(tmp_path: Path, **kw: str) -> dict[str, str]:
+    return {
+        "GIT_SHA": "a" * 40,
+        "GIT_DIRTY": "0",
+        "FROZEN_SHA": "a" * 40,
+        "EVAL_OUT_DIR": str(tmp_path / "out"),
+        "EVIDENCE_DIR": str(tmp_path / "ev"),
+        **kw,
+    }
+
+
+def test_blind_gate_requires_clean_tree_and_frozen_sha_then_runs_once(tmp_path: Path) -> None:
+    from evals.redteam.run import blind_claim, blind_close
+
+    (tmp_path / "ev").mkdir()
+    for bad in ({"GIT_DIRTY": "1"}, {"FROZEN_SHA": "b" * 40}, {"FROZEN_SHA": ""}):
+        env = _gate_env(tmp_path, **bad)
+        if bad.get("FROZEN_SHA") == "":
+            env.pop("FROZEN_SHA")
+        with pytest.raises(SystemExit):
+            blind_claim(env)
+    env = _gate_env(tmp_path)
+    sha, frozen = blind_claim(env)
+    assert sha == frozen == "a" * 40
+    marker = tmp_path / "out" / "redteam" / ".blind_measured"
+    assert marker.exists()
+    with pytest.raises(SystemExit, match="1x"):
+        blind_claim(env)
+    marker.unlink()  # `down -v` apagou o eval-out: o ledger (git) ainda barra
+    with pytest.raises(SystemExit, match="1x"):
+        blind_claim(env)
+    blind_close(env)
+    rows = [json.loads(x) for x in (tmp_path / "ev" / "rounds.jsonl").read_text().splitlines()]
+    assert [(r["split"], r["status"]) for r in rows] == [
+        ("redteam", "started"),
+        ("redteam", "done"),
+    ]
+    assert rows[0]["sha"] == "a" * 40
+
+
+def test_blind_summary_goes_to_holdout_with_same_shape(tmp_path: Path) -> None:
+    from evals.redteam.run import with_holdout
+
+    dev = {"behavior": {"failed": 1}, "leak": {"failed": 0}, "env": {"cases": [1]}}
+    (tmp_path / "security.json").write_text(json.dumps(dev))
+    blind = {"behavior": {"failed": 2}, "leak": {"failed": 3}, "env": {"sha": "x"}}
+    out = with_holdout(tmp_path / "security.json", blind)
+    assert out["behavior"] == {"failed": 1}  # a parte dev fica intacta
+    assert out["holdout"]["behavior"] == {"failed": 2} and out["holdout"]["leak"] == {"failed": 3}
+    assert out["holdout"]["env"]["sha"] == "x"

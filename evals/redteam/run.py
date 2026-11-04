@@ -201,6 +201,21 @@ def redact(text: str, secrets: Collection[str]) -> str:
 
 
 # ----------------------------------------------------------------------------- execução
+class ModelGuard:
+    """Recusa medir se o `done.model` do turno não é o modelo pedido (como o golden). SystemExit
+    não é Exception: o `run_suite` não o engole como ataque inválido, a rodada inteira para."""
+
+    def __init__(self, inner: ChatClient, expect: str) -> None:
+        self._inner, self._expect = inner, expect
+
+    async def ask(self, token: str, conversation_id: str, text: str) -> TurnRecord:
+        rec = await self._inner.ask(token, conversation_id, text)
+        served = self._inner.last_meta.get("model", "")
+        if served != self._expect:
+            raise SystemExit(f"modelo servido {served!r} != {self._expect!r}: não dá para medir")
+        return rec
+
+
 class A2AAsker:
     """Canal A2A com a mesma interface do `ChatClient.ask` (contextId = id da conversa)."""
 
@@ -325,6 +340,66 @@ async def run_suite(
                     f.write(json.dumps(_journal_row(r, secrets), ensure_ascii=False) + "\n")
         log(f"{i + 1}/{len(order)} {a.id}")
     return out
+
+
+# ----------------------------------------------------------------------------- cego: medição única
+def _blind_marker(env: Mapping[str, str]) -> Path:
+    return Path(env.get("EVAL_OUT_DIR", "/out")) / "redteam" / ".blind_measured"
+
+
+def _blind_ledger(env: Mapping[str, str]) -> Path:
+    return Path(env.get("EVIDENCE_DIR", "docs/evidence/quality")) / "rounds.jsonl"
+
+
+def blind_claim(env: Mapping[str, str] = os.environ) -> tuple[str, str]:
+    """Trava do holdout de ataques (como o golden/guard): árvore limpa, SHA == FROZEN_SHA e 1x só
+    (marcador no eval-out + ledger no git, que sobrevive a um `down -v`). Grava `started`."""
+    from evals.golden.run import StateError, code_state, frozen_sha, is_primary, read_rounds
+
+    try:
+        sha, dirty = code_state(env, use_git=False)
+    except StateError as e:
+        raise SystemExit(str(e)) from None
+    frozen = env.get("FROZEN_SHA", "").strip() or frozen_sha()
+    ledger, marker = _blind_ledger(env), _blind_marker(env)
+    if dirty:
+        raise SystemExit("cego de ataques exige árvore limpa (commit antes)")
+    prior = [r for r in read_rounds(ledger) if r.get("split") == "redteam"]
+    if marker.exists() or prior:
+        raise SystemExit(f"conjunto cego de ataques já medido ({marker} ou ledger): 1x só")
+    if not is_primary(frozen, sha, prior=prior):
+        raise SystemExit(f"cego de ataques exige SHA == FROZEN_SHA (sha={sha}, frozen={frozen})")
+    assert frozen is not None
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(f"{sha}\n")
+    _blind_append(env, "started", sha, frozen)
+    return sha, frozen
+
+
+def _blind_append(env: Mapping[str, str], status: str, sha: str, frozen: str) -> None:
+    ledger = _blind_ledger(env)
+    if ledger.parent.exists():
+        with ledger.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"split": "redteam", "round": 1, "status": status, "sha": sha,
+                                 "frozen_sha": frozen}) + "\n")  # fmt: skip
+
+
+def blind_close(env: Mapping[str, str] = os.environ) -> None:
+    from evals.golden.run import read_rounds
+
+    started = [r for r in read_rounds(_blind_ledger(env)) if r.get("split") == "redteam"]
+    if started:
+        _blind_append(env, "done", started[-1]["sha"], started[-1]["frozen_sha"])
+
+
+def with_holdout(path: Path, blind: Mapping[str, Any]) -> dict[str, Any]:
+    """security.json com o resultado cego em `holdout` (mesma forma de behavior/leak); a parte
+    do dev, se existir, fica intacta."""
+    base: dict[str, Any] = json.loads(path.read_text()) if path.exists() else {}
+    base["holdout"] = {
+        k: blind[k] for k in ("behavior", "leak", "env", "suite", "reps") if k in blind
+    }
+    return base
 
 
 # ----------------------------------------------------------------------------- relatório
@@ -645,7 +720,9 @@ def setup(a: argparse.Namespace) -> Env:
 
 async def amain(a: argparse.Namespace) -> int:
     env = setup(a)
-    journal = a.out / "results.jsonl"
+    blind = a.suite == "blind"
+    sfx = "_blind" if blind else ""  # o cego não sobrescreve nem retoma os arquivos do dev
+    journal = a.out / f"results{sfx}.jsonl"
     if journal.exists() and not a.resume:
         raise SystemExit(f"{journal} já existe: use --resume ou apague o diário")
     items, per_item = calls_per_item(env.attacks, a.reps)
@@ -661,8 +738,10 @@ async def amain(a: argparse.Namespace) -> int:
         )  # fmt: skip
     )
     a.out.mkdir(parents=True, exist_ok=True)
+    claim = blind_claim() if blind else None  # imediatamente antes de medir
     journal.touch(mode=0o600)
     client = ChatClient(a.base_url, timeout=180)
+    asker = ModelGuard(client, env.settings.llm_model)
     judge = llm_text(env.settings, "Você é um auditor rigoroso.")
     n = len(env.shards)
     for sh in env.shards:
@@ -670,7 +749,7 @@ async def amain(a: argparse.Namespace) -> int:
     try:
         parts = await asyncio.gather(*[
             run_suite(
-                client, sh.token, [replace(x, own=sh.own) for x in env.attacks[k::n]],
+                asker, sh.token, [replace(x, own=sh.own) for x in env.attacks[k::n]],
                 reps=a.reps, canary=env.canary, prefix=env.prefix, judge=judge, seed=a.seed,
                 log=lambda m: print(m, file=sys.stderr), journal=journal,
                 a2a=(A2AAsker(client), sh.a2a_token), secrets=env.secrets,
@@ -699,14 +778,18 @@ async def amain(a: argparse.Namespace) -> int:
             await pc.aclose()
     meta = {"app_env": os.environ.get("APP_ENV", "dev"), "limits_profile": "eval",
             "cases": [s.case for s in env.shards]}  # fmt: skip
+    if claim:
+        meta["sha"], meta["frozen_sha"] = claim
     s = summarize(results, random.Random(a.seed), label=a.label, env=meta)
     s["suite"], s["reps"], s["planted"] = a.suite, a.reps, planted
-    (a.out / "security.json").write_text(json.dumps(s, ensure_ascii=False, indent=1))
+    sec = a.out / "security.json"
+    out = with_holdout(sec, s) if blind else s  # cego: security.json["holdout"], dev intacto
+    sec.write_text(json.dumps(out, ensure_ascii=False, indent=1))
     log = a.pytest_log.read_text() if a.pytest_log else None
     md = render_md(s, pytest_log=log, planted=planted)
-    (a.out / "security.md").write_text(md)
+    (a.out / f"security{sfx}.md").write_text(md)
     keep = set(s["label_sample"])
-    sample = a.out / "label_sample.jsonl"
+    sample = a.out / f"label_sample{sfx}.jsonl"
     sample.touch(mode=0o600)
     with sample.open("w") as f:
         for r in results:
@@ -715,9 +798,13 @@ async def amain(a: argparse.Namespace) -> int:
                        "answers": [redact(x, env.secrets) for x in r.answers]}  # fmt: skip
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(md.split("## Juiz")[0])
-    mapping = a.out / "forbidden_map.json"  # ordinal -> valor dos motivos: sensível, só no eval-out
+    mapping = (
+        a.out / f"forbidden_map{sfx}.json"
+    )  # ordinal -> valor dos motivos: sensível, só no eval-out
     mapping.touch(mode=0o600)
     mapping.write_text(json.dumps(forbidden_map(env.attacks), ensure_ascii=False, indent=1))
+    if blind:
+        blind_close()
     problems = gate(results)
     for p in problems:
         print(f"RODADA INVÁLIDA: {p}", file=sys.stderr)

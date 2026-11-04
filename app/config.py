@@ -212,6 +212,18 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _eval_needs_real_llm(self) -> Self:
+        # o perfil eval só existe para medir: replay/fake rotulariam a medição como real
+        if self.limits_profile == "eval" and not (
+            self.llm_provider in ("gemini", "loadtest")
+            or (self.llm_provider == "auto" and self.gemini_api_key)
+        ):
+            raise ValueError(
+                "limits_profile=eval exige llm_provider=gemini (ou auto com gemini_api_key)"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _capture_only_dev_eval(self) -> Self:
         if self.otel_capture_content and not (
             self.app_env == "dev" and self.limits_profile == "eval"

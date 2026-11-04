@@ -65,7 +65,9 @@ def test_capture_content_requires_dev_eval(app_secrets: Path) -> None:
         AppSettings(app_env="prod", otel_capture_content=True)
     with pytest.raises(ValidationError):
         AppSettings(app_env="dev", limits_profile="default", otel_capture_content=True)
-    s = AppSettings(app_env="dev", limits_profile="eval", otel_capture_content=True)
+    s = AppSettings(
+        app_env="dev", limits_profile="eval", llm_provider="gemini", otel_capture_content=True
+    )
     assert s.otel_capture_content
 
 
@@ -91,7 +93,7 @@ def test_limits_by_profile(app_secrets: Path) -> None:
     )  # fmt: skip
     assert (d.history_turns, d.history_ttl_s, d.jwt_ttl_s, d.draft_ttl_s) == (5, 1800, 1800, 600)
     assert (d.max_rounds, d.degrade_at, d.degrade_rounds) == (4, 0.8, 2)
-    e = AppSettings(limits_profile="eval").limits
+    e = AppSettings(limits_profile="eval", llm_provider="gemini").limits
     assert e.global_ceiling_usd == 40 and e.degrade_at is None
 
 
@@ -130,3 +132,15 @@ def test_prod_requires_default_limits(app_secrets: Path) -> None:
         with pytest.raises(ValidationError):
             AppSettings(limits_profile=prof, **PROD)  # type: ignore[arg-type]
     AppSettings(**PROD)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("provider", ["replay", "fake", "auto"])
+def test_eval_profile_rejects_replay_fake_or_keyless_auto(app_secrets: Path, provider: str) -> None:
+    with pytest.raises(ValidationError, match="eval"):
+        AppSettings(limits_profile="eval", llm_provider=provider)  # type: ignore[arg-type]
+
+
+def test_eval_profile_accepts_gemini_or_auto_with_key(app_secrets: Path) -> None:
+    (app_secrets / "gemini_api_key").write_text("AIza-whatever\n")
+    AppSettings(limits_profile="eval", llm_provider="gemini")
+    AppSettings(limits_profile="eval", llm_provider="auto")

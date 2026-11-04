@@ -116,3 +116,14 @@ async def test_ask_timed_reads_sse_debug_and_ttfe() -> None:
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(rej), base_url="http://t") as h:
         assert await ask_timed(h, "tok", "c", "oi", student="s1", on=date(2026, 10, 31)) is None
+
+
+def test_served_model_must_equal_the_requested_one() -> None:
+    import pytest
+
+    from evals.latency.bench import check_served_model
+
+    check_served_model("gemini-3.8-flash", "gemini-3.8-flash")
+    for bad in ("demo-replay", "gemini-3.8-flash-lite", ""):
+        with pytest.raises(SystemExit):
+            check_served_model(bad, "gemini-3.8-flash")

@@ -263,7 +263,7 @@ async def test_agent_span_opened_before_meta(monkeypatch: pytest.MonkeyPatch) ->
 async def test_debug_only_dev_eval() -> None:
     _, _, ev = await turn(make_service(AppSettings(), scripted(OK)))
     assert "debug" not in kinds(ev)
-    s = AppSettings(app_env="dev", limits_profile="eval")
+    s = AppSettings(app_env="dev", limits_profile="eval", llm_provider="gemini")
     _, _, ev = await turn(make_service(s, scripted(OK)))
     assert "debug" in kinds(ev)
     assert "tool_values" in next(e for e in ev if e["event"] == "debug")
@@ -513,3 +513,34 @@ async def test_taint_marked_before_draft_event(monkeypatch: pytest.MonkeyPatch) 
     await svc.handle(admission=adm, scope=SCOPE, conversation_id="c1", text="oi",
                      channel="web", emit=emit)  # fmt: skip
     assert seen == [True]
+
+
+async def test_in_flight_call_is_counted_at_dispatch_not_on_return() -> None:
+    svc = make_service(AppSettings(), HangLLM())
+    seen: list[int] = []
+    real = svc.settle
+
+    async def spy(adm: Any, result: Any, *, cancelled: bool = False) -> None:
+        seen.append(svc._meters[adm.ticket].calls)  # type: ignore[attr-defined]
+        await real(adm, result, cancelled=cancelled)
+
+    svc.settle = spy  # type: ignore[method-assign]
+    await cancel_turn(svc)
+    assert seen == [1]  # a requisição em voo (que nunca voltou) já estava contada
+
+
+async def test_error_before_any_llm_call_charges_nothing_to_the_daily_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.service.turn as turn_mod
+
+    async def boom(*a: Any, **k: Any) -> Any:
+        raise RuntimeError("falha no cartão")
+
+    monkeypatch.setattr(turn_mod, "build_student_card", boom)
+    llm = HangLLM()
+    svc = make_service(AppSettings(), llm)
+    with pytest.raises(RuntimeError):
+        await turn(svc)
+    assert await svc.budget.used(SUB) == 0 and await spent(svc) == 0
+    assert await slots_in_use(svc) == 0

@@ -455,3 +455,42 @@ def test_task_id_must_match_web_regex(client: TestClient, settings: AppSettings)
 def test_valid_ids_still_work(client: TestClient, settings: AppSettings) -> None:
     t = send(client, bearer(settings), contextId="ctx_ok-1")
     assert t["contextId"] == "ctx_ok-1"
+
+
+async def test_settle_survives_a_second_cancellation(settings: AppSettings) -> None:
+    """O settle do finally roda sob asyncio.shield, como no web: um novo cancel não o interrompe."""
+    app = make_app(settings, HangLLM())
+    svc = app.state.turns
+    app.state.settings = settings
+    ex = a2a_mod.StudentAgentExecutor(app.state)
+    started, finished = asyncio.Event(), asyncio.Event()
+    orig = svc.settle
+
+    async def slow_settle(adm: Any, result: Any, *, cancelled: bool = False) -> None:
+        started.set()
+        await asyncio.sleep(0.05)
+        await orig(adm, result, cancelled=cancelled)
+        finished.set()
+
+    svc.settle = slow_settle
+
+    class Q:
+        async def enqueue_event(self, ev: Any) -> None:
+            pass
+
+    from a2a.helpers.proto_helpers import new_text_message
+
+    ctx = SimpleNamespace(
+        message=new_text_message("oi", role=1), current_task=object(), task_id="t1",
+        context_id="c1", call_context=SimpleNamespace(user=SimpleNamespace(user_name=str(SUB))),
+    )  # fmt: skip
+    task = asyncio.create_task(ex.execute(ctx, Q()))  # type: ignore[arg-type]
+    while not await slots_in_use(svc):
+        await asyncio.sleep(0.01)
+    task.cancel()
+    await started.wait()
+    task.cancel()  # 2º cancel, já dentro do settle
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.wait_for(finished.wait(), 2)
+    assert await slots_in_use(svc) == 0

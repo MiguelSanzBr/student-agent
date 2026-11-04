@@ -105,12 +105,15 @@ class _Meter:
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
     ) -> LLMResponse:  # fmt: skip
+        first = self.calls == 0
+        self.calls += 1  # no disparo: timeout/abort cobra a requisição que ficou em voo
+
         def call() -> Awaitable[LLMResponse]:
             return self.inner.generate(
                 model=model, system=system, messages=messages, tools=tools, deadline=deadline
             )
 
-        if self.hedger is not None and self.calls == 0:
+        if self.hedger is not None and first:
             r, hedged = await self.hedger.run(call, self._count_extra)  # só a 1ª chamada do turno
             if hedged:  # a perdedora cancelada não devolve uso: cobra-se a estimativa (= vencedora)
                 e = self.extra_usage
@@ -122,7 +125,6 @@ class _Meter:
         else:
             r = await call()
         u, a = r.usage, self.usage
-        self.calls += 1
         self.usage = Usage(
             a.input_tokens + u.input_tokens, a.output_tokens + u.output_tokens,
             a.thinking_tokens + u.thinking_tokens, a.cached_tokens + u.cached_tokens,
@@ -357,7 +359,8 @@ class DefaultTurnService:
                 if meter
                 else (Usage(), 0, s.llm_model)
             )
-            if meter is None or _tokens(u) < adm.est_tokens:
+            # sem nenhuma chamada ao LLM (erro antes dela) não há o que estimar: só a reserva volta
+            if meter is None or (calls and _tokens(u) < adm.est_tokens):
                 u, calls = Usage(output_tokens=adm.est_tokens), max(calls, adm.est_requests)
         await self._safe("vaga", self.slots.release(admission.ticket))
         METRICS["agent_turn_slots_in_use"].dec()  # type: ignore[union-attr]

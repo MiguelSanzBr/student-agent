@@ -11,6 +11,21 @@ from app.tools.base import FERRAMENTA_INDISPONIVEL, ToolSpec
 
 DEFAULT_REPLAY = Path(__file__).resolve().parents[2] / "evals" / "replays" / "demo.jsonl"
 UNKNOWN_TEXT = "Modo demonstração: escolha uma das perguntas sugeridas."
+# Rótulo de TODA resposta do replay: não passa por um modelo real nem em medição (D19).
+REPLAY_MODEL = "demo-replay"
+# Início da mensagem de feedback que o grafo (_guard_node) manda ao LLM quando o guard reprova.
+_FEEDBACK = "Sua resposta foi reprovada na conferência"
+
+
+def _without_feedback(messages: Sequence[Message]) -> list[Message]:
+    """Tira o par (resposta reprovada, feedback do guard): o replay refaz a mesma pergunta."""
+    out: list[Message] = []
+    for m in messages:
+        if m.role == "user" and (m.text or "").startswith(_FEEDBACK) and out:
+            out.pop()
+        else:
+            out.append(m)
+    return out
 
 
 def _plural(n: int, one: str, many: str) -> str:
@@ -132,7 +147,7 @@ class ReplayLLM:
             resp = LLMResponse(
                 rec["text"],
                 tuple(ToolCall(c["id"], c["name"], c["args"]) for c in rec["tool_calls"]),
-                Usage(**rec["usage"]), rec["model"], rec["finish_reason"],
+                Usage(**rec["usage"]), REPLAY_MODEL, rec["finish_reason"],
             )  # fmt: skip
             self._by_key[(_norm(rec["pergunta"]), rec["passo"])] = resp
             if rec["passo"] == 0 and rec["pergunta"] not in self._suggested:
@@ -146,18 +161,21 @@ class ReplayLLM:
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
     ) -> LLMResponse:  # fmt: skip
+        messages = _without_feedback(messages)
         question, step = _turn_key(messages)
         key = _norm(question)
         if key in _SCRIPT:
             tool, render = _SCRIPT[key]
             if step == 0:
-                return LLMResponse(None, (ToolCall(f"demo-{tool}", tool, {}),), Usage(), model)
+                return LLMResponse(
+                    None, (ToolCall(f"demo-{tool}", tool, {}),), Usage(), REPLAY_MODEL
+                )
             last = messages[-1]
             res = last.tool_result if last.role == "tool" and last.tool_name == tool else None
             if not res or "erro" in res:
-                return LLMResponse(FERRAMENTA_INDISPONIVEL, (), Usage(), model, "STOP")
-            return LLMResponse(render(res), (), Usage(), model, "STOP")
+                return LLMResponse(FERRAMENTA_INDISPONIVEL, (), Usage(), REPLAY_MODEL, "STOP")
+            return LLMResponse(render(res), (), Usage(), REPLAY_MODEL, "STOP")
         found = self._by_key.get((key, step))
         if found is not None:
             return found
-        return LLMResponse(UNKNOWN_TEXT, (), Usage(), model, "STOP")
+        return LLMResponse(UNKNOWN_TEXT, (), Usage(), REPLAY_MODEL, "STOP")
