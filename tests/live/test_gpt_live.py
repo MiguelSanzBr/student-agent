@@ -41,9 +41,13 @@ async def test_roundtrip_with_card_tool_and_reasoning(app_secrets: object) -> No
     r2 = await p.generate(model=MODEL, system=SYSTEM, messages=hist, tools=[TOOL],
                           deadline=monotonic() + 60)  # fmt: skip
     assert r2.text and r2.finish_reason == "STOP"
-    # 3ª chamada sem ferramentas (como o grafo), histórico com function_call
+    # 3ª chamada como o grafo na rodada de feedback: ferramentas declaradas, chamada proibida
     hist.append(Message("assistant", r2.text, model=MODEL, provider_meta=r2.provider_meta))
     hist.append(Message("user", "Resuma em uma frase."))
-    r3 = await p.generate(model=MODEL, system=SYSTEM, messages=hist, tools=[],
-                          deadline=monotonic() + 60)  # fmt: skip
+    r3 = await p.generate(model=MODEL, system=SYSTEM, messages=hist, tools=[TOOL],
+                          deadline=monotonic() + 60, tool_choice="none")  # fmt: skip
     assert r3.text and not r3.tool_calls
+    # defensivo: sem tools, com function_call no histórico
+    r4 = await p.generate(model=MODEL, system=SYSTEM, messages=hist, tools=[],
+                          deadline=monotonic() + 60)  # fmt: skip
+    assert r4.text and not r4.tool_calls
