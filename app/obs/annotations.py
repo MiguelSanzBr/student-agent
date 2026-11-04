@@ -27,6 +27,7 @@ _queue: deque[Annotation] = deque(maxlen=1000)
 _roots: OrderedDict[str, str] = OrderedDict()  # trace_id -> span_id do AGENT (alvo da anotação)
 _cfg: dict[str, Any] = {"flush": None, "send": None, "backoff_s": 0.5}
 _worker: asyncio.Task[None] | None = None
+_lock: asyncio.Lock | None = None  # um drain por vez (worker, lifespan e chamadas manuais)
 
 
 def configure(
@@ -74,6 +75,13 @@ async def _run() -> None:
 
 async def drain() -> bool:
     """Envia a fila; só remove o que foi enviado. False se falhou (a fila é mantida)."""
+    global _lock
+    _lock = _lock or asyncio.Lock()
+    async with _lock:
+        return await _drain()
+
+
+async def _drain() -> bool:
     n = len(_queue)
     if not n:
         return True
@@ -88,8 +96,9 @@ async def drain() -> bool:
     for i in range(ATTEMPTS):
         try:
             await asyncio.to_thread(send, batch)
-            for _ in range(n):  # tudo-ou-nada: o lote enviado sai; o que chegou depois fica
-                _queue.popleft()
+            for a in batch:  # tudo-ou-nada; só sai o que é do lote (overflow pode ter descartado)
+                if _queue and _queue[0] is a:
+                    _queue.popleft()
             return True
         except Exception as e:  # noqa: BLE001
             log.warning("anotação: tentativa %d falhou: %s", i + 1, type(e).__name__)

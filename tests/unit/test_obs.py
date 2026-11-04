@@ -283,27 +283,44 @@ def test_uvicorn_access_silent_and_structlog_exception(
     assert json.loads(out.splitlines()[0])["exception_type"] == "ValueError"
 
 
-async def test_annotation_during_slow_drain_not_stranded() -> None:
+@pytest.fixture(autouse=True)
+def _fresh_annotations() -> Iterator[None]:
+    annotations._queue.clear()
+    annotations._worker = None
+    annotations._lock = None
+    yield
+    annotations._queue.clear()
+    annotations._worker = None
+    annotations._lock = None
+
+
+async def test_annotation_during_slow_drain_not_stranded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(annotations, "BATCH_WINDOW_S", 0)
     sent: list[str] = []
     gate = threading.Event()
-
-    def flush() -> None:
-        gate.wait(1)
-
     annotations.configure(
-        flush=flush, send=lambda b: sent.extend(a.name for a in b), backoff_s=0.01
+        flush=lambda: gate.wait(2), send=lambda b: sent.extend(a.name for a in b), backoff_s=0.01
     )
     annotations.annotate("t" * 32, "a", "x", None, None)
-    first = asyncio.create_task(annotations.drain())
-    await asyncio.sleep(0.1)  # drain em curso, preso no flush
+    await asyncio.sleep(0.1)  # o worker está dentro do drain, preso no flush
     annotations.annotate("t" * 32, "b", "x", None, None)  # chega durante o drain
     gate.set()
-    await first
-    for _ in range(40):  # o worker (re-armado) esvazia o resto sozinho
-        if sent == ["a", "b"] or sent == ["a", "a", "b"][:3] and "b" in sent:
-            break
-        await asyncio.sleep(0.05)
-    assert "b" in sent
+    assert annotations._worker is not None
+    await annotations._worker
+    assert sent == ["a", "b"] and not annotations._queue
+
+
+async def test_concurrent_drains_send_each_once() -> None:
+    sent: list[str] = []
+    annotations.configure(
+        flush=None,
+        send=lambda b: sent.extend(a.name for a in b),
+        backoff_s=0.01,  # type: ignore[arg-type]
+    )
+    annotations.annotate("t" * 32, "a", "x", None, None)
+    annotations.annotate("t" * 32, "b", "x", None, None)
+    await asyncio.gather(annotations.drain(), annotations.drain())
+    assert sorted(sent) == ["a", "b"] and not annotations._queue
 
 
 async def test_failed_send_keeps_queue_and_annotate_span() -> None:
