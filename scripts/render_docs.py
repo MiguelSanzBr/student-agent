@@ -114,13 +114,13 @@ def _latency(a: Mapping[str, Any], load: Mapping[str, Any] | None) -> dict[str, 
 def build_numbers(evidence_dir: Path) -> dict[str, str]:
     """Chaves estáveis → texto. Arquivo ausente = chaves ausentes (render_docs reclama).
 
-    Fontes (saídas reais dos runners, copiadas para docs/evidence):
+    Fontes (saídas reais dos runners, copiadas para docs/evidence por `make publish-evidence`):
     quality/<dev|test>-rN/quality.json (maior N sem ensaio; `make eval-dev|eval-test`),
-    guard.json (`make eval-guard`), security.json (`make eval-security`, `holdout` vem do
-    holdout cego), latency-A.json (janela A de `make eval-latency`),
+    quality/guard/guard.json (`make eval-guard`), security.json (`make eval-security`, `holdout`
+    vem do holdout cego), latency-A.json (janela A de `make eval-latency`),
     load-a-w1.json (`make load-test`)."""
     out: dict[str, str] = _quality(evidence_dir)
-    if (g := _load(evidence_dir / "guard.json")) is not None:
+    if (g := _load(evidence_dir / "quality" / "guard" / "guard.json")) is not None:
         out["guard.blind_recall"] = _ci(g["blind"]["recall"], "guard.recall")
         fb = g["blind"]["false_block"]
         out["guard.false_block"] = f"{fb['k']}/{fb['n']} ({_ci(fb, 'guard.false_block')})"

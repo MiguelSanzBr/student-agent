@@ -85,7 +85,8 @@ def _real_evidence(d: Path) -> None:
     }
     (d / "security.json").write_text(json.dumps(sec))
     g = {"blind": {"recall": _d(wilson(8, 10)), "false_block": _w(0, 10)}}
-    (d / "guard.json").write_text(json.dumps(g))
+    (d / "quality" / "guard").mkdir()  # `make eval-guard`: EVIDENCE_DIR=docs/evidence/quality
+    (d / "quality" / "guard" / "guard.json").write_text(json.dumps(g))
     xs = [
         Sample(
             f"s{i % 10}", c, 3.0 + i / 100, 1.0, {"overhead": 0.2}, cost_usd=0.002, input_tokens=100
@@ -114,6 +115,48 @@ def test_build_numbers_maps_real_runner_outputs(tmp_path: Path) -> None:
     assert n["security.holdout.behavior.success"].startswith("1/3 templates")
     assert n["latency.load.plateau"].startswith("escada (a) aprovada: 18")
     assert n["latency.two_plus.p95"].endswith(" s")
+
+
+def test_publish_evidence_closes_the_cycle(tmp_path: Path) -> None:
+    import shutil
+
+    from scripts.publish_evidence import publish
+
+    ev, out = tmp_path / "evidence", tmp_path / "eval-out"
+    (ev / "quality").mkdir(parents=True)
+    out.mkdir()
+    _real_evidence(ev)
+    for n in ("security.json", "latency-A.json", "load-a-w1.json"):  # saem dos runners no eval-out
+        shutil.move(ev / n, out / n)
+    (out / "security.md").write_text("# seg")
+    sensitive = (
+        "results.jsonl results_blind.jsonl label_sample.jsonl label_sample_blind.jsonl "
+        "forbidden_map.json forbidden_map_blind.json transcripts.jsonl golden_login.json "
+        "security_blind.md load-b-w1.json"
+    ).split()
+    for n in sensitive:
+        (out / n).write_text("segredo")
+    (out / "quality").mkdir()
+    (out / "quality" / "transcripts.jsonl").write_text("segredo")
+    publish(out, ev)
+    assert sorted(p.name for p in ev.iterdir() if p.is_file()) == [
+        "latency-A.json",
+        "load-a-w1.json",
+        "security.json",
+        "security.md",
+    ]
+    assert not list(ev.rglob("*.jsonl")) and not (ev / "forbidden_map.json").exists()
+    assert (ev / "security.json").stat().st_mode & 0o444 == 0o444
+    for n in ("data-quality.json", "spikes.json"):  # versionados, não vêm dos runners
+        shutil.copyfile(EVIDENCE / n, ev / n)
+    n = build_numbers(ev)
+    docs = []
+    for d in DOCS:
+        c = tmp_path / d.name
+        c.write_text(d.read_text())
+        docs.append(c)
+    render_docs(docs, n)  # KeyError = chave de runner sem número
+    assert "guard.blind_recall" in n and "latency.load.plateau" in n
 
 
 def test_build_numbers_uses_highest_non_rehearsal_round(tmp_path: Path) -> None:

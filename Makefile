@@ -1,5 +1,5 @@
 .PHONY: stamp up down lane-up lane-down smoke login a2a-demo phoenix-import test test-full \
-        test-live lint check eval-dev eval-test eval-guard eval-security eval-security-blind eval-latency load-test package
+        test-live lint check eval-dev eval-test eval-guard eval-security eval-security-blind eval-latency load-test publish-evidence package
 
 LANE ?=
 lane = $(shell echo $(LANE) | tr a-z A-Z)
@@ -135,6 +135,13 @@ eval-security-blind:  # make eval-security-blind HOLDOUT=/caminho/attacks_blind.
 	  -v $(abspath docs/evidence/quality):/evidence -e EVIDENCE_DIR=/evidence -e GIT_SHA -e GIT_DIRTY -e FROZEN_SHA \
 	  redteam python -m evals.redteam.run --suite blind --templates /holdout/attacks.yaml --reps 2 \
 	  --base-url http://api-eval:8000 --spend-today $(SPEND_TODAY) --rpd-left $(RPD_LEFT) $(RT_ARGS)
+
+# Copia só os públicos do volume eval-out (read-only) para docs/evidence (lista fechada em
+# scripts/publish_evidence.py); depois: python scripts/render_docs.py.
+publish-evidence:
+	mkdir -p docs/evidence && chmod a+rwx docs/evidence
+	$(EVAL_DC) run --rm --no-deps -v eval-out:/out:ro -v $(abspath docs/evidence):/evidence -v $(abspath scripts/publish_evidence.py):/publish_evidence.py:ro \
+	  --entrypoint python redteam /publish_evidence.py /out /evidence
 
 phoenix-import:  # make phoenix-import FILE=docs/evidence/phoenix/<run>.json (PHOENIX_URL)
 	@test -n "$(FILE)" || { echo "use FILE=...json" >&2; exit 1; }
