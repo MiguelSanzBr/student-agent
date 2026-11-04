@@ -58,5 +58,9 @@ def get_person_cookie(request: Request) -> UUID:
 def get_person_a2a(request: Request) -> UUID:
     auth = request.headers.get("authorization", "")
     scheme, _, bearer = auth.partition(" ")
-    token = bearer.strip() if scheme.lower() == "bearer" else request.headers.get("x-api-key")
-    return _verify(token, "a2a", request)
+    key = request.headers.get("x-api-key")
+    if scheme.lower() != "bearer":
+        return _verify(key, "a2a", request)
+    if key is not None and key != bearer.strip():  # juntos, os dois são o mesmo token
+        raise _unauthorized()
+    return _verify(bearer.strip(), "a2a", request)

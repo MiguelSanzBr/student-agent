@@ -185,6 +185,17 @@ def test_x_api_key_accepted_for_a2a_only(client: TestClient, settings: AppSettin
     assert client.post("/whoami-a2a", headers={"x-api-key": chat}).status_code == 401
 
 
+def test_bearer_and_x_api_key_must_agree(client: TestClient, settings: AppSettings) -> None:
+    a2a = issue_token(GOLDEN, "a2a", settings)
+    other = issue_token(UUID(int=7), "a2a", settings)
+    both = {"Authorization": f"Bearer {a2a}", "x-api-key": a2a}
+    assert client.post("/whoami-a2a", headers=both).status_code == 200
+    split = {"Authorization": f"Bearer {a2a}", "x-api-key": other}
+    assert client.post("/whoami-a2a", headers=split).status_code == 401
+    garbage = {"Authorization": f"Bearer {a2a}", "x-api-key": "lixo"}
+    assert client.post("/whoami-a2a", headers=garbage).status_code == 401
+
+
 def test_body_identity_ignored(client: TestClient, settings: AppSettings) -> None:
     tok = issue_token(GOLDEN, "chat", settings)
     r = client.post(
