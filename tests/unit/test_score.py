@@ -1,5 +1,3 @@
-import pytest
-
 from evals.golden.constants import REFUSAL_PREFIX
 from evals.golden.score import Check, DatasetItem, TurnRecord, score_item
 
@@ -80,9 +78,8 @@ def test_multiturn_counts_as_one_item() -> None:
     assert not score_item(it, good[:1]).passed  # turno faltando
 
 
-@pytest.mark.xfail(strict=False, reason="TODO Task 22: app.agent.prompt.REFUSAL_PREFIX")
 def test_refusal_prefix_equals_prompt() -> None:
-    from app.agent.prompt import REFUSAL_PREFIX as PROMPT_PREFIX  # type: ignore[import-not-found]
+    from app.agent.prompt import REFUSAL_PREFIX as PROMPT_PREFIX
 
     assert PROMPT_PREFIX == REFUSAL_PREFIX
 
