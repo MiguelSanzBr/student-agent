@@ -43,7 +43,7 @@ class EntityRecord:
 class ToolCallTrace:
     name: str
     args: Mapping[str, str]
-    returned_records: int
+    returned_records: int  # -1: a chamada falhou ou foi recusada (não é resultado vazio)
 
 
 @dataclass(frozen=True)

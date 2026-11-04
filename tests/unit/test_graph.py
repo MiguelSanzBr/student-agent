@@ -705,3 +705,37 @@ def test_history_zero_turns_returns_nothing() -> None:
     conv = Conversation(((Message("user", "a"),),), False, False, False)
     assert g._history(conv, "m", 0) == []
     assert len(g._history(conv, "m", 5)) == 1
+
+
+async def _protocols_claim(tool: Tool, args: Mapping[str, Any]) -> TurnResult:
+    llm = ScriptedLLM([R(None, C("list_protocols", args)), R("Não há protocolos abertos.")] + [R(
+        "Não há protocolos abertos.")] * 2)  # fmt: skip
+    return await run(llm, tl=[tool], text="tenho protocolos abertos?")
+
+
+async def test_failed_call_does_not_sustain_absence_claim() -> None:
+    async def bad(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+        raise ToolError("MATRICULA_INEXISTENTE")
+
+    spec = ToolSpec("list_protocols", "d", schema({"status": {"type": "string"}}))
+    r = await _protocols_claim(Tool(spec, bad, "protocolos"), {})
+    assert r.tool_calls[0].returned_records == -1
+    assert r.guard != "pass" and "Não há protocolos" not in r.answer
+    # argumento inválido e recusa por allowed também são -1
+    r2 = await _protocols_claim(Tool(spec, bad, "protocolos"), {"x": 1})
+    assert r2.tool_calls[0].returned_records == -1
+    deny = Tool(spec, bad, "protocolos", allowed=lambda ctx: FERRAMENTA_INDISPONIVEL)
+    assert (await _protocols_claim(deny, {})).tool_calls[0].returned_records == -1
+
+
+async def test_successful_empty_call_sustains_absence_claim() -> None:
+    async def empty(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+        return ToolOutput({"mensagem": EMPTY_MSG})
+
+    spec = ToolSpec("list_protocols", "d", schema({"status": {"type": "string"}}))
+    r = await _protocols_claim(Tool(spec, empty, "protocolos"), {})
+    assert r.tool_calls[0].returned_records == 0
+    assert r.guard == "pass" and r.answer == "Não há protocolos abertos."
+
+
+EMPTY_MSG = "Nenhum registro encontrado."

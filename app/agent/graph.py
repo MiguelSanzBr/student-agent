@@ -262,7 +262,7 @@ async def _tools_node(state: _S, config: RunnableConfig) -> _S:
         if (tool := env.tools.get(r.call.name)) is None:
             continue
         executed += out is not None or r.failed
-        n_rec = len(out.records) if out else -1 if r.failed else 0  # -1: falhou, não vazio
+        n_rec = len(out.records) if out else -1  # -1: falhou ou recusada, nunca "vazio"
         trace.append(ToolCallTrace(r.call.name, {k: str(v) for k, v in r.call.args.items()}, n_rec))
         read_tools += tool.read_only
         taint_refused = taint_refused or r.refusal == TAINT_NO_DRAFT
