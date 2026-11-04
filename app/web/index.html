@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atendimento ao aluno</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <a class="skip" href="#text">Ir para a mensagem</a>
+  <header>
+    <h1>Atendimento ao aluno</h1>
+    <button type="button" id="new-chat">Nova conversa</button>
+  </header>
+  <div id="demo-banner" role="status" hidden>Você está no modo demonstração: as respostas são pré-gravadas.</div>
+  <main>
+    <div id="log" role="log" aria-live="polite" aria-label="Conversa"></div>
+    <div id="suggested" aria-label="Perguntas sugeridas"></div>
+  </main>
+  <form id="form" autocomplete="off">
+    <label for="text" class="sr">Sua mensagem</label>
+    <textarea id="text" rows="2" maxlength="2000" placeholder="Escreva sua pergunta" required></textarea>
+    <button type="submit" id="send">Enviar</button>
+  </form>
+  <script src="/static/app.js"></script>
+</body>
+</html>
