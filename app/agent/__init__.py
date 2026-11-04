@@ -8,6 +8,14 @@ def make_llm(settings: AppSettings) -> LLMProvider:
             from app.agent.gemini import GeminiProvider
 
             return GeminiProvider(settings)
+        case "anthropic":
+            from app.agent.claude import AnthropicProvider
+
+            return AnthropicProvider(settings)
+        case "openai":
+            from app.agent.gpt import OpenAIProvider
+
+            return OpenAIProvider(settings)
         case "fake":
             from app.agent.fakes import SmokeLLM
 

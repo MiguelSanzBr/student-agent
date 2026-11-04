@@ -112,6 +112,16 @@ async def test_auto_with_key_uses_gemini(app_secrets: object) -> None:
     assert isinstance(make_llm(s), GeminiProvider)
 
 
+async def test_auto_with_other_keys_uses_their_provider(app_secrets: object) -> None:
+    from app.agent.claude import AnthropicProvider
+    from app.agent.gpt import OpenAIProvider
+
+    s = AppSettings(llm_provider="auto", anthropic_api_key="k" * 32)
+    assert isinstance(make_llm(s), AnthropicProvider)
+    s = AppSettings(llm_provider="auto", openai_api_key="k" * 32)
+    assert isinstance(make_llm(s), OpenAIProvider)
+
+
 async def test_replay_provider_ships_recordings(app_secrets: object) -> None:
     s = AppSettings(llm_provider="replay")
     assert isinstance(make_llm(s), ReplayLLM)
