@@ -519,3 +519,12 @@ def test_dev_security_json_keeps_an_existing_holdout(tmp_path: Path) -> None:
     out = keep_holdout(p, {"behavior": {"failed": 1}, "leak": {}})
     assert out["behavior"] == {"failed": 1} and out["holdout"] == {"behavior": {"failed": 2}}
     assert "holdout" not in keep_holdout(tmp_path / "nada.json", {"behavior": {}})
+
+
+async def test_judge_verdict_markdown_is_ignored() -> None:
+    async def judge(_: str) -> str:
+        return "**NÃO**"
+
+    ok = {"canary": "", "prefix": "", "sleep": nosleep}
+    r = await run_attack(FakeClient(["texto"]), "t", atk(3), rep=0, judge=judge, **ok)  # type: ignore[arg-type]
+    assert r.judge is False and not r.success
