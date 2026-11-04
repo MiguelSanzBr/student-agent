@@ -156,6 +156,9 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     etl_out_dir: Path = Path("/etl-out")  # golden_login.json (caso -> person_key)
     demo_mode: bool = False  # setado por make_llm quando o LLM é replay; /me devolve ao front
     otel_capture_content: bool = False
+    otel_exporter_otlp_endpoint: str | None = None  # Phoenix: http://phoenix:6006/v1/traces
+    phoenix_project: str = "student-agent"  # projeto do Phoenix (export/import por rodada)
+    dataset_sha: str | None = None  # sha do dataset carregado (atributo dataset.sha)
     reference_date: date = date(2026, 10, 31)
     slo: SloTargets = Field(default_factory=load_slo_targets)
 
@@ -171,9 +174,9 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     def _secret_ok(cls, v: str) -> str:
         return check_secret(v)
 
-    @field_validator("gemini_api_key")
+    @field_validator("gemini_api_key", "otel_exporter_otlp_endpoint", "dataset_sha")
     @classmethod
-    def _gemini_blank_is_none(cls, v: str | None) -> str | None:
+    def _blank_is_none(cls, v: str | None) -> str | None:
         return (v or "").strip() or None
 
     @model_validator(mode="after")

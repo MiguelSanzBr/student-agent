@@ -1,6 +1,17 @@
-"""Métricas da spec §9.4; buckets vêm do slo_targets.yaml."""
+"""Métricas da spec §9.4; buckets vêm do slo_targets.yaml.
 
-from prometheus_client import Counter, Gauge, Histogram
+Multiprocesso: com PROMETHEUS_MULTIPROC_DIR o prometheus_client grava por processo e `render` soma.
+"""
+
+from prometheus_client import (
+    REGISTRY,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
+from prometheus_client.multiprocess import MultiProcessCollector
 
 from app.config import load_slo_targets
 
@@ -37,3 +48,11 @@ METRICS: dict[str, Counter | Gauge | Histogram] = {
     "agent_cost_usd_total": _c("agent_cost_usd_total", "Custo em US$"),
     "agent_feedback_total": _c("agent_feedback_total", "Feedback", "useful"),
 }
+
+
+def render(multiproc_dir: str | None = None) -> bytes:
+    if not multiproc_dir:
+        return generate_latest(REGISTRY)
+    reg = CollectorRegistry()
+    MultiProcessCollector(reg, path=multiproc_dir)  # type: ignore[no-untyped-call]
+    return generate_latest(reg)

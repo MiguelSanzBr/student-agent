@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -9,6 +10,8 @@ from app.api import ROUTERS
 from app.config import AppSettings
 from app.data.db import Pool, assert_safe_role, create_pool
 from app.infra.redis import RealRedis
+from app.obs.logging import configure_logging
+from app.obs.tracing import setup_tracing
 from app.service.turn import DefaultTurnService
 
 
@@ -28,6 +31,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         raise RuntimeError(
             f"configuração inválida (segredo ausente, curto ou de exemplo): {campos}"
         ) from None
+    configure_logging(settings)
+    tracing = setup_tracing(settings)
     pool = create_pool(settings)
     redis = RealRedis(settings.redis_host, settings.redis_port, settings.redis_password)
     try:
@@ -39,6 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         await redis.aclose()
         await pool.close()
+        await asyncio.to_thread(tracing.shutdown)  # esvazia o BatchSpanProcessor
 
 
 app = FastAPI(title="student-agent", lifespan=lifespan)

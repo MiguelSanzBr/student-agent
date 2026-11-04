@@ -34,6 +34,8 @@ from app.guards.evidence import check_evidence
 from app.guards.fallback import degrade, strip_markdown_and_codes, template_fallback
 from app.guards.types import GuardResult
 from app.infra.stores.history import Conversation
+from app.obs.metrics import METRICS
+from app.obs.tracing import current_span, llm_attrs, span
 from app.tools.base import (
     Domain,
     DraftCard,
@@ -167,14 +169,24 @@ async def _llm_node(state: _S, config: RunnableConfig) -> _S:
     specs = tuple(t.spec for t in env.tools.values()) if offer else ()
     t0 = monotonic()
     try:
-        resp = await asyncio.wait_for(
-            env.llm.generate(model=env.model, system=env.system, messages=msgs, tools=specs,
-                             deadline=env.deadline),
-            left,
-        )  # fmt: skip
+        with span("agent.call_model", "LLM", **{"llm.model_name": env.model}) as sp:
+            sp.set_content("input.value", env.question)
+            try:
+                resp = await asyncio.wait_for(
+                    env.llm.generate(model=env.model, system=env.system, messages=msgs,
+                                     tools=specs, deadline=env.deadline),
+                    left,
+                )  # fmt: skip
+            finally:
+                METRICS["agent_llm_seconds"].observe(monotonic() - t0)  # type: ignore[union-attr]
+            llm_attrs(sp, resp.model, resp.usage.input_tokens, resp.usage.output_tokens,
+                      resp.usage.thinking_tokens, resp.usage.cached_tokens)  # fmt: skip
+            sp.set_content("output.value", resp.text or "")
     except TimeoutError:
+        METRICS["agent_llm_errors_total"].labels(kind="timeout").inc()  # type: ignore[union-attr]
         return {"abort": "budget_exceeded"}
     except LLMUnavailable as e:
+        METRICS["agent_llm_errors_total"].labels(kind=e.reason).inc()  # type: ignore[union-attr]
         return {"abort": "budget_exceeded" if e.reason == "timeout" else "llm_unavailable"}
     u, calls = state["usage"], resp.tool_calls if offer else ()
     out: _S = {
@@ -205,6 +217,22 @@ class _Res:
 async def _exec(env: _Env, ctx: ToolContext, call: ToolCall) -> _Res:
     """Valida, confere `allowed` e só então chama o handler; nada além do código estável sai."""
     tool = env.tools[call.name]
+    enums = {k for k, p in tool.spec.parameters.get("properties", {}).items() if "enum" in p}
+    with span(
+        "agent.tool",
+        "TOOL",
+        **{"tool.name": call.name, "tool.args.count": len(call.args)},
+        **{f"tool.args.{k}": str(v) for k, v in call.args.items() if k in enums},
+    ) as sp:
+        r = await _exec_tool(tool, ctx, call)
+        if r.output is not None:
+            sp.set_attribute("tool.returned_records", len(r.output.records))
+        else:  # falhou ou foi recusada: nunca "0 registros"
+            sp.set_attribute("tool.failed", True)
+        return r
+
+
+async def _exec_tool(tool: Tool, ctx: ToolContext, call: ToolCall) -> _Res:
     try:
         args = validate_args(tool.spec, call.args)
         if (why := tool.allowed(ctx)) is not None:
@@ -214,6 +242,7 @@ async def _exec(env: _Env, ctx: ToolContext, call: ToolCall) -> _Res:
         return _Res(call, {"erro": e.code}, None, None)
     except Exception as e:  # noqa: BLE001 - o texto da exceção nunca vai ao LLM nem ao log
         log.warning("ferramenta %s falhou: %s", call.name, type(e).__name__)
+        current_span().set_attribute("exception.type", type(e).__name__)
         return _Res(call, {"erro": FERRAMENTA_INDISPONIVEL}, None, None, failed=True)
     return _Res(call, wrap_tool_result(out), out, None)
 
@@ -315,6 +344,13 @@ def _server_text(state: _S) -> list[str]:
 
 
 async def _guard_node(state: _S, config: RunnableConfig) -> _S:
+    with span("agent.guard", "GUARDRAIL") as sp:
+        out = await _guard_inner(state, config)
+        sp.set_attribute("guard.outcome", out.get("guard", "retry"))
+        return out
+
+
+async def _guard_inner(state: _S, config: RunnableConfig) -> _S:
     env = _env(config)
     t0 = monotonic()
     rest = strip_markdown_and_codes((state["text"] or "").strip(), env.ontology).strip()
@@ -330,6 +366,7 @@ async def _guard_node(state: _S, config: RunnableConfig) -> _S:
         guard, status = "fallback", "fallback"
     else:
         res = _check(env, state, rest)
+        current_span().set_attribute("guard.kinds", ",".join(sorted(res.kinds())))
         if res.ok:
             guard = "retry_pass" if state["retries"] else "pass"
         elif env.allow_retry and not state["retries"]:

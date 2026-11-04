@@ -51,9 +51,13 @@ lint:
 
 check: lint test
 
-investigate phoenix-import eval-dev eval-test eval-guard eval-security \
+investigate eval-dev eval-test eval-guard eval-security \
 eval-latency load-test package:
 	$(NOT_YET)
+
+phoenix-import:  # make phoenix-import FILE=docs/evidence/phoenix/<run>.json (PHOENIX_URL)
+	@test -n "$(FILE)" || { echo "use FILE=...json" >&2; exit 1; }
+	uv run python -m scripts.phoenix_export import $(FILE)
 
 smoke:  # make smoke LANE=x, em série; sobe a raia e a derruba ao fim
 	@test -n "$(call lv,API_PORT)" || { echo "use LANE=a|b|c|d" >&2; exit 1; }

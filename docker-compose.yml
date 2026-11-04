@@ -14,6 +14,7 @@ x-api: &api
     GCP_LOCATION: ${GCP_LOCATION:-global}
     DEV_LOGIN: ${DEV_LOGIN:-true}  # demo local; AppSettings recusa dev_login com APP_ENV=prod
     OTEL_INSTRUMENTATION_A2A_SDK_ENABLED: "false"
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}  # obs: http://phoenix:6006/v1/traces
   volumes:
     - secrets-app:/run/secrets/app:ro
     - etl-out:/etl-out:ro  # case -> person_key (login_url, dev-login "só golden")

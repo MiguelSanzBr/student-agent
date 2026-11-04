@@ -2,18 +2,21 @@
 
 import asyncio
 import dataclasses
+import json
 import logging
 import re
 import unicodedata
 from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from functools import cache
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from app.agent.graph import SpendLevel, TurnResult, bare_result, run_turn
 from app.agent.llm import LLMProvider, LLMResponse, Message, Usage
 from app.agent.messages import DRAFT_PENDING_USE_BUTTON
+from app.agent.prompt import SYSTEM_PREFIX
 from app.config import AppSettings
 from app.data.card import build_student_card
 from app.data.db import Pool, with_scope
@@ -28,8 +31,9 @@ from app.infra.stores.spend import GlobalSpend
 from app.infra.stores.turn_outputs import TurnOutputCache
 from app.obs.cost import cost_usd
 from app.obs.metrics import METRICS
-from app.obs.tracing import span
+from app.obs.tracing import current_span, session_id, sha12, span
 from app.tools.base import ToolContext, ToolSpec
+from app.tools.registry import build_tools
 from core.clock import monotonic, reference_today
 from core.scope import StudentScope
 
@@ -67,6 +71,13 @@ class TurnService(Protocol):
     async def settle(
         self, admission: Admission, result: TurnResult | None, *, cancelled: bool = False
     ) -> None: ...
+
+
+@cache
+def _shas() -> tuple[str, str]:
+    """prompt.sha (prefixo, sem o canário) e tools.sha (declarações): versão do agente."""
+    specs = [dataclasses.asdict(t.spec) for t in build_tools()]
+    return sha12(SYSTEM_PREFIX), sha12(json.dumps(specs, sort_keys=True, default=str))
 
 
 def _is_yes(text: str) -> bool:
@@ -147,10 +158,18 @@ class DefaultTurnService:
         channel: Channel, emit: Emit,
     ) -> TurnResult:  # fmt: skip
         s, sub, trace_id = self.settings, scope.person_key, uuid4().hex
-        with span("turn", "AGENT", channel=channel, trace_id=trace_id):
+        with span("chat.turn", "AGENT", channel=channel) as sp:
+            trace_id = sp.trace_id or trace_id  # o id do trace é o do Phoenix (anotações, 👎)
+            prompt_sha, tools_sha = _shas()
+            sp.set_attribute("session.id", session_id(s, conversation_id))
+            sp.set_attribute("prompt.sha", prompt_sha)
+            sp.set_attribute("tools.sha", tools_sha)
+            if s.dataset_sha:
+                sp.set_attribute("dataset.sha", s.dataset_sha)
             await emit({"event": "meta", "trace_id": trace_id, "conversation_id": conversation_id})
             try:
                 text = normalize_input(text)
+                sp.set_content("input.value", text)
             except InputTooLong:
                 msg = f"A mensagem passa de {s.limits.input_chars} caracteres. Escreva algo menor."
                 await emit({"event": "error", "message": msg})
@@ -237,6 +256,12 @@ class DefaultTurnService:
 
     async def _done(self, r: TurnResult, emit: Emit, trace_id: str, channel: Channel) -> TurnResult:
         m = METRICS
+        sp = current_span()
+        for k, v in {"llm.calls": r.llm_calls, "turn.status": r.status, "guard.outcome": r.guard,
+                     "turn.tools_class": r.tools_class, "turn.answer_kind": r.answer_kind,
+                     "turn.domain": r.domain, "llm.model_name": r.model}.items():  # fmt: skip
+            sp.set_attribute(k, v)
+        sp.set_content("output.value", r.answer)
         m["agent_turns_total"].labels(status=r.status, channel=channel).inc()  # type: ignore[union-attr]
         m["agent_turn_seconds"].labels(  # type: ignore[union-attr]
             tools_class=r.tools_class, llm_calls=str(r.llm_calls), guard=r.guard, model=r.model

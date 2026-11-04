@@ -11,6 +11,7 @@ from google.genai import errors, types
 
 from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
 from app.config import AppSettings
+from app.obs.metrics import METRICS
 from app.tools.base import ToolSpec
 from core.clock import monotonic
 
@@ -176,6 +177,7 @@ class GeminiProvider:
                     raise LLMUnavailable(reason) from e
                 retried = True
                 self._retries.append(now)
+                METRICS["agent_llm_retries_total"].inc()  # type: ignore[union-attr]
                 await _sleep(delay)
             except (TimeoutError, httpx.TimeoutException) as e:
                 raise LLMUnavailable("timeout") from e
