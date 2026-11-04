@@ -8,6 +8,32 @@ quotas:  # PROVISÓRIO: cotas reais (RPM/TPM/RPD) pendentes, sem GEMINI_API_KEY
   gemini-3.5-flash-lite: {rpm: 4000, tpm: 4000000, rpd: 50000}
 admission:
   quota_fraction: 0.9
+  est_requests: 3  # PROVISÓRIO: E[chamadas ao LLM por turno] p/ reserve (spec §5); refit após janela A
+  est_tokens: 6000  # PROVISÓRIO: E[tokens por turno] p/ reserve; refit após janela A
+components:  # lognormal por componente de latência (s): mu = ln(mediana); PRIORS de docs/evidence/spikes.json (gemini-3.5-flash-lite)
+  tool_call: {mu: 0.5878, sigma: 0.35}
+  answer_call: {mu: 0.9555, sigma: 0.35}
+  overhead: {mu: -1.204, sigma: 0.2}
+limits:  # plano, Global Constraints (Limites); perfil escolhido por LIMITS_PROFILE
+  default: &limits_default
+    input_chars: 2000
+    answer_chars: 2000
+    msgs_per_min: 20
+    tokens_per_day: 200000
+    global_ceiling_usd: 20  # demo
+    history_turns: 5
+    history_ttl_s: 1800
+    jwt_ttl_s: 1800
+    draft_ttl_s: 600
+    login_ticket_ttl_s: 300
+    a2a_task_ttl_s: 3600
+    max_rounds: 4
+    degrade_at: 0.8  # >= 80% do teto: degrade_rounds e sem retry do guard; 100%: 503
+    degrade_rounds: 2
+  eval:  # sem degradação por custo; o teto duro aborta a rodada
+    <<: *limits_default
+    global_ceiling_usd: 40
+    degrade_at: null
 targets:  # segundos, por classe de ferramentas do turno: max(meta inicial, previsto)
   card: {p50: 3.5, p90: 4.73, p95: 6.0, p99: 7.25}
   "1": {p50: 4.91, p90: 6.92, p95: 8.0, p99: 9.41}

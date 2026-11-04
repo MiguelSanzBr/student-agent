@@ -31,3 +31,6 @@ class TurnResult:
     pre_guard_answer: str | None
     new_messages: tuple[Message, ...]
     records: tuple[EntityRecord, ...]
+    became_tainted: bool = False  # T25 chama HistoryStore.mark_tainted
+    offered_other_enrollment: bool = False  # T25 chama mark_other_enrollment_offered
+    cost_degraded: bool = False

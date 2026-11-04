@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
 from typing import Any, ClassVar, Literal, Self
@@ -24,6 +25,30 @@ class Quota(BaseModel):
 
 class Admission(BaseModel):
     quota_fraction: float = 0.9
+    est_requests: int  # E[chamadas ao LLM por turno], para o reserve do balde
+    est_tokens: int  # E[tokens por turno], idem
+
+
+class Lognormal(BaseModel):
+    mu: float  # ln(mediana em s)
+    sigma: float
+
+
+class Limits(BaseModel):
+    input_chars: int
+    answer_chars: int
+    msgs_per_min: int
+    tokens_per_day: int
+    global_ceiling_usd: float
+    history_turns: int
+    history_ttl_s: int
+    jwt_ttl_s: int
+    draft_ttl_s: int
+    login_ticket_ttl_s: int
+    a2a_task_ttl_s: int
+    max_rounds: int
+    degrade_at: float | None  # None: nunca degrada (perfil eval)
+    degrade_rounds: int
 
 
 class Quantiles(BaseModel):
@@ -41,6 +66,8 @@ class SloTargets(BaseModel):
     frozen: bool
     quotas: dict[str, Quota]
     admission: Admission
+    components: Mapping[str, Lognormal]
+    limits: Mapping[Literal["default", "eval"], Limits]
     targets: dict[str, Quantiles]
     ttfe: dict[str, Ttfe]
     graph_budget_s: float
@@ -120,9 +147,14 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     llm_fallback_model: str = "gemini-3.5-flash-lite"
     api_port: int = 8000
     dev_login: bool = False
+    demo_mode: bool = False  # setado por make_llm quando o LLM é replay; /me devolve ao front
     otel_capture_content: bool = False
     reference_date: date = date(2026, 10, 31)
     slo: SloTargets = Field(default_factory=load_slo_targets)
+
+    @property
+    def limits(self) -> Limits:
+        return self.slo.limits[self.limits_profile]
 
     @field_validator(
         "jwt_secret", "dev_login_secret", "hmac_key", "prompt_canary",

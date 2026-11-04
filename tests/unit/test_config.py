@@ -82,3 +82,21 @@ def test_etl_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ETL_OWNER_PASSWORD", "nope" * 10)
     assert EtlSettings().etl_owner_password == "e" * 40
     assert "jwt_secret" not in EtlSettings.model_fields
+
+
+def test_limits_by_profile(app_secrets: Path) -> None:
+    d = AppSettings().limits
+    assert (d.input_chars, d.msgs_per_min, d.tokens_per_day, d.global_ceiling_usd) == (
+        2000, 20, 200_000, 20,
+    )  # fmt: skip
+    assert (d.history_turns, d.history_ttl_s, d.jwt_ttl_s, d.draft_ttl_s) == (5, 1800, 1800, 600)
+    assert (d.max_rounds, d.degrade_at, d.degrade_rounds) == (4, 0.8, 2)
+    e = AppSettings(limits_profile="eval").limits
+    assert e.global_ceiling_usd == 40 and e.degrade_at is None
+
+
+def test_slo_components_and_estimates(app_secrets: Path) -> None:
+    s = AppSettings()
+    assert set(s.slo.components) >= {"tool_call", "answer_call", "overhead"}
+    assert s.slo.admission.est_requests > 0 and s.slo.admission.est_tokens > 0
+    assert AppSettings().demo_mode is False

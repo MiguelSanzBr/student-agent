@@ -64,9 +64,11 @@ class DraftCard:
     due_date: str
     description: str
     warning: str
+    conversation_id: str  # só para o confirm; nunca sai no public()
+    enrollment_index: str  # "1".."3"; idem
 
     def public(self) -> dict[str, str]:
-        """Vai no SSE, nunca ao LLM: sem o token."""
+        """Vai no SSE, nunca ao LLM: sem o token, conversation_id nem enrollment_index."""
         return {
             "draft_id": self.draft_id,
             "service_code": self.key.service_code,

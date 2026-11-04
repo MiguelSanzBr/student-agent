@@ -11,7 +11,8 @@ __pycache__/
 .ruff_cache/
 .coverage
 
-# segredos
+# segredos (.lanes/: senhas da raia, make lane-up)
+.lanes/
 .env
 .superpowers/
 .worktrees/

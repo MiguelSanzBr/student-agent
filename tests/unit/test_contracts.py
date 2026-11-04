@@ -1,6 +1,5 @@
 import json
 from typing import get_args
-from uuid import uuid4
 
 import pytest
 
@@ -39,8 +38,13 @@ def test_draftcard_public_no_token() -> None:
         "10/11/2026",
         "x",
         "y",
+        "conv-1",
+        "2",
     )
-    assert "token" not in card.public() and "secret" not in card.public().values()
+    pub = card.public()
+    assert "token" not in pub and "secret" not in pub.values()
+    assert not {"conversation_id", "enrollment_index"} & set(pub)
+    assert not {"conv-1", "2"} & set(pub.values())
 
 
 def test_entity_record_key_and_lookup() -> None:
@@ -83,4 +87,9 @@ def test_turnresult_literals() -> None:
     assert set(get_args(TurnResult.__annotations__["tools_class"])) == {"card", "1", "2+"}
     assert "cancelled" in get_args(TurnStatus)
     assert len(get_args(AnswerKind)) == 5
-    assert uuid4()
+
+
+def test_turnresult_flag_defaults() -> None:
+    f = TurnResult.__dataclass_fields__
+    for n in ("became_tainted", "offered_other_enrollment", "cost_degraded"):
+        assert f[n].default is False
