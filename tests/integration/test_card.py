@@ -4,7 +4,6 @@ from datetime import date
 
 import pytest
 
-from app.config import AppSettings
 from app.data.card import CHARS_PER_TOKEN, StudentCard
 from app.tools.base import DraftCard, DraftKey
 from core.format import fmt_brl, fmt_date
@@ -95,4 +94,32 @@ def test_card_pending_draft_line(harness: Harness) -> None:
     card = harness.run(go())
     assert "Pedido de Declaração de matrícula aguardando Confirmar" in card.text
     assert "tok" not in card.text
-    assert isinstance(harness.settings, AppSettings)
+
+
+def test_card_open_protocol_without_prazo(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.tools import protocols
+    from app.tools.base import ToolOutput
+
+    rows = [
+        {"protocolo": "SA-2026-000001", "servico": "x", "status": "aberto",
+         "aberto_em": "01/10/2026", "prazo": "não informado", "solicitante": "aluno"},
+        {"protocolo": "12345678901", "servico": "y", "status": "em análise",
+         "aberto_em": "01/10/2026", "prazo": "05/11/2026", "solicitante": "aluno"},
+        {"protocolo": "12345678902", "servico": "y", "status": "resolvido",
+         "aberto_em": "01/10/2026", "prazo": "01/11/2026", "solicitante": "aluno"},
+    ]  # fmt: skip
+
+    async def fake(ctx: object, args: object) -> ToolOutput:
+        return ToolOutput({"protocolos": rows})
+
+    monkeypatch.setattr(protocols, "_list", fake)
+    card = harness.card(1)
+    assert card.facts["geral.protocolos_abertos"] == "2"
+    assert card.facts["geral.proximo_prazo"] == "05/11/2026"
+    only_blank = [rows[0]]
+    rows[:] = only_blank
+    card = harness.card(1)  # nenhum prazo legível: o cartão sai sem a data
+    assert card.facts["geral.protocolos_abertos"] == "1"
+    assert "geral.proximo_prazo" not in card.facts

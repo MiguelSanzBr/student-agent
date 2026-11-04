@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from app.rules.finance import COUNTED  # noqa: F401  (a regra vive em app.rules.finance)
 from app.tools import academic, finance, lms, protocols
 from app.tools.base import DraftCard, ToolContext, default_ontology
 from core.format import fmt_date
@@ -29,8 +28,11 @@ class StudentCard:
     facts: Mapping[str, str]  # chaves "<índice>.<campo>" e "geral.<campo>"
 
 
-def _d(s: str) -> date:
-    return datetime.strptime(s, "%d/%m/%Y").date()
+def _d(s: str) -> date | None:
+    try:
+        return datetime.strptime(s, "%d/%m/%Y").date()
+    except ValueError:  # "não informado" (protocolo sem prazo)
+        return None
 
 
 async def _payer(conn: "AsyncConnection[Any]", ek: Any) -> str | None:
@@ -54,7 +56,11 @@ async def build_student_card(
     async def db() -> Any:
         yield conn
 
-    ctx = ToolContext(scope, settings, "web", "", False, 1, False, today, db, None)  # type: ignore[arg-type]
+    ctx = ToolContext(
+        scope=scope, settings=settings, channel="web", conversation_id="", tainted=False,
+        round=1, offer_other_enrollment=False, today=today, db=db,
+        drafts=None,  # type: ignore[arg-type]  # o cartão só lê
+    )  # fmt: skip
     onto = default_ontology()
     lines, facts = [f"Data de referência: {fmt_date(today)}"], {}
     for e in scope.enrollments:
@@ -94,8 +100,8 @@ async def build_student_card(
     open_ = [p for p in prots if p["status"].casefold() not in _CLOSED]
     facts["geral.protocolos_abertos"] = str(len(open_))
     line = f"Protocolos abertos: {len(open_)}"
-    if open_:
-        facts["geral.proximo_prazo"] = fmt_date(min(_d(p["prazo"]) for p in open_))
+    if prazos := [d for p in open_ if (d := _d(p["prazo"]))]:
+        facts["geral.proximo_prazo"] = fmt_date(min(prazos))
         line += f"; próximo prazo {facts['geral.proximo_prazo']}"
     lines.append(line)
     if pending is not None:

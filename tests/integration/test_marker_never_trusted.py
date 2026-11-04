@@ -50,11 +50,31 @@ def test_marker_in_every_text_cell_never_reaches_trusted_output(
     out, eval_out = tmp_path / "o", tmp_path / "e"
     out.mkdir()
     eval_out.mkdir()
+    # `python -m etl load --source <planted>` não serve: a CLI passa a MESMA pasta ao oráculo, e o
+    # oráculo (que independe do ETL) quebra num KeyError ao achar o marcador na chave de tenant do
+    # LMS. Então chamamos o mesmo `load_all` da CLI com o oráculo lendo o fixture limpo.
     load_all(
         read_raw(dst), etl_settings(db), database=db.name, out=out, eval_out=eval_out,
         oracle_raw=o.load_csv(MINI), golden=GOLDEN,
     )  # fmt: skip
-    with db.connect("postgres") as c:  # controle positivo: o marcador está de fato no banco
+    onto = Ontology.load(ONTOLOGY)
+    with db.connect("postgres") as c:  # controle positivo: o marcador chegou ao banco
+        for table in onto.tables():
+            for col in onto.table_columns(table):
+                spec = onto.column(table, col)
+                if (
+                    spec.type != "text"
+                    or spec.destination not in ("load", "transform")
+                    or not spec.target
+                ):
+                    continue
+                canon, field = spec.target.split(".")
+                n = c.execute(  # type: ignore[call-overload]
+                    f"SELECT count(*) FROM canon.{canon} WHERE {field} ILIKE %s", ("%zqxmarker%",)
+                ).fetchone()
+                # coluna tipada (enum/label_pt/lista exata/regex): o ETL absorve o marcador;
+                # só o texto livre o guarda (e nunca vai ao LLM)
+                assert n and n[0] == 0, (table, col, spec.target)
         n = c.execute(  # type: ignore[call-overload]
             "SELECT count(*) FROM canon.protocol_message WHERE texto_livre ILIKE %s",
             ("%zqxmarker%",),
