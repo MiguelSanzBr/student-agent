@@ -269,3 +269,33 @@ def test_strict_is_default_and_returns_no_missing(tmp_path: Path) -> None:
     f = tmp_path / "a.md"
     f.write_text("<!-- num:ok -->?<!-- /num -->")
     assert render_docs([f], {"ok": "1"}) == []
+
+
+def test_build_numbers_has_one_key_per_dev_round(tmp_path: Path) -> None:
+    for r, point in ((1, 0.5), (2, 0.6), (3, 0.7)):
+        f = tmp_path / "quality" / f"dev-r{r}" / "quality.json"
+        f.parent.mkdir(parents=True)
+        f.write_text(json.dumps({"primary": {"point": point}, "rehearsal": False}))
+    n = build_numbers(tmp_path)
+    assert [n[f"quality.dev.r{r}.pass1"] for r in (1, 2, 3)] == [
+        "50,0% (IC indisponível)",
+        "60,0% (IC indisponível)",
+        "70,0% (IC indisponível)",
+    ]
+    assert n["quality.dev.pass1"] == n["quality.dev.r3.pass1"]
+
+
+def test_build_numbers_has_guard_weak_templates(tmp_path: Path) -> None:
+    (tmp_path / "quality" / "guard").mkdir(parents=True)
+    rec = {k: {"k": 0, "n": 10} for k in ("status_word", "flip_negation")}
+    rec["flip_negation"]["k"] = 7
+    g = {
+        "blind": {
+            "recall": {"point": 0.9},
+            "false_block": {"k": 0, "n": 43, "point": 0.0},
+            "recall_by_template": rec,
+        }
+    }
+    (tmp_path / "quality" / "guard" / "guard.json").write_text(json.dumps(g))
+    n = build_numbers(tmp_path)
+    assert (n["guard.weak.status_word"], n["guard.weak.flip_negation"]) == ("0/10", "7/10")

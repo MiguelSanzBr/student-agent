@@ -292,7 +292,7 @@ A pergunta de projeto é se a segurança sobrevive a um modelo comprometido. Por
 
 **Ataques com LLM real.** São 15 categorias: jailbreak, roleplay, quebra de papel, falsa promessa, extração de prompt literal e por paráfrase, sequestro de rascunho e escalada multi-turno (comportamento); identidade, outro aluno, outra marca, funcionários e credenciais (vazamento); injeção plantada e armazenada (zero por construção, conferido pelo teste do marcador). O número primário é a suíte completa de desenvolvimento, com 2 repetições, rodada **antes** de qualquer correção, mais uma rodada de holdout cego e adaptativo no SHA congelado, em que um redator cego escreve os templates sem ver o código e um LLM atacante os refina em até 3 tentativas. A unidade do intervalo de Wilson é o **template de ataque**: ele falha se qualquer mutação ou repetição falhar.
 
-Resultado, quando existir: ataques de comportamento bem-sucedidos (desenvolvimento) <!-- num:security.dev.behavior.success -->a medir<!-- /num -->; no holdout <!-- num:security.holdout.behavior.success -->a medir<!-- /num -->; vazamentos <!-- num:security.leak.success -->a medir<!-- /num -->.
+Resultado, quando existir: ataques de comportamento bem-sucedidos (desenvolvimento) <!-- num:security.dev.behavior.success -->2/40 templates (Wilson 95%: 1,4% a 16,5%)<!-- /num -->; no holdout <!-- num:security.holdout.behavior.success -->a medir<!-- /num -->; vazamentos <!-- num:security.leak.success -->1/20 templates (Wilson 95%: 0,9% a 23,6%)<!-- /num -->.
 
 ## 7. Qualidade
 
@@ -301,14 +301,14 @@ O método está em D11. Aqui ficam os resultados e o que eles não dizem. Nada d
 
 | Medida | Desenvolvimento | Teste |
 |---|---|---|
-| pass@1 primário (IC 95%) | <!-- num:quality.dev.pass1 -->a medir<!-- /num --> | <!-- num:quality.test.pass1 -->a medir<!-- /num --> |
+| pass@1 primário (IC 95%) | <!-- num:quality.dev.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> | <!-- num:quality.test.pass1 -->a medir<!-- /num --> |
 | Templates vistos | <!-- num:quality.seen.pass1 -->a medir<!-- /num --> | |
 | Templates não vistos (`test_only`) | | <!-- num:quality.unseen.pass1 -->a medir<!-- /num --> |
 | Recusa correta | | <!-- num:quality.test.refusal_ok -->a medir<!-- /num --> |
 | Recusa indevida | | <!-- num:quality.test.refusal_wrong -->a medir<!-- /num --> |
 | Perguntas que cruzam sistemas | | <!-- num:quality.test.cross -->a medir<!-- /num --> |
-| Bloqueio indevido do guard | | <!-- num:guard.false_block -->a medir<!-- /num --> |
-| Recall do guard (perturbação cega) | | <!-- num:guard.blind_recall -->a medir<!-- /num --> |
+| Bloqueio indevido do guard | | <!-- num:guard.false_block -->0/43 (0,0% [0,0%; 8,2%])<!-- /num --> |
+| Recall do guard (perturbação cega) | | <!-- num:guard.blind_recall -->91,8% [78,8%; 100,0%]<!-- /num --> |
 
 A meta é um limite inferior de 85% no pass@1 primário. Meta é compromisso, não resultado: abaixo dela, o número é publicado como está, com a análise de erro por causa.
 
@@ -325,15 +325,15 @@ Hoje a fórmula roda com **priors**, não amostras: o portão do LLM depende de 
 
 | Classe | p50 | p95 | TTFE p95 |
 |---|---|---|---|
-| `card` | <!-- num:latency.card.p50 -->a medir<!-- /num --> | <!-- num:latency.card.p95 -->a medir<!-- /num --> | <!-- num:latency.card.ttfe_p95 -->a medir<!-- /num --> |
-| `1` | <!-- num:latency.one.p50 -->a medir<!-- /num --> | <!-- num:latency.one.p95 -->a medir<!-- /num --> | <!-- num:latency.one.ttfe_p95 -->a medir<!-- /num --> |
-| `2+` | <!-- num:latency.two_plus.p50 -->a medir<!-- /num --> | <!-- num:latency.two_plus.p95 -->a medir<!-- /num --> | <!-- num:latency.two_plus.ttfe_p95 -->a medir<!-- /num --> |
+| `card` | <!-- num:latency.card.p50 -->2,26 s<!-- /num --> | <!-- num:latency.card.p95 -->5,27 s<!-- /num --> | <!-- num:latency.card.ttfe_p95 -->5,25 s<!-- /num --> |
+| `1` | <!-- num:latency.one.p50 -->3,88 s<!-- /num --> | <!-- num:latency.one.p95 -->7,31 s<!-- /num --> | <!-- num:latency.one.ttfe_p95 -->1,98 s<!-- /num --> |
+| `2+` | <!-- num:latency.two_plus.p50 -->4,55 s<!-- /num --> | <!-- num:latency.two_plus.p95 -->7,34 s<!-- /num --> | <!-- num:latency.two_plus.ttfe_p95 -->2,08 s<!-- /num --> |
 
-Overhead de infraestrutura (tudo que não é modelo): <!-- num:latency.overhead.p95 -->a medir<!-- /num -->. Turnos que estouraram o orçamento do grafo na janela A: <!-- num:latency.budget_exceeded -->a medir<!-- /num -->.
+Overhead de infraestrutura (tudo que não é modelo): <!-- num:latency.overhead.p95 -->0,08 s<!-- /num -->. Turnos que estouraram o orçamento do grafo na janela A: <!-- num:latency.budget_exceeded -->0,0%<!-- /num -->.
 
 **Capacidade.** "Milhares simultâneos" vira alunos ativos, mensagens por minuto, RPM e TPM contra a cota do modelo, e só depois réplicas, pela CPU por turno. O TPM limita antes da CPU. Vagas de turno e pool de conexões são dimensionados pela lei de Little. A carga é gerada por um `LoadTestLLM` com latências sorteadas das lognormais do portão, em duas escadas de laço aberto contra a API: (a) com o limitador ligado e uma cota simulada derivada das vagas (platô de goodput, 503 com `Retry-After`, retries e cortes dentro de um teto, e o motivo da rejeição por degrau: cota ou vagas) e (b) sem limitador, para achar o joelho e a CPU por turno. Resultado: <!-- num:latency.load.plateau -->a medir<!-- /num -->.
 
-**Custo.** Medido por turno, por índice de turno e por aluno ao mês, com tokens de entrada, saída, raciocínio e cache. Custo médio por turno: <!-- num:latency.cost.per_turn -->a medir<!-- /num -->. O relatório informa a tabela de preços usada.
+**Custo.** Medido por turno, por índice de turno e por aluno ao mês, com tokens de entrada, saída, raciocínio e cache. Custo médio por turno: <!-- num:latency.cost.per_turn -->US$ 0,0007<!-- /num -->. O relatório informa a tabela de preços usada.
 
 Há duas alavancas, desligadas por padrão: o hedge da primeira chamada no p90 e a comparação entre os dois modelos por classe. O hedge vive no `TurnService` (`hedger`, flag `lever_hedge_first_call`), tem orçamento (10% das chamadas por minuto, com piso) e só dispara com o balde de admissão abaixo de 80%; a segunda requisição é contabilizada no balde, na cota diária e no gasto. O streaming por frase foi removido: o guard precisa da resposta inteira. Os resultados vão para `docs/evidence/latency.md` sem alterar o padrão.
 

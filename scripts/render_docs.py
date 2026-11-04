@@ -44,19 +44,26 @@ def _s(v: float) -> str:
     return f"{v:.2f} s".replace(".", ",")
 
 
-def _round(evidence_dir: Path, split: str) -> Any:
-    """quality.json da maior rodada `<split>-rN` que não é ensaio; ausente = None."""
-    found = []
+def _rounds(evidence_dir: Path, split: str) -> dict[int, Any]:
+    """quality.json de cada rodada `<split>-rN` que não é ensaio, por N."""
+    found = {}
     for f in (evidence_dir / "quality").glob(f"{split}-r*/quality.json"):
         q = json.loads(f.read_text())
-        if m := re.fullmatch(rf"{split}-r(\d+)", f.parent.name):
-            if not q.get("rehearsal"):
-                found.append((int(m[1]), q))
-    return max(found, key=lambda t: t[0])[1] if found else None
+        if (m := re.fullmatch(rf"{split}-r(\d+)", f.parent.name)) and not q.get("rehearsal"):
+            found[int(m[1])] = q
+    return found
+
+
+def _round(evidence_dir: Path, split: str) -> Any:
+    """A maior rodada `<split>-rN` que não é ensaio; ausente = None."""
+    found = _rounds(evidence_dir, split)
+    return found[max(found)] if found else None
 
 
 def _quality(evidence_dir: Path) -> dict[str, str]:
     out: dict[str, str] = {}
+    for n, q in sorted(_rounds(evidence_dir, "dev").items()):
+        out[f"quality.dev.r{n}.pass1"] = _ci(q["primary"], f"dev-r{n}.primary")
     if (dev := _round(evidence_dir, "dev")) is not None:
         out["quality.dev.pass1"] = _ci(dev["primary"], "dev.primary")
     if (t := _round(evidence_dir, "test")) is not None:
@@ -124,6 +131,9 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
         out["guard.blind_recall"] = _ci(g["blind"]["recall"], "guard.recall")
         fb = g["blind"]["false_block"]
         out["guard.false_block"] = f"{fb['k']}/{fb['n']} ({_ci(fb, 'guard.false_block')})"
+        for t in ("status_word", "flip_negation"):
+            r = g["blind"]["recall_by_template"][t]
+            out[f"guard.weak.{t}"] = f"{r['k']}/{r['n']}"
     if (sec := _load(evidence_dir / "security.json")) is not None:
         out |= _security(sec)
     if (lat := _load(evidence_dir / "latency-A.json")) is not None:

@@ -8,10 +8,10 @@ A segurança é de arquitetura (RLS forçado, ferramentas sem identidade, texto 
 <!-- chaves esperadas: quality.dev.pass1, quality.test.pass1, quality.seen.pass1, quality.unseen.pass1, security.holdout.behavior.success, latency.two_plus.p95 -->
 | Número (IC 95%) | Desenvolvimento | Teste |
 |---|---|---|
-| pass@1 (primário) | <!-- num:quality.dev.pass1 -->a medir<!-- /num --> | <!-- num:quality.test.pass1 -->a medir<!-- /num --> |
+| pass@1 (primário) | <!-- num:quality.dev.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> | <!-- num:quality.test.pass1 -->a medir<!-- /num --> |
 | pass@1 em templates vistos × não vistos | <!-- num:quality.seen.pass1 -->a medir<!-- /num --> | <!-- num:quality.unseen.pass1 -->a medir<!-- /num --> |
 | Ataques de comportamento bem-sucedidos (holdout cego) | | <!-- num:security.holdout.behavior.success -->a medir<!-- /num --> |
-| Latência p95, turnos com 2 ou mais ferramentas | | <!-- num:latency.two_plus.p95 -->a medir<!-- /num --> |
+| Latência p95, turnos com 2 ou mais ferramentas | | <!-- num:latency.two_plus.p95 -->7,34 s<!-- /num --> |
 
 Método, limites e o que não foi medido: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
