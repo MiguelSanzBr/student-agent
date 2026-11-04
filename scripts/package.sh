@@ -16,8 +16,8 @@ esac
 mkdir -p "$OUT"
 rm -f "$OUT/student-agent.zip" "$OUT/student-agent.bundle"
 git archive --format=zip --prefix=student-agent/ -o "$OUT/student-agent.zip" HEAD -- . \
-  ':(exclude)data' ':(exclude).env' ':(exclude)dados.zip' ':(exclude).lanes' ':(exclude).worktrees' \
-  ':(exclude).superpowers' ':(exclude)evals/holdout/*.yaml' ':(exclude)evals/holdout/*.yml' \
-  ':(exclude)*.pem' ':(exclude)*.key' "${extra[@]}"
-[ "$MODE" = a ] && git bundle create "$OUT/student-agent.bundle" --all
+  ':(top,exclude)data' ':(top,exclude).env' ':(top,exclude)dados.zip' ':(top,exclude).lanes' ':(top,exclude).worktrees' \
+  ':(top,exclude).superpowers' ':(top,exclude)evals/holdout/data' ':(exclude)evals/holdout/*.yaml' ':(exclude)evals/holdout/*.yml' \
+  ':(exclude,glob)**/*.pem' ':(exclude,glob)**/*.key' "${extra[@]}"
+[ "$MODE" = a ] && git bundle create "$OUT/student-agent.bundle" main  # só a main: sem branches de tarefa/raia
 echo "ok: $OUT/student-agent.zip (MODE=$MODE) sha=$(git rev-parse --short HEAD)"

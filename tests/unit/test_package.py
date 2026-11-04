@@ -14,7 +14,6 @@ FORBIDDEN_PREFIX = (
     ".superpowers/",
     "evals/holdout/data/",
 )
-FORBIDDEN_NAME = (".env", "dados.zip")
 
 
 def build(tmp_path: Path, mode: str) -> tuple[list[str], Path]:
@@ -36,7 +35,9 @@ def test_package_excludes(tmp_path: Path, mode: str) -> None:
     assert names
     for n in names:
         assert not n.startswith(FORBIDDEN_PREFIX), n
-        assert Path(n).name not in FORBIDDEN_NAME, n
+        name = Path(n).name
+        assert name != "dados.zip", n
+        assert not name.startswith(".env") or name == ".env.example", n
         assert not (
             n.startswith("evals/holdout/")
             and n.endswith((".yaml", ".yml", ".json.dec"))
@@ -48,7 +49,13 @@ def test_package_excludes(tmp_path: Path, mode: str) -> None:
         assert not any(n.startswith("docs/superpowers/") for n in names)
         assert not (tmp_path / "student-agent.bundle").exists()
     else:
-        assert (tmp_path / "student-agent.bundle").exists()
+        heads = subprocess.run(
+            ["git", "bundle", "list-heads", str(tmp_path / "student-agent.bundle")],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+        assert heads[1::2] == ["refs/heads/main"] or set(heads[1::2]) == {"HEAD", "refs/heads/main"}
 
 
 def test_package_has_entrypoints(tmp_path: Path) -> None:
