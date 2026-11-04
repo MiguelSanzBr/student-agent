@@ -416,7 +416,7 @@ async def test_persist_sets_flags_before_history(monkeypatch: pytest.MonkeyPatch
 def _draft() -> Any:
     from app.tools.base import DraftCard, DraftKey
 
-    return DraftCard("d1", "TOKEN-SECRETO", DraftKey("ACA-020", "MAT1"), "2ª chamada", "Curso",
+    return DraftCard("d1", DraftKey("ACA-020", "MAT1"), "2ª chamada", "Curso",
                      "R$ 0,00", "10/11/2026", "desc", "aviso", "c1", "1")  # fmt: skip
 
 
@@ -434,8 +434,8 @@ async def test_abort_emits_draft_public_and_persists_taint(
     svc = make_service(AppSettings(), scripted(OK))
     _, r, ev = await turn(svc)
     d = next(e for e in ev if e["event"] == "draft")
-    assert not {"token", "conversation_id", "enrollment_index"} & set(d)
-    assert "TOKEN-SECRETO" not in str(ev) and d["draft_id"] == "d1"
+    assert not {"conversation_id", "enrollment_index"} & set(d)
+    assert d["draft_id"] == "d1"
     assert any(e["event"] == "error" for e in ev) and r.status == status
     assert (await svc.history.load(SUB, "web", "c1")).tainted
 
@@ -492,3 +492,24 @@ async def test_unknown_model_price(provider: str, charged: bool) -> None:
     adm = await svc.admit(scope=SCOPE, channel="web")
     await svc.settle(adm, bare_result("ok", "x", "modelo-sem-preco", usage=Usage(1000, 1000)))
     assert (await spent(svc) > 0) is charged
+
+
+async def test_taint_marked_before_draft_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.service.turn as t
+    from app.agent.graph import bare_result
+
+    async def fake(**kw: Any) -> Any:
+        return bare_result("ok", "ok", "m", draft=_draft(), became_tainted=True)
+
+    monkeypatch.setattr(t, "run_turn", fake)
+    svc = make_service(AppSettings(), scripted(OK))
+    seen: list[bool] = []
+
+    async def emit(e: Mapping[str, Any]) -> None:
+        if e["event"] == "draft":
+            seen.append((await svc.history.load(SUB, "web", "c1")).tainted)
+
+    adm = await svc.admit(scope=SCOPE, channel="web")
+    await svc.handle(admission=adm, scope=SCOPE, conversation_id="c1", text="oi",
+                     channel="web", emit=emit)  # fmt: skip
+    assert seen == [True]

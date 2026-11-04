@@ -261,6 +261,8 @@ class DefaultTurnService:
             q.put_nowait(None)
             await pump
             if r.draft is not None:
+                if r.became_tainted:  # o taint vale antes de o rascunho chegar ao cliente
+                    await asyncio.shield(self.history.mark_tainted(sub, channel, conversation_id))
                 await emit({"event": "draft", **r.draft.public()})
                 METRICS["agent_draft_total"].labels(outcome="exibido").inc()  # type: ignore[union-attr]
             if r.status in ERROR_STATUSES:
