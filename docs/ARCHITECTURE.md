@@ -84,7 +84,7 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 **Trade-off.** É barato (sem chamada extra, sem ~1 s a mais) e auditável, mas tem limites declarados: um valor certo atribuído à entidade errada **quando a frase não cita entidade nenhuma** não é pego. Há risco de bloquear resposta correta, por isso o guard é medido nos dois sentidos: recall num conjunto de perturbação cego e bloqueio indevido nas rodadas reais. A degradação é por tipo, e o fallback é pelo domínio: uma pergunta de LMS nunca recebe o resumo financeiro.
 
-**Integridade da medição cega.** Em 2026-11-04, um smoke do runner do guard mediu o conjunto cego real, em volume descartável (código em 3d67e20). O número oficial vem da rodada oficial, e o guard não mudou depois do smoke; se mudar, os dois números serão reportados.
+**Integridade da medição cega.** Em 2026-11-04 um smoke do guard mediu o conjunto cego real (código em 3d67e20), divulgado sem o número; o oficial vem da rodada oficial e, com guard e semente iguais, reproduz o do smoke (divergência indicaria mudança no guard).
 
 ### D8. Escrita restrita
 

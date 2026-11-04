@@ -36,7 +36,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 
 ## Integridade da avaliação cega do guard
 
-Em 2026-11-04, um smoke do runner do guard mediu o conjunto cego real em um volume descartável (código em 3d67e20). O número daquela execução não é publicado: o número oficial vem da rodada oficial, e o guard não mudou depois do smoke. Se o guard mudar antes da rodada oficial, os dois números serão reportados. A semente do conjunto cego está fixa em `evals/guard/run.py` (`BLIND_SEED`) e o runner grava um marcador de medição única.
+Em 2026-11-04, um smoke do runner do guard mediu o conjunto cego real em um volume descartável (código em 3d67e20). O smoke é divulgado com o SHA e sem o número: o número oficial vem da rodada oficial. Com o mesmo guard e a mesma semente, ele reproduz o do smoke; divergência indicaria que o guard mudou, e então os dois números serão reportados. A semente do conjunto cego está fixa em `evals/guard/run.py` (`BLIND_SEED`) e o runner grava um marcador de medição única.
 
 ## Evidência do fluxo web
 
