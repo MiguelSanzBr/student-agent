@@ -495,6 +495,15 @@ def test_zero_like_rejects_empty():
         "Não há eventos no calendário.",
         "Nenhum evento está marcado para você.",
         "Você não possui bolsas de estudo externas.",
+        # fix round 4
+        "Não há inscrições abertas.",
+        "Não temos estágios.",
+        "Não há estágios abertos.",
+        "Sem ofertas de estágio.",
+        "Zero ofertas de estágio.",
+        "Nada de estágio por aqui.",
+        "Não há outras vagas para você.",
+        "Nenhuma ação está pendente para você.",
     ],
 )
 def test_absence_of_noun_outside_lexicon_is_denied(answer):
@@ -537,3 +546,60 @@ def test_times_installments_need_a_source(answer):
 
 def test_short_yes_times_installments():
     assert chk("Pode sim, em 6 vezes.", q="posso pagar de outro jeito?").kinds() == {"commitment"}
+
+
+# --- fix round 4 ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Nenhuma ação é necessária.",
+        "Não há necessidade de ir ao polo.",
+        "Não há outro caminho.",
+        "Não existe outra opção pelo chat.",
+        "Não há limite de pedidos.",
+        "Não há motivo para preocupação.",
+        "Não há dúvida de que você pode usar o Portal.",
+        "Não temos como pagar no cartão.",
+        "Não tem problema, mas não há vagas de estágio.",
+        "Não tem nada de errado.",
+    ],
+)
+def test_abstract_negation_is_not_a_data_claim(answer):
+    r = chk_with(answer, card={}, calls=(ToolCallTrace("whatever", {}, 0),))
+    if "vagas" in answer:  # a isenção vale para o núcleo, não para a frase toda
+        assert r.kinds() == {"polarity"}
+    else:
+        assert r.ok, r.failures
+
+
+def test_error_in_student_record_is_a_data_claim():
+    # Decisão: "erro no seu cadastro" fala dos dados do aluno; só passa com zero no cartão.
+    assert chk_with("Não há erro no seu cadastro.", card={}).kinds() == {"polarity"}
+    assert chk_with("Não há erro no seu cadastro.", card={"1.erros_cadastro": "0"}).ok
+
+
+def test_fee_and_deadline_absence_need_the_service_record():
+    from app.tools.base import EntityRecord, service_record
+
+    free, paid = service_record("DOC-001"), service_record("DOC-002")  # taxa R$ 0,00 / R$ 20,00
+    fee = "Não tem custo para emitir a declaração."
+    assert chk_with(fee, card={}).kinds() == {"polarity"}
+    assert chk_with(fee, card={}, records=index_records((free,))).ok
+    assert chk_with(fee, card={}, records=index_records((paid,))).kinds() == {"polarity"}
+    deadline = "Não tem prazo para solicitar."
+    no_deadline = EntityRecord("servico", "GEN-1", ("Atendimento geral",), {"taxa": "R$ 0,00"})
+    assert chk_with(deadline, card={}).kinds() == {"polarity"}
+    assert chk_with(deadline, card={}, records=index_records((free,))).kinds() == {"polarity"}
+    assert chk_with(deadline, card={}, records=index_records((no_deadline,))).ok
+
+
+@pytest.mark.parametrize("answer", ["Em 6 vezes.", "Em 6 vezes sem juros."])
+def test_installment_fragment_is_a_commitment(answer):
+    from app.tools.base import EntityRecord
+
+    assert chk(answer).kinds() == {"commitment"}
+    six = EntityRecord(
+        "servico", "FIN-031", ("Renegociação de dívida",),
+        {"orientacao": "parcelamento em até 6x, sem juros"},
+    )  # fmt: skip
+    assert chk(answer, records=with_(six)).ok

@@ -37,6 +37,8 @@ _PROMISE = re.compile(
     r"e possivel|possivel|ganha|ganhara|estendemos|prorrogamos|perdoamos|isentamos|"
     r"tem direito|parcele|negocie|pague|solicite|peca)\b"
 )
+# "Em 6 vezes." solto responde "como posso pagar?": é promessa sem verbo
+_INSTALLMENT_FRAGMENT = re.compile(r"\W*(?:em|ate)\s+(?:ate\s+)?\d{1,2}\s*(?:x|vezes|parcelas)\b")
 _STATUS: Mapping[str, str] = {
     "aprovado": r"aprovad[oa]s?|passou|passei|passamos|passaram",
     "reprovado": r"reprovad[oa]s?|reprovou|reprovei|reprovaram",
@@ -248,8 +250,18 @@ _NOUN_SOURCES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 _EXIST_NEG = {"nenhum", "nenhuma"}
 _EXISTENCE = {"ha", "existe", "existem", "tem", "possui", "possuem", "temos", "resta", "restam"}
 _NOT_A_NOUN = {"como", "que", "se", "ainda", "nada", "porque", "de"}
-# conversa, não afirmação sobre dados; lista mínima
-_ALLOWED_ABSENCE = re.compile(r"\bnao (?:ha|tem) (?:problema|de que)\b")
+_DETERMINERS = {"outro", "outra", "outros", "outras"}  # o núcleo é a palavra seguinte
+# núcleos abstratos (conversa, não dado); lista mínima e testada. Com sinal de dado depois
+# ("pendente", "para você", "seu") voltam a ser afirmação de ausência.
+_ABSTRACT = {"necessidade", "necessidades", "motivo", "motivos", "duvida", "duvidas", "opcao",
+             "opcoes", "caminho", "caminhos", "acao", "acoes", "limite", "limites", "problema",
+             "problemas"}  # fmt: skip
+_DATA_SIGNAL = re.compile(
+    r"\b(?:abert[oa]s?|marcad[oa]s?|agendad[oa]s?|disponive(?:l|is)|pendentes?|ativ[oa]s?|"
+    r"vigentes?|vencid[oa]s?|seus?|suas?|pa?ra voce)\b"
+)
+# taxa/prazo zero são regra do serviço: só o registro do serviço sustenta
+_SERVICE_FIELD = {"custo": "taxa", "taxa": "taxa", "tarifa": "taxa", "prazo": "prazo"}
 _NEUTRAL_ARGS = {"enrollment", "enrollment_index", "matricula", "limit", "page", "offset"}
 
 
@@ -288,6 +300,14 @@ def _empty_backed(c: _Ctx, noun: str, cited: Sequence[EntityRecord], f: str) -> 
             for tc in c.calls
         )
     )
+
+
+def _service_backed(c: _Ctx, field: str, cited: Sequence[EntityRecord]) -> bool:
+    """Taxa zero exige `taxa` zerada; sem prazo, registro sem `prazo` (citados, ou do turno)."""
+    svc = [r for r in cited if r.kind == "servico"]
+    svc = svc or [r for r in c.records.values() if r.kind == "servico"]
+    missing = "0" if field == "prazo" else ""
+    return bool(svc) and all(_zero_like(r.fields.get(field, missing)) for r in svc)
 
 
 def _total_pool(c: _Ctx, enrs: Sequence[str]) -> set[str]:
@@ -343,25 +363,30 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
         if w in ("em_dia",) or (w in neg and w.startswith("sem_")):
             claims.append("financeiro")
             continue
+        nxt = words[i + 1] if i + 1 < len(words) else ""
+        if w in ("sem", "zero") and len(nxt) > 3 and nxt.endswith("s") and nxt not in _ABSTRACT:
+            claims.append(stem(nxt))  # "Sem/Zero ofertas de estágio.": coisa contável no plural
         if w in neg or w in zero:
             span = words[i + 1 : i + 4] if w in neg else []
-            exist = w in _EXIST_NEG
-            for x in span:
+            exist = w in _EXIST_NEG or (w == "nada" and nxt == "de" and i == 0)  # "Nada de X."
+            for j, x in enumerate(span):
                 if stem(x) in nouns or x in debt:
                     claims.append(stem(x))
                     break
                 if x in _EXISTENCE:
                     exist = True
-                if x not in _LIGHT:
-                    # ausência de substantivo fora do léxico: afirmação sem apoio (negada em _empty_backed)  # noqa: E501
-                    if (
-                        exist
-                        and x not in _NOT_A_NOUN
-                        and not x.endswith(("ar", "er", "ir"))  # infinitivo, não substantivo
-                        and not _ALLOWED_ABSENCE.search(f)
-                    ):
-                        claims.append(stem(x))
-                    break
+                if x in _LIGHT or x in _EXISTENCE or x in _DETERMINERS:
+                    continue
+                # núcleo fora do léxico: ausência sem apoio (ver _empty_backed/_service_backed)
+                after = " ".join(words[i + j + 2 : i + j + 6])
+                if (
+                    exist
+                    and x not in _NOT_A_NOUN
+                    and not x.endswith(("ar", "er", "ir"))  # infinitivo, não substantivo
+                    and not (x in _ABSTRACT and not _DATA_SIGNAL.search(after))
+                ):
+                    claims.append(stem(x))
+                break
             if w in zero:
                 for x in reversed(words[max(0, i - 3) : i]):
                     if stem(x) in nouns or x in debt:
@@ -380,6 +405,9 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
     for noun in claims:
         if noun == "financeiro" or noun in debt or stem(noun) in debt:
             if not _fin_zero(c, sorted(enrs), cited, bool(re.search(r"vencid|atras|inadimpl", f))):
+                return False
+        elif noun in _SERVICE_FIELD:
+            if not _service_backed(c, _SERVICE_FIELD[noun], cited):
                 return False
         elif not _empty_backed(c, noun, cited, f):
             return False
@@ -512,7 +540,7 @@ def _check_sentence(c: _Ctx, idx: int, text: str, imported: bool) -> list[Failur
             t.kind == "pct" and t.norm not in c.pool.get("pct", set()) for t in toks
         ):
             missing.add("desconto pct")  # a fonte vale para o percentual do registro
-        if missing and (imported or _PROMISE.search(nm)):
+        if missing and (imported or _PROMISE.search(nm) or _INSTALLMENT_FRAGMENT.match(nm)):
             fail("commitment", ",".join(sorted(missing)), ent)
 
     # polaridade ("sem juros" é condição, não polaridade)
