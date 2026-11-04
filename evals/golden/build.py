@@ -209,8 +209,8 @@ def select_test_students(
     golden_keys: set[str] | None = None,
 ) -> list[EvalStudent]:  # fmt: skip
     """40 alunos: cotas >= 3 em cada traço raro, o resto distribuído pelos estratos
-    modalidade x {ativo, inativo} (sempre o estrato menos representado). Sem os golden (`golden_keys`; por padrão lê
-    o golden_login.json de ETL_OUT_DIR)."""
+    modalidade x {ativo, inativo} (sempre o estrato menos representado).
+    Sem os golden (`golden_keys`; por padrão lê o golden_login.json de ETL_OUT_DIR)."""
     rows = students if students is not None else _load_students()
     gold = golden_keys if golden_keys is not None else _load_golden_keys()
     pool = [EvalStudent(**{k: r[k] for k in EvalStudent.__dataclass_fields__})
