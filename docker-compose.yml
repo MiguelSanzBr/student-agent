@@ -9,6 +9,7 @@ x-api: &api
     PROMETHEUS_MULTIPROC_DIR: /tmp/prom
     APP_ENV: ${APP_ENV:-dev}
     LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+    LLM_MODEL: ${LLM_MODEL:-}
     LLM_BACKEND: ${LLM_BACKEND:-aistudio}
     GCP_PROJECT: ${GCP_PROJECT:-}
     GCP_LOCATION: ${GCP_LOCATION:-global}
@@ -25,7 +26,7 @@ x-api: &api
     redis: {condition: service_healthy}
 
 services:
-  init-secrets:  # root, one-shot; vê o .env (só ele); re-sincroniza a chave do Gemini a cada up
+  init-secrets:  # root, one-shot; vê o .env (só ele); re-sincroniza as chaves de LLM a cada up
     build: .
     user: "0:0"
     command: ["python", "-m", "scripts.init_secrets", "/out", "/src/.env"]
@@ -118,6 +119,7 @@ services:
       APP_ENV: dev
       LIMITS_PROFILE: eval
       LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      LLM_MODEL: ${LLM_MODEL:-}
       OTEL_INSTRUMENTATION_A2A_SDK_ENABLED: "false"
     ports: ["127.0.0.1:${REDTEAM_PORT:-8100}:8000"]
 

@@ -709,8 +709,9 @@ def setup(a: argparse.Namespace) -> Env:
         st.agent_app_password,
         st.redis_password,
     )
-    if st.gemini_api_key:
-        secrets["gemini_api_key"] = st.gemini_api_key
+    for k in ("gemini_api_key", "anthropic_api_key", "openai_api_key"):
+        if v := getattr(st, k):
+            secrets[k] = v
     if len(st.db_host) >= 3:
         secrets["db_host"] = st.db_host
     forb: dict[str, list[str]] = defaultdict(list)

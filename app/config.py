@@ -16,6 +16,13 @@ from pydantic_settings import (
 
 SLO_PATH = Path(__file__).resolve().parent.parent / "slo_targets.yaml"
 MIN_SECRET = 32
+REAL_PROVIDERS = ("gemini", "anthropic", "openai")
+FALLBACK_MODEL = "gemini-3.8-flash"  # replay/fake/loadtest: comportamento de sempre
+DEFAULT_MODELS = {
+    "gemini": FALLBACK_MODEL,
+    "anthropic": "claude-opus-5-5",
+    "openai": "gpt-6.1-terra",
+}
 
 
 class Quota(BaseModel):
@@ -157,11 +164,13 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
 
     app_env: Literal["dev", "prod"] = "dev"
     limits_profile: Literal["default", "eval", "load"] = "default"
-    llm_provider: Literal["auto", "gemini", "replay", "fake", "loadtest"] = "auto"
+    llm_provider: Literal["auto", "gemini", "anthropic", "openai", "replay", "fake", "loadtest"] = (
+        "auto"
+    )
     llm_backend: Literal["aistudio", "vertex"] = "aistudio"
     gcp_project: str | None = None
     gcp_location: str = "global"
-    llm_model: str = "gemini-3.8-flash"
+    llm_model: str = ""  # vazio = padrão do provedor (DEFAULT_MODELS)
     api_port: int = 8000
     a2a_public_url: str = "http://localhost:8000"  # URL do card (no compose: http://api:8000)
     db_host: str = "db"
@@ -179,6 +188,16 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     reference_date: date = date(2026, 10, 31)
     lever_hedge_first_call: bool = False  # 2ª requisição idêntica no p90 da 1ª chamada do turno
     slo: SloTargets = Field(default_factory=load_slo_targets)
+
+    @property
+    def resolved_provider(self) -> str:
+        """Única fonte da regra do `auto`: gemini, anthropic, openai, senão replay."""
+        if self.llm_provider != "auto":
+            return self.llm_provider
+        for name in ("gemini", "anthropic", "openai"):
+            if getattr(self, f"{name}_api_key"):
+                return name
+        return "replay"
 
     @property
     def limits(self) -> Limits:
@@ -201,18 +220,31 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
         return (v or "").strip() or None
 
     @model_validator(mode="after")
+    def _resolve_model(self) -> Self:
+        for name in ("anthropic", "openai"):
+            if self.llm_provider == name and not getattr(self, f"{name}_api_key"):
+                raise ValueError(f"llm_provider={name} exige {name}_api_key")
+        self.llm_model = self.llm_model or DEFAULT_MODELS.get(
+            self.resolved_provider, FALLBACK_MODEL
+        )
+        if self.llm_model not in self.slo.quotas:
+            raise ValueError(
+                f"llm_model={self.llm_model!r} sem cota em slo_targets.yaml (quotas): "
+                "a admissão falharia no 1º turno"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _prod_hardening(self) -> Self:
         if self.app_env == "prod" and self.dev_login:
             raise ValueError("dev_login não pode ficar ligado com app_env=prod")
         if self.app_env == "prod" and not self.cookie_secure:
             raise ValueError("app_env=prod exige cookie_secure=true")
         if self.app_env == "prod":
-            if not (
-                self.llm_provider == "gemini"
-                or (self.llm_provider == "auto" and self.gemini_api_key)
-            ):
+            if self.resolved_provider not in REAL_PROVIDERS:
                 raise ValueError(
-                    "app_env=prod exige llm_provider=gemini (ou auto com gemini_api_key)"
+                    "app_env=prod exige llm_provider gemini, anthropic ou openai "
+                    "(ou auto com a chave de algum deles)"
                 )
             if self.limits_profile != "default":
                 raise ValueError("app_env=prod exige limits_profile=default")
@@ -221,12 +253,13 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     @model_validator(mode="after")
     def _eval_needs_real_llm(self) -> Self:
         # o perfil eval só existe para medir: replay/fake rotulariam a medição como real
-        if self.limits_profile == "eval" and not (
-            self.llm_provider in ("gemini", "loadtest")
-            or (self.llm_provider == "auto" and self.gemini_api_key)
+        if self.limits_profile == "eval" and self.resolved_provider not in (
+            *REAL_PROVIDERS,
+            "loadtest",
         ):
             raise ValueError(
-                "limits_profile=eval exige llm_provider=gemini (ou auto com gemini_api_key)"
+                "limits_profile=eval exige llm_provider gemini, anthropic ou openai "
+                "(ou auto com a chave de algum deles)"
             )
         return self
 

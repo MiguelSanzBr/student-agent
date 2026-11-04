@@ -30,7 +30,12 @@ CONSUMERS: dict[str, tuple[str, ...]] = {
     ),  # fmt: skip
 }
 OUT_VOLUMES = {"etl-out": "etl", "eval-out": "evals"}  # volume -> consumidor que define o dono
-GEMINI = "gemini_api_key"
+# .env -> arquivo de segredo do app
+LLM_KEYS = {
+    "GEMINI_API_KEY": "gemini_api_key",
+    "ANTHROPIC_API_KEY": "anthropic_api_key",
+    "OPENAI_API_KEY": "openai_api_key",
+}
 
 Chown = Callable[[str, int, int], None]
 
@@ -48,12 +53,12 @@ def _write(path: Path, value: str, uid: int, chown: Chown) -> None:
     path.chmod(0o400)
 
 
-def _gemini_key(env_file: Path | None) -> str | None:
+def _env_key(env_file: Path | None, name: str) -> str | None:
     if env_file is None or not env_file.is_file():
         return None
     for line in env_file.read_text().splitlines():
         key, sep, val = line.strip().partition("=")
-        if sep and key.strip() == "GEMINI_API_KEY":
+        if sep and key.strip() == name:
             return val.strip().strip("'\"") or None
     return None
 
@@ -82,17 +87,18 @@ def init_secrets(
     for out, owner in OUT_VOLUMES.items():
         (root / out).mkdir(parents=True, exist_ok=True)
         chown(str(root / out), uids[owner], uids[owner])
-    # única parte não idempotente: a chave do Gemini segue o .env (cria, troca ou apaga)
+    # única parte não idempotente: as chaves de LLM seguem o .env (cria, troca ou apaga)
     app = root / "app"
-    target = app / GEMINI
-    key = _gemini_key(env_file)
-    if (key is None and target.exists()) or (key and not _same(target, key)):
-        app.chmod(0o700)
-        if key is None:
-            target.unlink()
-        else:
-            _write(target, key, uids["app"], chown)
-        app.chmod(0o500)
+    for env_name, secret in LLM_KEYS.items():
+        target = app / secret
+        key = _env_key(env_file, env_name)
+        if (key is None and target.exists()) or (key and not _same(target, key)):
+            app.chmod(0o700)
+            if key is None:
+                target.unlink()
+            else:
+                _write(target, key, uids["app"], chown)
+            app.chmod(0o500)
 
 
 def _same(path: Path, value: str) -> bool:

@@ -144,3 +144,88 @@ def test_eval_profile_accepts_gemini_or_auto_with_key(app_secrets: Path) -> None
     (app_secrets / "gemini_api_key").write_text("AIza-whatever\n")
     AppSettings(limits_profile="eval", llm_provider="gemini")
     AppSettings(limits_profile="eval", llm_provider="auto")
+
+
+def _keys(app_secrets: Path, *names: str) -> None:
+    for n in names:
+        (app_secrets / n).write_text("key-whatever\n")
+
+
+@pytest.mark.parametrize(
+    ("keys", "expected"),
+    [
+        ((), "replay"),
+        (("openai_api_key",), "openai"),
+        (("anthropic_api_key", "openai_api_key"), "anthropic"),
+        (("gemini_api_key", "anthropic_api_key", "openai_api_key"), "gemini"),
+    ],
+)
+def test_auto_resolves_in_order(app_secrets: Path, keys: tuple[str, ...], expected: str) -> None:
+    _keys(app_secrets, *keys)
+    assert AppSettings().resolved_provider == expected
+
+
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [
+        ("gemini", "gemini-3.8-flash"),
+        ("anthropic", "claude-opus-5-5"),
+        ("openai", "gpt-6.1-terra"),
+        ("replay", "gemini-3.8-flash"),
+        ("fake", "gemini-3.8-flash"),
+        ("loadtest", "gemini-3.8-flash"),
+    ],
+)
+def test_default_model_per_provider(app_secrets: Path, provider: str, model: str) -> None:
+    _keys(app_secrets, "gemini_api_key", "anthropic_api_key", "openai_api_key")
+    s = AppSettings(llm_provider=provider)  # type: ignore[arg-type]
+    assert s.llm_model == model and s.resolved_provider == provider
+
+
+def test_auto_model_follows_resolved_provider(app_secrets: Path) -> None:
+    _keys(app_secrets, "openai_api_key")
+    assert AppSettings().llm_model == "gpt-6.1-terra"
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "gpt-6.1-terra", "gpt-6-luna"],
+)
+def test_new_models_have_quota_and_price(app_secrets: Path, model: str) -> None:
+    from app.obs.cost import _PRICES
+
+    assert model in AppSettings().slo.quotas and model in _PRICES
+
+
+def test_model_without_quota_is_rejected(app_secrets: Path) -> None:
+    with pytest.raises(ValidationError, match="cota"):
+        AppSettings(llm_model="modelo-sem-cota")
+
+
+@pytest.mark.parametrize("provider", ["anthropic", "openai"])
+def test_explicit_provider_needs_its_key(app_secrets: Path, provider: str) -> None:
+    with pytest.raises(ValidationError, match=f"{provider}_api_key"):
+        AppSettings(llm_provider=provider)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("provider", ["anthropic", "openai"])
+def test_prod_and_eval_accept_new_providers(app_secrets: Path, provider: str) -> None:
+    _keys(app_secrets, f"{provider}_api_key")
+    AppSettings(llm_provider=provider, **PROD)  # type: ignore[arg-type]
+    AppSettings(llm_provider="auto", **PROD)  # type: ignore[arg-type]
+    AppSettings(limits_profile="eval", llm_provider=provider)  # type: ignore[arg-type]
+    AppSettings(limits_profile="eval", llm_provider="auto")
+
+
+def test_conservative_model_is_the_priciest(app_secrets: Path) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from app.agent.llm import Usage
+    from app.obs.cost import _PRICES, cost_usd
+    from app.service.turn import CONSERVATIVE_MODEL
+
+    on = date(2026, 11, 4)
+    u = Usage(input_tokens=1_000_000, output_tokens=1_000_000)
+    costs: dict[str, Decimal] = {m: cost_usd(u, m, on) for m in _PRICES}
+    assert CONSERVATIVE_MODEL == max(costs, key=lambda m: costs[m])

@@ -6,6 +6,12 @@ frozen: false
 quotas:  # PROVISÓRIO: cotas reais (RPM/TPM/RPD) pendentes, sem GEMINI_API_KEY
   gemini-3.8-flash: {rpm: 1000, tpm: 1000000, rpd: 10000}
   gemini-3.5-flash-lite: {rpm: 4000, tpm: 4000000, rpd: 50000}
+  # PROVISÓRIO: limites reais dependem do tier da conta
+  claude-opus-5-5: {rpm: 1000, tpm: 1000000, rpd: 10000}
+  claude-sonnet-5-5: {rpm: 1000, tpm: 1000000, rpd: 10000}
+  claude-haiku-5-5: {rpm: 1000, tpm: 1000000, rpd: 10000}
+  gpt-6.1-terra: {rpm: 1000, tpm: 1000000, rpd: 10000}
+  gpt-6-luna: {rpm: 1000, tpm: 1000000, rpd: 10000}
 admission:
   quota_fraction: 0.9
   est_requests: 3  # PROVISÓRIO: E[chamadas ao LLM por turno] p/ reserve (spec §5); refit após janela A

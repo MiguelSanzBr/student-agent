@@ -64,6 +64,7 @@ services:
       - ${DATA_SRC:-./data/dados.zip}:/data/dados.zip:ro  # só o zip, nunca ./data inteiro
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      LLM_MODEL: ${LLM_MODEL:-}
       LLM_BACKEND: ${LLM_BACKEND:-aistudio}
       APP_ENV: dev
     command: ["python", "-m", "evals.redteam.run"]

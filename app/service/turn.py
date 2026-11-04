@@ -39,7 +39,7 @@ from core.clock import monotonic, reference_today
 from core.scope import StudentScope
 
 log = logging.getLogger(__name__)
-CONSERVATIVE_MODEL = "gemini-3.8-flash"  # o mais caro da tabela: preço de reserva
+CONSERVATIVE_MODEL = "claude-opus-5-5"  # o mais caro da tabela: preço de reserva
 Channel = Literal["web", "a2a"]
 Emit = Callable[[Mapping[str, Any]], Awaitable[None]]
 ERROR_STATUSES = frozenset({"budget_exceeded", "llm_unavailable", "blocked_limit"})

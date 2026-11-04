@@ -5,6 +5,8 @@ from app.agent.llm import Usage
 
 # US$ por 1M tokens: (entrada, saída com raciocínio, entrada em cache). Tabela datada: vale a
 # última linha com `desde <= on`. Cache = 10% da entrada (premissa; confirmar na fatura).
+# Anthropic/OpenAI: páginas de preços dos provedores em 2026-11-04. Haiku: tarifa de prompt
+# <= 100K tokens. OpenAI: cache = 10% da entrada (premissa: a página não traz preço de cache).
 _PRICES: dict[str, list[tuple[date, tuple[Decimal, Decimal, Decimal]]]] = {
     "gemini-3.5-flash-lite": [(date.min, (Decimal("0.30"), Decimal("2.50"), Decimal("0.03")))],
     "gemini-3.8-flash": [
@@ -14,6 +16,11 @@ _PRICES: dict[str, list[tuple[date, tuple[Decimal, Decimal, Decimal]]]] = {
             (Decimal("1.50"), Decimal("7.50"), Decimal("0.15")),
         ),  # dobra em 2027 (spec §6.5)
     ],
+    "claude-opus-5-5": [(date.min, (Decimal("4.00"), Decimal("20.00"), Decimal("0.20")))],
+    "claude-sonnet-5-5": [(date.min, (Decimal("2.00"), Decimal("10.00"), Decimal("0.20")))],
+    "claude-haiku-5-5": [(date.min, (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")))],
+    "gpt-6.1-terra": [(date.min, (Decimal("1.00"), Decimal("5.00"), Decimal("0.10")))],
+    "gpt-6-luna": [(date.min, (Decimal("0.10"), Decimal("0.50"), Decimal("0.01")))],
 }
 
 

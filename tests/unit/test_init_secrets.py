@@ -111,3 +111,19 @@ def test_each_secret_generated(tmp_path: Path, name: str) -> None:
     run(tmp_path, None, Chown())
     vals = {(tmp_path / c / name).read_text() for c in UIDS if (tmp_path / c / name).exists()}
     assert len(vals) == 1
+
+
+def test_all_llm_keys_follow_env(tmp_path: Path) -> None:
+    env = tmp_path / ".env"
+    root = tmp_path / "v"
+    env.write_text("GEMINI_API_KEY=g\nANTHROPIC_API_KEY=a\nOPENAI_API_KEY='o'\n")
+    run(root, env, Chown())
+    for n, v in (("gemini", "g"), ("anthropic", "a"), ("openai", "o")):
+        f = root / f"app/{n}_api_key"
+        assert f.read_text() == v and stat.S_IMODE(f.stat().st_mode) == 0o400
+
+    env.write_text("GEMINI_API_KEY=g\nANTHROPIC_API_KEY=a2\nOPENAI_API_KEY=\n")
+    run(root, env, Chown())
+    assert (root / "app/anthropic_api_key").read_text() == "a2"
+    assert (root / "app/gemini_api_key").read_text() == "g"
+    assert not (root / "app/openai_api_key").exists()

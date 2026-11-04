@@ -3,10 +3,7 @@ from app.config import AppSettings, Quota
 
 
 def make_llm(settings: AppSettings) -> LLMProvider:
-    provider: str = settings.llm_provider
-    if provider == "auto":
-        provider = "gemini" if settings.gemini_api_key else "replay"
-    match provider:
+    match settings.resolved_provider:
         case "gemini":
             from app.agent.gemini import GeminiProvider
 
