@@ -145,7 +145,7 @@ ENROLLMENT = {
 }
 
 
-def _norm(s: str) -> str:
+def norm(s: str) -> str:
     d = unicodedata.normalize("NFKD", s)
     return "".join(c for c in d if not unicodedata.combining(c)).casefold().strip()
 
@@ -156,9 +156,9 @@ def index_records(records: Iterable[EntityRecord]) -> dict[str, EntityRecord]:
 
 def find_entity(index: Mapping[str, EntityRecord], mention: str) -> EntityRecord | None:
     """Casa por id ou alias, sem acento e sem caixa."""
-    m = _norm(mention)
+    m = norm(mention)
     for r in index.values():
-        if m == _norm(r.id) or any(m == _norm(a) for a in r.aliases):
+        if m == norm(r.id) or any(m == norm(a) for a in r.aliases):
             return r
     return None
 
@@ -202,17 +202,19 @@ def validate_args(spec: ToolSpec, args: Mapping[str, Any]) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def _default_ontology() -> Ontology:
+def default_ontology() -> Ontology:
     return Ontology.load(Path(__file__).resolve().parents[2] / "ontology")
 
 
 def orientation(service: str, onto: Ontology | None = None) -> dict[str, str]:
     """Prazo, taxa, canais e por que o agente não executa."""
-    s = (onto or _default_ontology()).service(service)
-    prazo, taxa = f"{s.sla_hours} horas", fmt_brl(s.fee_cents)
+    s = (onto or default_ontology()).service(service)
+    h = s.sla_hours
+    prazo = f"{h // 24} dia{'s' if h > 24 else ''}" if h % 24 == 0 else f"{h} horas"
+    taxa = fmt_brl(s.fee_cents)
     canais = ", ".join(s.channels)
     if service == "GEN-090":
-        texto = f"{s.ui_label}: a secretaria responde em até {prazo}."
+        texto = f"{s.ui_label}: prazo de {prazo}."
     else:
         texto = f"{s.name_pt}: prazo de {prazo}, taxa {taxa}. Canais: {canais}."
     out = {"orientacao": texto, "prazo": prazo, "taxa": taxa, "canais": canais}
@@ -222,7 +224,7 @@ def orientation(service: str, onto: Ontology | None = None) -> dict[str, str]:
 
 
 def service_record(service: str, onto: Ontology | None = None) -> EntityRecord:
-    s = (onto or _default_ontology()).service(service)
+    s = (onto or default_ontology()).service(service)
     return EntityRecord(
         "servico", service, tuple(dict.fromkeys((s.name_pt, s.ui_label))),
         orientation(service, onto),

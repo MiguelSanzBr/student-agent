@@ -33,9 +33,9 @@ def raw() -> o.Raw:
 
 
 def _onto() -> Ontology:
-    from app.tools.base import _default_ontology
+    from app.tools.base import default_ontology
 
-    return _default_ontology()
+    return default_ontology()
 
 
 def _settings(loaded: Loaded) -> AppSettings:

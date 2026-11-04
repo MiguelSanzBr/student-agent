@@ -26,8 +26,8 @@ from app.tools.base import (
     ToolContext,
     ToolOutput,
     ToolSpec,
-    _default_ontology,
-    _norm,
+    default_ontology,
+    norm,
     orientation,
     resolve_enrollment,
     schema,
@@ -49,11 +49,16 @@ def _brt(dt: datetime) -> date:
 
 
 def _row(
-    number: str, code: str, status: str, opened: date, prazo: date, who: str
+    number: str, code: str, status: str, opened: date, prazo: date | None, who: str
 ) -> dict[str, str]:
+    try:
+        name = default_ontology().service(code).name_pt
+    except KeyError:  # um código fora da ontologia não derruba a lista
+        name = "Serviço da secretaria"
     return {
-        "protocolo": number, "servico": _default_ontology().service(code).name_pt,
-        "status": status, "aberto_em": fmt_date(opened), "prazo": fmt_date(prazo),
+        "protocolo": number, "servico": name,
+        "status": status, "aberto_em": fmt_date(opened),
+        "prazo": fmt_date(prazo) if prazo else "não informado",
         "solicitante": who,
     }  # fmt: skip
 
@@ -66,7 +71,10 @@ def _record(r: Mapping[str, str]) -> EntityRecord:
 def _secretary(r: tuple[Any, ...]) -> dict[str, str]:
     number, code, status, opened_at, who = r
     opened = _brt(opened_at)
-    prazo = sla_due(opened, _default_ontology().service(code).sla_hours)
+    try:
+        prazo: date | None = sla_due(opened, default_ontology().service(code).sla_hours)
+    except KeyError:
+        prazo = None
     return _row(number, code, protocol_status_pt(status), opened, prazo, _ROLE.get(who, who))
 
 
@@ -95,7 +103,7 @@ async def _list(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
 
 async def _get(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     numero = str(args["numero"])
-    onto = _default_ontology()
+    onto = default_ontology()
     async with ctx.db() as conn:
         if numero.startswith("SA-"):
             sa = await q.sa_protocol(conn, numero)
@@ -154,13 +162,13 @@ def _resolve_subject(
     mention: str, rows: list[tuple[Any, ...]], term: str | None
 ) -> tuple[str | None, str | None]:
     """(código, recusa): casa por código ou prefixo do nome PT, sem acento; no empate vale o período corrente."""  # noqa: E501
-    m = _norm(mention)
+    m = norm(mention)
     names = {r[0]: r[1] for r in rows}
-    hit = [c for c in names if _norm(c) == m] or [
-        c for c, n in names.items() if _norm(n).startswith(m)
+    hit = [c for c in names if norm(c) == m] or [
+        c for c, n in names.items() if norm(n).startswith(m)
     ]
-    if len(hit) > 1:
-        hit = [c for c in hit if any(r[0] == c and r[2] == term for r in rows)]
+    if len(hit) > 1:  # o período corrente só desempata se sobrar alguma
+        hit = [c for c in hit if any(r[0] == c and r[2] == term for r in rows)] or hit
     if not hit:
         return None, "Não encontrei essa disciplina no seu histórico."
     if len(hit) > 1:
@@ -179,12 +187,12 @@ def _refusal(motivo: str, alt: str | None = None) -> ToolOutput:
     data = {"motivo": motivo}
     if alt is None:
         return ToolOutput(data)
-    data["alternativa"] = _default_ontology().service(alt).ui_label
+    data["alternativa"] = default_ontology().service(alt).ui_label
     return ToolOutput(data, (service_record(alt),))
 
 
 async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
-    code, onto = str(args["service_code"]), _default_ontology()
+    code, onto = str(args["service_code"]), default_ontology()
     try:
         svc = onto.service(code)
     except KeyError:
@@ -253,7 +261,7 @@ async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
         "rascunho_exibido": True, "servico": svc.ui_label, "taxa": card.fee, "prazo": due,
     }  # fmt: skip
     if code == "GEN-090":
-        data["orientacao"] = f"{svc.ui_label}: prazo de {svc.sla_hours // 24} dias."
+        data["orientacao"] = f"{svc.ui_label}: prazo de {orientation(code)['prazo']}."
     return ToolOutput(data, (service_record(code),), draft=card)
 
 

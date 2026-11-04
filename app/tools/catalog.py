@@ -10,8 +10,8 @@ from app.tools.base import (
     ToolError,
     ToolOutput,
     ToolSpec,
-    _default_ontology,
-    _norm,
+    default_ontology,
+    norm,
     resolve_enrollment,
     schema,
     service_record,
@@ -27,7 +27,7 @@ _NAO_OFERECIDO = "não oferecido"
 
 
 def _match(query: str | None, *names: str) -> bool:
-    return not query or _norm(query) in _norm(" ".join(names))
+    return not query or norm(query) in norm(" ".join(names))
 
 
 def _page(items: list[Any], what: str, query: str | None) -> dict[str, Any]:
@@ -61,7 +61,7 @@ async def get_catalog(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     ref = resolve_enrollment(ctx.scope, args.get("enrollment"), None)
     modality = args.get("modality") or ref.modality
     family = ref.brand_family
-    onto = _default_ontology()
+    onto = default_ontology()
     data: dict[str, Any] = {"marca": onto.label_pt("brand_family", family)}
     records: list[EntityRecord] = []
 

@@ -14,7 +14,7 @@ from app.tools.base import (
     ToolContext,
     ToolOutput,
     ToolSpec,
-    _default_ontology,
+    default_ontology,
     resolve_enrollment,
     schema,
     validate_args,
@@ -29,7 +29,7 @@ DONE = ("APPROVED", "EXEMPT")  # dispensa conta como cumprida na matriz
 
 def _pt(enum: str, value: Any) -> str:
     try:
-        return _default_ontology().label_pt(enum, str(value))
+        return default_ontology().label_pt(enum, str(value))
     except KeyError:
         return str(value)
 
