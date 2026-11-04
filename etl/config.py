@@ -7,7 +7,9 @@ from app.config import SecretOnlyFromFile, check_secret
 
 
 class EtlSettings(SecretOnlyFromFile, BaseSettings):
-    model_config = SettingsConfigDict(secrets_dir="/run/secrets/etl", extra="ignore")
+    model_config = SettingsConfigDict(
+        secrets_dir="/run/secrets/etl", extra="ignore", hide_input_in_errors=True
+    )
     SECRETS: ClassVar[frozenset[str]] = frozenset({"etl_owner_password", "hmac_key"})
 
     etl_owner_password: str

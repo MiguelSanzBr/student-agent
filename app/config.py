@@ -136,7 +136,10 @@ class SecretOnlyFromFile:
 
 
 class AppSettings(SecretOnlyFromFile, BaseSettings):
-    model_config = SettingsConfigDict(secrets_dir="/run/secrets/app", extra="ignore")
+    # o erro de subida vai para o log: sem eco da entrada (que inclui os segredos)
+    model_config = SettingsConfigDict(
+        secrets_dir="/run/secrets/app", extra="ignore", hide_input_in_errors=True
+    )
     SECRETS: ClassVar[frozenset[str]] = frozenset(
         {
             "jwt_secret",

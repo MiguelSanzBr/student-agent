@@ -229,3 +229,10 @@ def test_conservative_model_is_the_priciest(app_secrets: Path) -> None:
     u = Usage(input_tokens=1_000_000, output_tokens=1_000_000)
     costs: dict[str, Decimal] = {m: cost_usd(u, m, on) for m in _PRICES}
     assert CONSERVATIVE_MODEL == max(costs, key=lambda m: costs[m])
+
+
+def test_validation_error_hides_secret_values(app_secrets: Path) -> None:
+    # o erro de subida vai para o log do container: nem prefixo de segredo pode aparecer nele
+    with pytest.raises(ValidationError) as e:
+        AppSettings(jwt_secret="SEGREDOVAZADO" + "x" * 30, llm_provider="anthropic")
+    assert "SEGREDO" not in str(e.value) and "input_value" not in str(e.value)
