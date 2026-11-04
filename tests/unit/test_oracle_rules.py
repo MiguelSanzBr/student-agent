@@ -55,3 +55,11 @@ def test_mutate_every_kind_differs_and_keeps_others(kind: str) -> None:
 def test_mutate_without_fact_raises() -> None:
     with pytest.raises(ValueError):
         o.mutate_one_fact("sem fatos", "money", random.Random(0))
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected"),
+    [("36.55", "36,6"), ("8.85", "8,9"), ("2.65", "2,7"), ("44.25", "44,3"), ("75", "75,0")],
+)
+def test_decimal1_rounds_half_up_from_raw_string(raw_value: str, expected: str) -> None:
+    assert o.fmt_decimal1(raw_value) == expected

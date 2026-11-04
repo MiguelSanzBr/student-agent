@@ -18,6 +18,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -105,6 +106,11 @@ def money(cents: int) -> str:
     sign = "-" if cents < 0 else ""
     reais, c = divmod(abs(cents), 100)
     return f"{sign}R$ {reais:,}".replace(",", ".") + f",{c:02d}"
+
+
+def fmt_decimal1(value: str) -> str:
+    """Decimal do CSV -> 1 casa, arredondando meio para cima, com vírgula (`36.55` -> `36,6`)."""
+    return str(Decimal(value).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)).replace(".", ",")
 
 
 def br_date(d: date) -> str:
@@ -359,7 +365,7 @@ def invoice_open_charges(raw: Raw, invoice: Mapping[str, str]) -> int:
     iid = invoice["invoiceId"]
     due = sum(int(c["fineCents"]) + int(c["interestCents"]) for c in ix["charges"][iid])
     got = sum(int(p["fineCents"]) + int(p["interestCents"]) for p in ix["paid"][iid])
-    return max(0, due - got)
+    return due - got
 
 
 _OPEN_STATUS = (
@@ -455,8 +461,8 @@ class CoursesFacts:
     status_date: str
     curso: str
     semestre_nivel: int
-    conclusao_pct: float
-    cr: float | None
+    conclusao_pct: str  # texto cru do SAG; formate com fmt_decimal1
+    cr: str | None
     disciplinas: list[dict[str, str]]
 
 
@@ -502,8 +508,8 @@ def oracle_courses(raw: Raw, enr: Enr) -> CoursesFacts:
         status_date=e["STATUS_DATE"],
         curso=course_acronym(raw)[e["COURSE"]],
         semestre_nivel=int(e["SEMESTER"]),
-        conclusao_pct=float(e["CURRENT_CURRICULUM_COMPLETION"]),
-        cr=float(e["GPA"]) if e["GPA"] else None,
+        conclusao_pct=e["CURRENT_CURRICULUM_COMPLETION"],
+        cr=e["GPA"] or None,
         disciplinas=rows,
     )
 
@@ -511,7 +517,6 @@ def oracle_courses(raw: Raw, enr: Enr) -> CoursesFacts:
 @dataclass(frozen=True)
 class Forecast:
     previsao: str | None  # semestre de conclusão "AAAA/S", "se cursar regularmente"
-    pendentes: int  # disciplinas da matriz sem aprovação/dispensa
     duracao: int
     semestre_nivel: int
 
@@ -524,24 +529,12 @@ def oracle_forecast(raw: Raw, enr: Enr) -> Forecast:
         next(c for c in raw["sag/course"] if c["COURSE"] == e["COURSE"])["DURATION_SEMESTERS"]
     )
     lvl = int(e["SEMESTER"])
-    done = {
-        (sc["CLASS_ID"], sc["RESULT"])
-        for sc in raw["sag/student_class"]
-        if (sc["BRAND"], sc["STUDENT_ID"]) == enr
-    }
-    sections = {c["CLASS_ID"]: c["SUBJECT_CODE"] for c in raw["sag/class_section"]}
-    ok = {sections[c] for c, r in done if r in ("APPROVED", "EXEMPT")}
-    need = {
-        cs["SUBJECT_CODE"]
-        for cs in raw["sag/curriculum_subject"]
-        if cs["CURRICULUM_ID"] == e["CURRICULUM_ID"]
-    }
     prev = (
         _term_add(current_term(raw), max(0, dur - lvl))
         if e["ENROLLMENT_STATUS"] == "ACTIVE"
         else None
     )
-    return Forecast(prev, len(need - ok), dur, lvl)
+    return Forecast(prev, dur, lvl)
 
 
 # ----------------------------------------------------------------------------- protocolos
@@ -787,7 +780,7 @@ def oracle_coverage(raw: Raw) -> dict[str, Any]:
 
 
 # ----------------------------------------------------------------------------- resposta ideal
-_DEFAULT_SOURCE = Path("data/dados.zip")
+_DEFAULT_SOURCE = Path(__file__).resolve().parents[1] / "data" / "dados.zip"
 _RAW_BY_SOURCE: dict[str, Raw] = {}
 ENROLLMENT_STATUS_PT = {
     "ACTIVE": "ativa",
@@ -863,7 +856,7 @@ def ideal_answer(item: Mapping[str, Any], raw: Raw | None = None) -> tuple[str, 
         ]
     if fn == "oracle_courses":
         c = oracle_courses(r, enr)
-        pct = f"{c.conclusao_pct:.1f}".replace(".", ",")
+        pct = fmt_decimal1(c.conclusao_pct)
         st = ENROLLMENT_STATUS_PT[c.status]
         return f"Sua matrícula está {st}, com {pct}% do curso concluído.", [st, pct]
     if fn == "oracle_catalog":
@@ -920,7 +913,8 @@ def mutate_one_fact(answer: str, kind: str, rng: random.Random) -> str:
         new = br_date(d + timedelta(days=rng.choice((-1, 1)) * rng.randint(1, 30)))
     elif kind == "grade":
         n = int(old.replace(",", ""))
-        new = f"{(n + rng.choice((-1, 1)) * rng.randint(1, 9)) % 101 / 10:.1f}".replace(".", ",")
+        v = (n + rng.choice((-1, 1)) * rng.randint(1, 9)) % 101
+        new = f"{v // 10},{v % 10}"
     else:
         n = int(old)
         new = str(n + rng.choice((-1, 1)) * rng.randint(1, 3) if n > 3 else n + rng.randint(1, 3))
