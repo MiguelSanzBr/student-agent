@@ -18,6 +18,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 | `phoenix/` | Export dos spans e anotações da rodada de teste (`make phoenix-import` reimporta) | A gerar |
 | `langflow-a2a.json` | Pergunta do golden 4 respondida pelo agente através do fluxo do Langflow (`make langflow-demo`) | Gerado |
 | `img/chat-golden4-fake.jpg` | Captura do chat web (aluno do caso 4) | Gerado |
+| `img/langflow-a2a-flow.jpg`, `img/langflow-a2a-chat.jpg` | Fluxo Chat Input → A2A Agent → Chat Output no Langflow 1.13.1 e a resposta do agente ao golden 4 no Playground (replay, sem chave) | Gerado |
 
 ## Requisito, mecanismo, teste e número
 
