@@ -97,6 +97,8 @@ def _parse(resp: Any, model: str) -> LLMResponse:
         cached_tokens=getattr(getattr(u, "input_tokens_details", None), "cached_tokens", 0) or 0,
     )
     why = getattr(resp.incomplete_details, "reason", None) if resp.status == "incomplete" else None
+    if resp.status not in ("completed", "incomplete"):
+        log.warning("gpt: status inesperado: %s", resp.status)
     if refused or why == "content_filter":
         log.warning("gpt bloqueado: refusal=%s incomplete=%s", refused, why)
         return LLMResponse(None, (), usage, model, "BLOCKED")
@@ -154,6 +156,8 @@ class OpenAIProvider:
                 if code != 429 and code < 500:
                     raise
                 reason: Literal["quota", "server"] = "quota" if code == 429 else "server"
+                if code == 429 and e.code == "insufficient_quota":  # crédito esgotado: não adianta
+                    raise LLMUnavailable(reason) from e
                 delay = _retry_after_s(e) if isinstance(e, openai.APIStatusError) else None
                 delay = BACKOFF_S if delay is None or code != 429 else delay
                 now = monotonic()

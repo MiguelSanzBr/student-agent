@@ -238,3 +238,58 @@ async def test_no_retry_without_time_or_budget(
     with pytest.raises(LLMUnavailable):
         await gen(p)
     assert sleeps == []
+
+
+def real(output: list[dict[str, Any]], status: str = "completed", **kw: Any) -> Any:
+    from openai.types.responses import Response
+
+    return Response.model_validate({
+        "id": "resp_1", "object": "response", "created_at": 0, "model": M1, "status": status,
+        "output": output, "parallel_tool_calls": True, "tool_choice": "auto", "tools": [],
+        "usage": {"input_tokens": 10, "output_tokens": 5,
+                  "input_tokens_details": {"cached_tokens": 4, "cache_write_tokens": 0},
+                  "output_tokens_details": {"reasoning_tokens": 2}, "total_tokens": 15},
+        **kw,
+    })  # fmt: skip
+
+
+def real_msg(part: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "message", "id": "msg_1", "role": "assistant", "status": "completed",
+            "content": [part]}  # fmt: skip
+
+
+async def test_parse_real_sdk_objects(app_secrets: object) -> None:
+    rs = {"type": "reasoning", "id": "rs_1", "summary": [], "encrypted_content": "zz"}
+    out = [
+        rs,
+        real_msg({"type": "output_text", "text": "oi", "annotations": []}),
+        {"type": "function_call", "id": "fc_1", "call_id": "c1", "name": "get_x",
+         "arguments": '{"q":1}', "status": "completed"},
+    ]  # fmt: skip
+    r = await gen(provider(FakeResponses([real(out)]), app_secrets))
+    assert r.text == "oi" and r.finish_reason == "STOP"
+    assert [(c.id, c.name, dict(c.args)) for c in r.tool_calls] == [("c1", "get_x", {"q": 1})]
+    assert json.loads(r.provider_meta or b"")[0] == rs
+    assert (r.usage.input_tokens, r.usage.cached_tokens, r.usage.thinking_tokens,
+            r.usage.output_tokens) == (10, 4, 2, 3)  # fmt: skip
+    inc = real([], "incomplete", incomplete_details={"reason": "max_output_tokens"})
+    assert (await gen(provider(FakeResponses([inc]), app_secrets))).finish_reason == "MAX_TOKENS"
+    ref = real([real_msg({"type": "refusal", "refusal": "não"})])
+    r = await gen(provider(FakeResponses([ref]), app_secrets))
+    assert (r.finish_reason, r.text) == ("BLOCKED", None)
+
+
+async def test_odd_status_warns_and_stops(
+    app_secrets: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    r = await gen(provider(FakeResponses([real([], "failed")]), app_secrets))
+    assert r.finish_reason == "STOP" and "failed" in caplog.text
+
+
+async def test_insufficient_quota_no_retry(app_secrets: object, sleeps: list[float]) -> None:
+    resp = httpx2.Response(429, request=REQ)
+    e = openai.RateLimitError("x", response=resp, body={"code": "insufficient_quota"})
+    r = FakeResponses([e, ok()])
+    with pytest.raises(LLMUnavailable) as ex:
+        await gen(provider(r, app_secrets))
+    assert ex.value.reason == "quota" and len(r.calls) == 1 and sleeps == []
