@@ -118,7 +118,7 @@ def test_gen090_draft_payload_label() -> None:
     settings = AppSettings()
     onto_name = default_ontology().service("GEN-090").ui_label
     card = DraftCard(
-        "d1", "tok", DraftKey("GEN-090", None), onto_name, None, "R$ 0,00", "05/11/2026",
+        "d1", DraftKey("GEN-090", None), onto_name, None, "R$ 0,00", "05/11/2026",
         "Quero falar com a secretaria", "aviso", "c1", "1",
     )  # fmt: skip
     app = make_app(settings, scripted(OK))
@@ -130,7 +130,8 @@ def test_gen090_draft_payload_label() -> None:
     app.state.turns.handle = handle
     with TestClient(app) as c:
         c.cookies.update(cookies(settings))
+        c.headers["Origin"] = "http://testserver"
         ev = events(post(c).text)
     d = next(e for e in ev if e["event"] == "draft")
     assert d["service_code"] == "GEN-090" and d["service_name_pt"] == "Falar com a secretaria"
-    assert "conversation_id" not in d and "token" not in d
+    assert "conversation_id" not in d

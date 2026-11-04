@@ -177,7 +177,8 @@ async def ask_timed(
     debug: dict[str, Any] = {}
     status, buf = "error", {}
     async with http.stream("POST", "/chat", json={"conversation_id": cid, "text": text},
-                           headers={"Cookie": f"session={token}"}) as r:  # fmt: skip
+                           headers={"Cookie": f"session={token}",
+                                    "Origin": str(http.base_url).rstrip("/")}) as r:  # fmt: skip
         if r.status_code in (429, 503):
             return None
         r.raise_for_status()

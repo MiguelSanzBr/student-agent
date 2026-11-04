@@ -57,6 +57,9 @@ def cookies(settings: AppSettings) -> dict[str, str]:
     return {COOKIE: issue_token(SUB, "chat", settings)}
 
 
+ORIGIN = {"Origin": "http://testserver"}
+
+
 def events(text: str) -> list[dict[str, Any]]:
     out = []
     for block in text.split("\n\n"):
@@ -75,6 +78,7 @@ def settings() -> AppSettings:
 def client(settings: AppSettings) -> Iterator[TestClient]:
     with TestClient(make_app(settings, scripted(OK, OK, OK))) as c:
         c.cookies.update(cookies(settings))
+        c.headers.update(ORIGIN)
         yield c
 
 
@@ -109,6 +113,7 @@ def test_rate_limit_429_retry_after(settings: AppSettings) -> None:
     settings.slo.limits["default"].msgs_per_min = 1
     with TestClient(make_app(settings, scripted(OK, OK))) as c:
         c.cookies.update(cookies(settings))
+        c.headers.update(ORIGIN)
         assert post(c).status_code == 200
         r = post(c)
         assert r.status_code == 429 and int(r.headers["retry-after"]) >= 1
@@ -119,6 +124,7 @@ def test_admit_before_stream_http_503_retry_after(settings: AppSettings) -> None
     settings.slo.quotas[settings.llm_model].rpm = 1
     with TestClient(make_app(settings, scripted(OK))) as c:
         c.cookies.update(cookies(settings))
+        c.headers.update(ORIGIN)
         r = post(c)
         assert r.status_code == 503 and int(r.headers["retry-after"]) >= 1
         assert "event:" not in r.text and r.headers["content-type"].startswith("application/json")
@@ -128,6 +134,7 @@ def test_global_spend_503(settings: AppSettings) -> None:
     app = make_app(settings, scripted(OK))
     with TestClient(app) as c:
         c.cookies.update(cookies(settings))
+        c.headers.update(ORIGIN)
         asyncio.run(app.state.turns.spend.add(Decimal("20")))
         r = post(c)
         assert r.status_code == 503 and "retry-after" in r.headers
@@ -154,7 +161,8 @@ async def call_asgi(
         "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": "POST",
         "path": "/chat", "raw_path": b"/chat", "query_string": b"", "scheme": "http",
         "server": ("t", 80), "client": ("c", 1), "root_path": "",
-        "headers": [(b"host", b"t"), (b"content-type", b"application/json"),
+        "headers": [(b"host", b"t"), (b"origin", b"http://t"),
+                    (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode()), (b"cookie", cookie)],
         "app": app, "state": {},
     }  # fmt: skip
@@ -198,3 +206,10 @@ async def test_disconnect_before_first_byte_settles(settings: AppSettings) -> No
     async with app.router.lifespan_context(app):
         await call_asgi(app, settings, disconnect_on="x", fail_send=True)
         assert await slots_in_use(app.state.turns) == 0
+
+
+def test_chat_rejects_foreign_or_missing_origin(client: TestClient) -> None:
+    body = {"conversation_id": "c1", "text": "oi"}
+    evil = client.post("/chat", json=body, headers={"Origin": "http://evil.example"})
+    assert evil.status_code == 403
+    assert client.post("/chat", json=body, headers={"Origin": ""}).status_code == 403

@@ -42,7 +42,14 @@ class ChatClient:
         self, base_url: str, *, transport: httpx.AsyncBaseTransport | None = None,
         timeout: float = 60.0,
     ) -> None:  # fmt: skip
-        self._http = httpx.AsyncClient(base_url=base_url, transport=transport, timeout=timeout)
+        self._http = httpx.AsyncClient(
+            base_url=base_url,
+            transport=transport,
+            timeout=timeout,
+            headers={
+                "Origin": base_url.rstrip("/")
+            },  # /chat, /protocols/confirm e /feedback exigem same-origin
+        )
         self.last_meta: dict[str, Any] = {}  # meta do último `ask` (trace_id, span_id em dev+eval)
 
     async def aclose(self) -> None:

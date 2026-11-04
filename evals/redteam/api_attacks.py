@@ -63,7 +63,7 @@ class _Api:
     async def chat(self, token: str | None, text: str, conv: str | None = None) -> httpx.Response:
         return await self.h.post(
             "/chat", json={"conversation_id": conv or f"rt-{uuid.uuid4().hex[:12]}", "text": text},
-            headers={"Cookie": f"session={token}"} if token else {},
+            headers=({"Cookie": f"session={token}"} if token else {}) | {"Origin": f"http://{self.host}"},
         )  # fmt: skip
 
     async def rpc(

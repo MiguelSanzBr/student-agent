@@ -14,7 +14,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.messages import LLM_UNAVAILABLE_TEXT
 from app.api.auth import get_person_cookie
+from app.api.protocols import same_origin
 from app.data.db import load_scope, with_scope
+from app.infra.stores import CONV_ID_PATTERN
 from app.infra.stores.labels import LabelCache
 from app.obs.metrics import METRICS
 from app.service.turn import Admission, TurnService
@@ -35,7 +37,7 @@ REFUSALS = {
 
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    conversation_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    conversation_id: str = Field(pattern=CONV_ID_PATTERN)
     text: str = Field(max_length=MAX_BODY_CHARS)
 
 
@@ -90,7 +92,7 @@ class _Settled(StreamingResponse):
             await self.svc.settle(self.adm, self.result, cancelled=self.cancelled)
 
 
-@router.post("/chat", response_model=None)
+@router.post("/chat", response_model=None, dependencies=[Depends(same_origin)])
 async def chat(
     body: ChatRequest, request: Request, scope: Annotated[StudentScope, Depends(_scope)]
 ) -> StreamingResponse | JSONResponse:

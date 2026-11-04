@@ -109,7 +109,9 @@ async def one_turn(http: httpx.AsyncClient, token: str, text: str) -> dict[str, 
     try:
         async with http.stream("POST", "/chat", json={"conversation_id": os.urandom(8).hex(),
                                                       "text": text},
-                               headers={"Cookie": f"session={token}"}) as r:  # fmt: skip
+                               headers={"Cookie": f"session={token}",
+                                        "Origin": str(http.base_url).rstrip("/")},
+                               ) as r:  # fmt: skip
             if r.status_code in (429, 503):
                 return {"rej": True, "retry_after": r.headers.get("Retry-After")}
             r.raise_for_status()
