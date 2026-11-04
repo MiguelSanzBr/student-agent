@@ -14,6 +14,9 @@ curl -fsS -c "$jar" -o /dev/null "$ticket_url"
 out=$(curl -fsS -b "$jar" -H 'content-type: application/json' \
   -d '{"conversation_id":"smoke","text":"quanto falta para quitar?"}' "$base/chat")
 echo "$out" | grep -q 'R\$ 49.508,43' || { echo "smoke: resposta sem R\$ 49.508,43:" >&2; echo "$out" >&2; exit 1; }
+# A2A: mesma resposta pelo protocolo (Bearer aud=a2a), pelo container da API
+out=$($DC exec -T api python -m scripts.a2a_demo 4)
+echo "$out" | grep -q 'R\$ 49.508,43' || { echo "smoke: a2a-demo sem R\$ 49.508,43:" >&2; echo "$out" >&2; exit 1; }
 # 503: teto global estourado (US$ 20 em micro-US$) -> recusa antes do stream, com Retry-After
 spend_key=$(PYTHONPATH=. uv run python -c "from core.clock import wall_now; from core.rkey import rkey; print(rkey('spend', 'global', '-', wall_now().strftime('%Y%m%d')))")
 $DC exec -T redis sh -c 'REDISCLI_AUTH="$(cat /run/secrets/redis/redis_password)" redis-cli set "$1" 20000000 >/dev/null' _ "$spend_key"
