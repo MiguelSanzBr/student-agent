@@ -436,7 +436,7 @@ def _kind(state: _S) -> AnswerKind:
     return "recusa" if answer.startswith(REFUSAL_PREFIX) else "resposta"
 
 
-def _bare(
+def bare_result(
     status: TurnStatus, answer: str, model: str, *, total_ms: float = 0.0, **extra: Any
 ) -> TurnResult:
     base: dict[str, Any] = {
@@ -461,7 +461,7 @@ async def run_turn(
     t0, lim = monotonic(), settings.limits
     capped = lim.degrade_at is not None  # perfil eval nunca degrada por custo
     if capped and spend_level == "blocked":
-        return _bare("blocked_limit", BLOCKED_TEXT, model)
+        return bare_result("blocked_limit", BLOCKED_TEXT, model)
     degraded = capped and spend_level == "degraded"
     rounds = lim.degrade_rounds if degraded else lim.max_rounds
     tl = tuple(tools if tools is not None else build_tools())
@@ -500,7 +500,7 @@ async def run_turn(
     if abort := final.get("abort"):
         fixed = " ".join(_server_text(final))
         msg = BUDGET_EXCEEDED_TEXT if abort == "budget_exceeded" else LLM_UNAVAILABLE_TEXT
-        return _bare(
+        return bare_result(
             abort, fixed or msg, model, total_ms=total, draft=final["draft"],
             llm_calls=final["llm_calls"], usage=final["usage"], became_tainted=tainted,
         )  # fmt: skip

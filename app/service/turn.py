@@ -2,16 +2,17 @@
 
 import asyncio
 import dataclasses
+import logging
 import re
 import unicodedata
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
-from app.agent.graph import SpendLevel, TurnResult, _bare, run_turn
-from app.agent.llm import LLMProvider, Usage
+from app.agent.graph import SpendLevel, TurnResult, bare_result, run_turn
+from app.agent.llm import LLMProvider, LLMResponse, Message, Usage
 from app.agent.messages import DRAFT_PENDING_USE_BUTTON
 from app.config import AppSettings
 from app.data.card import build_student_card
@@ -28,10 +29,12 @@ from app.infra.stores.turn_outputs import TurnOutputCache
 from app.obs.cost import cost_usd
 from app.obs.metrics import METRICS
 from app.obs.tracing import span
-from app.tools.base import ToolContext
+from app.tools.base import ToolContext, ToolSpec
 from core.clock import monotonic, reference_today
 from core.scope import StudentScope
 
+log = logging.getLogger(__name__)
+CONSERVATIVE_MODEL = "gemini-3.8-flash"  # o mais caro da tabela: preço de reserva
 Channel = Literal["web", "a2a"]
 Emit = Callable[[Mapping[str, Any]], Awaitable[None]]
 ERROR_STATUSES = frozenset({"budget_exceeded", "llm_unavailable", "blocked_limit"})
@@ -75,6 +78,29 @@ def _tokens(u: Usage) -> int:
     return u.input_tokens + u.output_tokens + u.thinking_tokens
 
 
+class _Meter:
+    """Acumula o uso real do LLM no turno (sobrevive ao cancelamento) e se o taint já ocorreu."""
+
+    def __init__(self, inner: LLMProvider) -> None:
+        self.inner, self.calls, self.tainted = inner, 0, False
+        self.usage = Usage()
+
+    async def generate(
+        self, *, model: str, system: str, messages: Sequence[Message],
+        tools: Sequence[ToolSpec], deadline: float,
+    ) -> LLMResponse:  # fmt: skip
+        r = await self.inner.generate(
+            model=model, system=system, messages=messages, tools=tools, deadline=deadline
+        )
+        u, a = r.usage, self.usage
+        self.calls += 1
+        self.usage = Usage(
+            a.input_tokens + u.input_tokens, a.output_tokens + u.output_tokens,
+            a.thinking_tokens + u.thinking_tokens, a.cached_tokens + u.cached_tokens,
+        )  # fmt: skip
+        return r
+
+
 class DefaultTurnService:
     def __init__(
         self, settings: AppSettings, pool: Pool, redis: RedisClient, llm: LLMProvider
@@ -87,6 +113,7 @@ class DefaultTurnService:
         self.spend = GlobalSpend(redis, lim)
         self.history, self.drafts = HistoryStore(redis, lim), DraftStore(redis, lim)
         self.outputs = TurnOutputCache(redis)
+        self._meters: dict[str, _Meter] = {}
 
     async def _refuse(
         self, reason: Literal["rate", "budget", "spend", "quota", "slots"],
@@ -112,6 +139,7 @@ class DefaultTurnService:
             await self.bucket.settle(res.ticket, 0, 0)  # devolve a reserva: nada vai rodar
             return await self._refuse("slots", 503, RETRY_SLOTS_S)
         METRICS["agent_turn_slots_in_use"].inc()  # type: ignore[union-attr]
+        self._meters[res.ticket] = _Meter(self.llm)
         return Admission(True, 200, None, res.ticket, "ok", level, sub, channel)
 
     async def handle(
@@ -126,18 +154,23 @@ class DefaultTurnService:
             except InputTooLong:
                 msg = f"A mensagem passa de {s.limits.input_chars} caracteres. Escreva algo menor."
                 await emit({"event": "error", "message": msg})
-                return await self._done(_bare("fixed", msg, s.llm_model), emit, trace_id, channel)
+                return await self._done(
+                    bare_result("fixed", msg, s.llm_model), emit, trace_id, channel
+                )
             conv = await self.history.load(sub, channel, conversation_id)
             if conv.last_turn_draft_only and _is_yes(text):
                 await emit({"event": "answer", "text": DRAFT_PENDING_USE_BUTTON})
-                fixed = _bare("fixed", DRAFT_PENDING_USE_BUTTON, s.llm_model)
+                fixed = bare_result("fixed", DRAFT_PENDING_USE_BUTTON, s.llm_model)
                 return await self._done(fixed, emit, trace_id, channel)
             pending = await self.drafts.pending(sub, conversation_id) if channel == "web" else None
             today = reference_today(s)
             async with with_scope(self.pool, sub, scope.brand_families) as conn:
                 card = await build_student_card(conn, scope, s, today=today, pending=pending)
 
+            meter = self._meters.get(admission.ticket or "") or _Meter(self.llm)
+
             def ctx_factory(rnd: int, tainted: bool) -> ToolContext:
+                meter.tainted = meter.tainted or (tainted and not conv.tainted)
                 return ToolContext(
                     scope, s, channel, conversation_id, tainted, rnd,
                     not conv.other_enrollment_offered, today,
@@ -157,13 +190,15 @@ class DefaultTurnService:
             pump = asyncio.create_task(drain())
             try:
                 r = await run_turn(
-                    llm=self.llm, settings=s, scope=scope, card=card, conversation=conv,
+                    llm=meter, settings=s, scope=scope, card=card, conversation=conv,
                     text=text, channel=channel, ctx_factory=ctx_factory,
                     deadline=monotonic() + s.slo.graph_budget_s, writer=writer,
                     model=s.llm_model, spend_level=admission.spend_level,
                 )  # fmt: skip
             except BaseException:
                 pump.cancel()
+                if meter.tainted:  # a ferramenta já devolveu texto não confiável: o taint fica
+                    await asyncio.shield(self.history.mark_tainted(sub, channel, conversation_id))
                 raise
             q.put_nowait(None)
             await pump
@@ -174,19 +209,21 @@ class DefaultTurnService:
                 await emit({"event": "error", "message": r.answer})
             elif r.answer:
                 await emit({"event": "answer", "text": r.answer})
-            if r.new_messages:
-                await self.history.append(
-                    sub, channel, conversation_id, r.new_messages, draft_only=r.draft_only
-                )
-            if r.became_tainted:
-                await self.history.mark_tainted(sub, channel, conversation_id)
-            if r.offered_other_enrollment:
-                await self.history.mark_other_enrollment_offered(sub, channel, conversation_id)
+            await asyncio.shield(self._persist(sub, channel, conversation_id, r))
             await self.outputs.put(sub, trace_id, self._typed(r))
             if s.app_env == "dev" and s.limits_profile == "eval":
                 await emit({"event": "debug", **self._typed(r), "timings_ms": dict(r.timings_ms),
                             "pre_guard_answer": r.pre_guard_answer})  # fmt: skip
             return await self._done(r, emit, trace_id, channel)
+
+    async def _persist(self, sub: UUID, channel: Channel, cid: str, r: TurnResult) -> None:
+        """Flags antes do histórico: uma queda no meio nunca deixa saída de ferramenta sem taint."""
+        if r.became_tainted:
+            await self.history.mark_tainted(sub, channel, cid)
+        if r.offered_other_enrollment:
+            await self.history.mark_other_enrollment_offered(sub, channel, cid)
+        if r.new_messages:
+            await self.history.append(sub, channel, cid, r.new_messages, draft_only=r.draft_only)
 
     @staticmethod
     def _typed(r: TurnResult) -> dict[str, Any]:
@@ -215,30 +252,47 @@ class DefaultTurnService:
                     "trace_id": trace_id})  # fmt: skip
         return r
 
+    @staticmethod
+    async def _safe(what: str, coro: Coroutine[Any, Any, Any]) -> None:
+        try:
+            await coro
+        except Exception:  # noqa: BLE001 - uma falha não pode pular os outros acertos
+            log.exception("settle: %s falhou", what)
+
     async def settle(
         self, admission: Admission, result: TurnResult | None, *, cancelled: bool = False
     ) -> None:
         if not admission.ok or admission.ticket is None or admission.sub is None:
             return
-        adm = self.settings.slo.admission
-        try:
-            await self.slots.release(admission.ticket)
-        finally:
-            METRICS["agent_turn_slots_in_use"].dec()  # type: ignore[union-attr]
+        s, adm = self.settings, self.settings.slo.admission
+        meter = self._meters.pop(admission.ticket, None)
+        if result is not None:
+            u, calls, model = result.usage, result.llm_calls, result.model
+        else:  # cancelado ou erro: vale o uso medido, no mínimo a estimativa da admissão
+            u, calls, model = (
+                (meter.usage, meter.calls, s.llm_model) if meter else (Usage(), 0, s.llm_model)
+            )
+            if meter is None or _tokens(u) < adm.est_tokens:
+                u, calls = Usage(output_tokens=adm.est_tokens), max(calls, adm.est_requests)
+        await self._safe("vaga", self.slots.release(admission.ticket))
+        METRICS["agent_turn_slots_in_use"].dec()  # type: ignore[union-attr]
         if cancelled:
             METRICS["agent_turns_total"].labels(status="cancelled", channel=admission.channel).inc()  # type: ignore[union-attr]
-        if result is None:  # cancelado ou erro: o uso real é desconhecido, mantém a estimativa
-            await self.bucket.settle(admission.ticket, adm.est_requests, adm.est_tokens)
-            return
-        await self.bucket.settle(admission.ticket, result.llm_calls, _tokens(result.usage))
-        await self.budget.add(admission.sub, _tokens(result.usage))
-        u = result.usage
+        await self._safe("balde", self.bucket.settle(admission.ticket, calls, _tokens(u)))
+        await self._safe("cota diária", self.budget.add(admission.sub, _tokens(u)))
         for kind, n in (("input", u.input_tokens), ("output", u.output_tokens),
                         ("thinking", u.thinking_tokens), ("cached", u.cached_tokens)):  # fmt: skip
             METRICS["agent_tokens_total"].labels(kind=kind).inc(n)  # type: ignore[union-attr]
+        await self._safe("gasto global", self._charge(u, model))
+
+    async def _charge(self, u: Usage, model: str) -> None:
+        on = reference_today(self.settings)
         try:
-            usd = cost_usd(u, result.model, reference_today(self.settings))
-        except ValueError:  # modelo sem preço (ex.: fake): não há o que cobrar
-            return
+            usd = cost_usd(u, model, on)
+        except ValueError:
+            if self.settings.llm_provider == "fake":  # fake não tem preço
+                return
+            log.warning("sem preço para %s: cobrando pelo preço conservador", model)
+            usd = cost_usd(u, CONSERVATIVE_MODEL, on)
         METRICS["agent_cost_usd_total"].inc(float(usd))  # type: ignore[union-attr]
         await self.spend.add(Decimal(usd))

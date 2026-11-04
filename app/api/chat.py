@@ -47,7 +47,10 @@ async def _load_scope(request: Request, pk: UUID) -> StudentScope:
 
 async def _first_name(request: Request, scope: StudentScope) -> str:
     async with with_scope(request.app.state.pool, scope.person_key, scope.brand_families) as conn:
-        cur = await conn.execute("SELECT first_name FROM canon.person LIMIT 1")
+        cur = await conn.execute(
+            "SELECT first_name FROM canon.person WHERE person_key = %s LIMIT 1",
+            (scope.person_key,),
+        )
         row = await cur.fetchone()
     return str(row[0]) if row and row[0] else ""
 

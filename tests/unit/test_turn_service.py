@@ -296,3 +296,180 @@ async def test_taint_and_flags_persisted(monkeypatch: pytest.MonkeyPatch) -> Non
     await turn(svc)
     c = await svc.history.load(SUB, "web", "c1")
     assert c.tainted and c.other_enrollment_offered
+
+
+# --- fix round 1 ---
+class LoopLLM:
+    """Pede uma ferramenta inexistente a cada chamada; `hang_after` chamadas depois, trava."""
+
+    def __init__(self, tokens: int = 100, hang_after: int | None = None) -> None:
+        self.n, self.tokens, self.hang_after = 0, tokens, hang_after
+
+    async def generate(self, **kw: Any) -> Any:
+        from app.agent.llm import LLMResponse, ToolCall, Usage
+
+        self.n += 1
+        if self.hang_after is not None and self.n > self.hang_after:
+            await asyncio.sleep(60)
+        call = ToolCall(f"c{self.n}", "nao_existe", {})
+        return LLMResponse(None, (call,), Usage(self.tokens, 0), "gemini-3.8-flash")
+
+
+async def cancel_turn(svc: Any) -> None:
+    adm = await svc.admit(scope=SCOPE, channel="web")
+
+    async def emit(e: Mapping[str, Any]) -> None:
+        pass
+
+    t = asyncio.create_task(svc.handle(admission=adm, scope=SCOPE, conversation_id="c1", text="oi",
+                                       channel="web", emit=emit))  # fmt: skip
+    await asyncio.sleep(0.3)
+    t.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await t
+    await svc.settle(adm, None, cancelled=True)
+
+
+async def spent(svc: Any) -> int:
+    from app.infra.stores.spend import GlobalSpend
+
+    raw = await svc.redis.get(GlobalSpend._key())
+    return int(raw) if raw else 0
+
+
+async def test_cancel_after_llm_call_charges_real_usage_to_budget_and_spend() -> None:
+    svc = make_service(AppSettings(), LoopLLM(tokens=500_000, hang_after=1))
+    await cancel_turn(svc)
+    assert await svc.budget.used(SUB) >= 500_000 and await spent(svc) > 0
+
+
+async def test_cancel_before_any_llm_result_charges_the_estimate() -> None:
+    s = AppSettings()
+    svc = make_service(s, HangLLM())
+    await cancel_turn(svc)
+    assert await svc.budget.used(SUB) == s.slo.admission.est_tokens and await spent(svc) > 0
+
+
+async def test_cancel_after_taint_keeps_taint(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.service.turn as t
+
+    async def fake(**kw: Any) -> Any:
+        kw["ctx_factory"](1, True)  # a rodada ficou tainted (ferramenta devolveu texto livre)
+        await asyncio.sleep(60)
+
+    monkeypatch.setattr(t, "run_turn", fake)
+    svc = make_service(AppSettings(), scripted(OK))
+    await cancel_turn(svc)
+    assert (await svc.history.load(SUB, "web", "c1")).tainted
+
+
+async def test_persist_sets_flags_before_history(monkeypatch: pytest.MonkeyPatch) -> None:
+    import dataclasses
+
+    import app.service.turn as t
+    from app.agent.llm import Message
+
+    real = t.run_turn
+
+    async def fake(**kw: Any) -> Any:
+        r = await real(**kw)
+        return dataclasses.replace(r, became_tainted=True)
+
+    monkeypatch.setattr(t, "run_turn", fake)
+    svc = make_service(AppSettings(), scripted(OK))
+    order: list[str] = []
+    mt, ap = svc.history.mark_tainted, svc.history.append
+
+    async def mt2(*a: Any) -> None:
+        order.append("taint")
+        await mt(*a)
+
+    async def ap2(*a: Any, **k: Any) -> None:
+        order.append("append")
+        await ap(*a, **k)
+
+    monkeypatch.setattr(svc.history, "mark_tainted", mt2)
+    monkeypatch.setattr(svc.history, "append", ap2)
+    await turn(svc)
+    assert order == ["taint", "append"] and Message
+
+
+def _draft() -> Any:
+    from app.tools.base import DraftCard, DraftKey
+
+    return DraftCard("d1", "TOKEN-SECRETO", DraftKey("ACA-020", "MAT1"), "2ª chamada", "Curso",
+                     "R$ 0,00", "10/11/2026", "desc", "aviso", "c1", "1")  # fmt: skip
+
+
+@pytest.mark.parametrize("status", ["budget_exceeded", "llm_unavailable"])
+async def test_abort_emits_draft_public_and_persists_taint(
+    monkeypatch: pytest.MonkeyPatch, status: str
+) -> None:
+    import app.service.turn as t
+    from app.agent.graph import bare_result
+
+    async def fake(**kw: Any) -> Any:
+        return bare_result(status, "Falha fixa.", "m", draft=_draft(), became_tainted=True)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(t, "run_turn", fake)
+    svc = make_service(AppSettings(), scripted(OK))
+    _, r, ev = await turn(svc)
+    d = next(e for e in ev if e["event"] == "draft")
+    assert not {"token", "conversation_id", "enrollment_index"} & set(d)
+    assert "TOKEN-SECRETO" not in str(ev) and d["draft_id"] == "d1"
+    assert any(e["event"] == "error" for e in ev) and r.status == status
+    assert (await svc.history.load(SUB, "web", "c1")).tainted
+
+
+async def test_progress_event_bridged(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.service.turn as t
+    from app.agent.graph import bare_result
+
+    async def fake(**kw: Any) -> Any:
+        kw["writer"]({"event": "progress", "fase": "consultando", "texto": "Consultando..."})
+        kw["writer"]({"event": "draft", "token": "nao-passa"})  # só progress atravessa
+        await asyncio.sleep(0)
+        return bare_result("ok", "ok", "m")
+
+    monkeypatch.setattr(t, "run_turn", fake)
+    _, _, ev = await turn(make_service(AppSettings(), scripted(OK)))
+    ks = kinds(ev)
+    assert ks.index("progress") < ks.index("done") and "draft" not in ks
+
+
+async def test_degraded_turn_runs_two_rounds() -> None:
+    from decimal import Decimal
+
+    normal, degraded = LoopLLM(), LoopLLM()
+    await turn(make_service(AppSettings(), normal))
+    svc = make_service(AppSettings(), degraded)
+    await svc.spend.add(Decimal("16"))
+    await turn(svc)
+    assert (normal.n, degraded.n) == (5, 3)  # max_rounds 4 vs degrade_rounds 2, +1 chamada final
+
+
+async def test_settle_steps_are_independent() -> None:
+    svc = make_service(AppSettings(), scripted(OK))
+    adm = await svc.admit(scope=SCOPE, channel="web")
+
+    async def boom(*a: Any) -> None:
+        raise RuntimeError("redis")
+
+    svc.slots.release = boom  # type: ignore[method-assign]
+    svc.bucket.settle = boom  # type: ignore[method-assign]
+    from app.agent.graph import bare_result
+    from app.agent.llm import Usage
+
+    await svc.settle(adm, bare_result("ok", "x", "gemini-3.8-flash", usage=Usage(1000, 0)))
+    assert await svc.budget.used(SUB) == 1000 and await spent(svc) > 0
+
+
+@pytest.mark.parametrize(("provider", "charged"), [("auto", True), ("fake", False)])
+async def test_unknown_model_price(provider: str, charged: bool) -> None:
+    from app.agent.graph import bare_result
+    from app.agent.llm import Usage
+
+    svc = make_service(AppSettings(llm_provider=provider), scripted(OK))  # type: ignore[arg-type]
+    adm = await svc.admit(scope=SCOPE, channel="web")
+    await svc.settle(adm, bare_result("ok", "x", "modelo-sem-preco", usage=Usage(1000, 1000)))
+    assert (await spent(svc) > 0) is charged
