@@ -43,5 +43,6 @@ def test_authored_strings_are_held_out_from_unit_tests():
     # glob de TODOS os testes unitários; cobre frases, moldes de troca, perguntas e ids de registro
     unit = "".join(p.read_text() for p in HERE.glob("*.py") if p.name != Path(__file__).name)
     held = [*AUTHORED, *(t[2] for t in _SWAPS), *QUESTION_STRINGS]
-    leaked = [s for s in held if f'"{s}"' in unit or (len(s) >= 25 and s in unit)]
+    low = unit.lower()
+    leaked = [s for s in held if f'"{s}"' in unit or (len(s) >= 12 and s.lower() in low)]
     assert AUTHORED and not leaked, leaked
