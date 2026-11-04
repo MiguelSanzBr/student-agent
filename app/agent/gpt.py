@@ -43,9 +43,11 @@ def _input(messages: Sequence[Message], model: str) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for m in messages:
         if m.role == "user":
-            out.append({"role": "user", "content": m.text or ""})
+            if m.text:  # a API rejeita mensagem vazia
+                out.append({"role": "user", "content": m.text})
         elif m.role == "system_note":
-            out.append({"role": "user", "content": f"[nota do sistema] {m.text}"})
+            if m.text:
+                out.append({"role": "user", "content": f"[nota do sistema] {m.text}"})
         elif m.role == "tool":
             out.append({
                 "type": "function_call_output", "call_id": m.tool_call_id,

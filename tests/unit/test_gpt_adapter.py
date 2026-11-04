@@ -293,3 +293,18 @@ async def test_insufficient_quota_no_retry(app_secrets: object, sleeps: list[flo
     with pytest.raises(LLMUnavailable) as ex:
         await gen(provider(r, app_secrets))
     assert ex.value.reason == "quota" and len(r.calls) == 1 and sleeps == []
+
+
+async def test_no_tools_sends_neither_tools_nor_tool_choice(app_secrets: object) -> None:
+    r = FakeResponses()
+    hist = [*card_messages(StudentCard(text="x", facts={})), Message("user", "oi")]
+    await gen(provider(r, app_secrets), hist, tools=[])
+    assert "tools" not in r.calls[0] and "tool_choice" not in r.calls[0]
+
+
+async def test_empty_text_messages_skipped(app_secrets: object) -> None:
+    r = FakeResponses()
+    msgs = [Message("user", ""), Message("user", None), Message("system_note", ""),
+            Message("assistant", ""), Message("user", "oi")]  # fmt: skip
+    await gen(provider(r, app_secrets), msgs)
+    assert r.calls[0]["input"] == [{"role": "user", "content": "oi"}]
