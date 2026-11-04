@@ -16,10 +16,10 @@ admission:
   quota_fraction: 0.9
   est_requests: 3  # PROVISÓRIO: E[chamadas ao LLM por turno] p/ reserve (spec §5); refit após janela A
   est_tokens: 6000  # PROVISÓRIO: E[tokens por turno] p/ reserve; refit após janela A
-components:  # lognormal por componente de latência (s): mu = ln(mediana); PRIORS de docs/evidence/spikes.json (gemini-3.8-flash)
-  tool_call: {mu: 0.9555, sigma: 0.35}
-  answer_call: {mu: 1.335, sigma: 0.35}
-  overhead: {mu: -1.204, sigma: 0.2}
+components:  # reajuste único da janela A (2026-11-04, claude-haiku-5-5, n=answer_call 390/overhead 300/tool_call 215)
+  tool_call: {mu: 0.3475, sigma: 0.229}
+  answer_call: {mu: 0.7234, sigma: 0.2724}
+  overhead: {mu: -3.1075, sigma: 0.3681}
 hedge:  # alavanca lever_hedge_first_call (app/agent/levers.py): só dispara dentro deste orçamento
   quantile: 0.9  # da 1ª chamada do turno
   card_share: 0.45  # fração de turnos `card` (1ª chamada = resposta); PROVISÓRIO, refit na janela A
@@ -59,15 +59,15 @@ limits:  # plano, Global Constraints (Limites); perfil escolhido por LIMITS_PROF
     tokens_per_day: 1000000000
     global_ceiling_usd: 1000000
     degrade_at: null
-targets:  # segundos, por classe de ferramentas do turno: max(meta inicial, previsto)
-  card: {p50: 4.19, p90: 6.77, p95: 7.9, p99: 10.46}
-  "1": {p50: 7.0, p90: 9.92, p95: 11.08, p99: 13.56}
-  "2+": {p50: 11.74, p90: 16.68, p95: 18.12, p99: 21.01}
-ttfe:  # POST -> 1º progress/answer; card = latência total (= p95 total)
-  card: {p95: 7.9}
-  "1": {p95: 4.63}
-  "2+": {p95: 4.62}
-graph_budget_s: 25.22  # p99 previsto da classe 2+ x 1,2
+targets:  # reajuste único da janela A (2026-11-04, claude-haiku-5-5, n=answer_call 390/overhead 300/tool_call 215)
+  card: {p50: 3.5, p90: 3.22, p95: 6.0, p99: 5.04}
+  "1": {p50: 3.62, p90: 4.79, p95: 8.0, p99: 6.54}
+  "2+": {p50: 6.07, p90: 8.41, p95: 12.0, p99: 10.22}
+ttfe:  # reajuste único da janela A (2026-11-04, claude-haiku-5-5, n=answer_call 390/overhead 300/tool_call 215)
+  card: {p95: 6.0}
+  "1": {p95: 4.0}
+  "2+": {p95: 4.0}
+graph_budget_s: 12.26  # reajuste único da janela A (2026-11-04, claude-haiku-5-5, n=answer_call 390/overhead 300/tool_call 215)
 buckets: [0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24]
 turn_slots: 8
 infra_overhead_p95_ms: 300
