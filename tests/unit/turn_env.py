@@ -10,7 +10,7 @@ import pytest
 
 import app.service.turn as turn_mod
 from app.agent.fakes import ScriptedLLM
-from app.agent.llm import LLMResponse, Message, Usage
+from app.agent.llm import LLMResponse, Message, ToolChoice, Usage
 from app.config import AppSettings
 from app.data.card import StudentCard
 from app.service.turn import DefaultTurnService
@@ -41,6 +41,7 @@ class HangLLM:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         import asyncio
 

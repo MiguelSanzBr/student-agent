@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 import anthropic
 
-from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
+from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, ToolChoice, Usage
 from app.agent.retry import BACKOFF_S, RetryBudget
 from app.config import AppSettings
 from app.obs.metrics import METRICS
@@ -156,6 +156,7 @@ class AnthropicProvider:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         msgs = _messages(messages, model)
         req: dict[str, Any] = {
@@ -165,6 +166,8 @@ class AnthropicProvider:
             "betas": [BINDING_BETA], "output_config": {"effort": EFFORT},
             "cache_control": {"type": "ephemeral"},
         }  # fmt: skip
+        if tool_choice == "none":
+            req["tool_choice"] = {"type": "none"}
         if tools:
             req["tools"] = [
                 {"name": t.name, "description": t.description, "input_schema": dict(t.parameters)}

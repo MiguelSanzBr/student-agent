@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 
 from app.agent.graph import SpendLevel, TurnResult, bare_result, run_turn
 from app.agent.levers import HedgeBudget, Hedger, first_call_delay_s
-from app.agent.llm import LLMProvider, LLMResponse, Message, Usage
+from app.agent.llm import LLMProvider, LLMResponse, Message, ToolChoice, Usage
 from app.agent.messages import DRAFT_PENDING_USE_BUTTON
 from app.agent.prompt import SYSTEM_PREFIX
 from app.config import AppSettings
@@ -104,13 +104,19 @@ class _Meter:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         first = self.calls == 0
         self.calls += 1  # no disparo: timeout/abort cobra a requisição que ficou em voo
 
         def call() -> Awaitable[LLMResponse]:
             return self.inner.generate(
-                model=model, system=system, messages=messages, tools=tools, deadline=deadline
+                model=model,
+                system=system,
+                messages=messages,
+                tools=tools,
+                deadline=deadline,
+                tool_choice=tool_choice,
             )
 
         if self.hedger is not None and first:

@@ -4,7 +4,7 @@ from collections import deque
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
+from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, ToolChoice, Usage
 from app.config import Lognormal, Quota
 from app.tools.base import ToolSpec
 from core.clock import monotonic
@@ -17,6 +17,7 @@ class Call:
     messages: tuple[Message, ...]
     tools: tuple[ToolSpec, ...]
     deadline: float
+    tool_choice: ToolChoice = "auto"
 
 
 class ScriptedLLM:
@@ -31,8 +32,9 @@ class ScriptedLLM:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
-        self.calls.append(Call(model, system, tuple(messages), tuple(tools), deadline))
+        self.calls.append(Call(model, system, tuple(messages), tuple(tools), deadline, tool_choice))
         if len(self.calls) > len(self._script):
             raise AssertionError("roteiro do ScriptedLLM esgotado")
         step = self._script[len(self.calls) - 1]
@@ -48,8 +50,9 @@ class SmokeLLM(ScriptedLLM):
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
-        self.calls.append(Call(model, system, tuple(messages), tuple(tools), deadline))
+        self.calls.append(Call(model, system, tuple(messages), tuple(tools), deadline, tool_choice))
         last = messages[-1]
         if last.role == "tool" and last.tool_name == "get_financial_summary" and last.tool_result:
             total = last.tool_result["total_para_quitar"]
@@ -86,6 +89,7 @@ class LoadTestLLM:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         now = self._clock()
         while self._stamps and now - self._stamps[0] >= 60:

@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from app.agent.llm import LLMProvider, LLMResponse, Message, ToolCall, Usage
+from app.agent.llm import LLMProvider, LLMResponse, Message, ToolCall, ToolChoice, Usage
 from app.tools.base import FERRAMENTA_INDISPONIVEL, ToolSpec
 
 DEFAULT_REPLAY = Path(__file__).resolve().parents[2] / "evals" / "replays" / "demo.jsonl"
@@ -117,9 +117,11 @@ class RecordingLLM:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         resp = await self._inner.generate(
-            model=model, system=system, messages=messages, tools=tools, deadline=deadline
+            model=model, system=system, messages=messages, tools=tools, deadline=deadline,
+            tool_choice=tool_choice,
         )  # fmt: skip
         question, step = _turn_key(messages)
         line: dict[str, Any] = {
@@ -160,6 +162,7 @@ class ReplayLLM:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         messages = _without_feedback(messages)
         question, step = _turn_key(messages)

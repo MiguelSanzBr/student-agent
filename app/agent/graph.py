@@ -166,7 +166,7 @@ async def _llm_node(state: _S, config: RunnableConfig) -> _S:
     if feedback:
         msgs += [Message("assistant", state.get("text") or ""), Message("user", feedback)]
     offer = state["rnd"] < env.max_rounds and not feedback
-    specs = tuple(t.spec for t in env.tools.values()) if offer else ()
+    specs = tuple(t.spec for t in env.tools.values())  # sempre a lista completa (prefixo/cache)
     t0 = monotonic()
     try:
         with span("agent.call_model", "LLM", **{"llm.model_name": env.model}) as sp:
@@ -174,7 +174,8 @@ async def _llm_node(state: _S, config: RunnableConfig) -> _S:
             try:
                 resp = await asyncio.wait_for(
                     env.llm.generate(model=env.model, system=env.system, messages=msgs,
-                                     tools=specs, deadline=env.deadline),
+                                     tools=specs, deadline=env.deadline,
+                                     tool_choice="auto" if offer else "none"),
                     left,
                 )  # fmt: skip
             finally:

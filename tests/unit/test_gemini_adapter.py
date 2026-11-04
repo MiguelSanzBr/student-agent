@@ -243,3 +243,15 @@ async def test_empty_candidates_is_blocked(app_secrets: object) -> None:
               prompt_feedback=NS(block_reason=types.BlockedReason.SAFETY))  # fmt: skip
     r = await gen(provider(FakeModels([resp]), app_secrets))
     assert r.finish_reason == "BLOCKED" and r.text is None and r.tool_calls == ()
+
+
+async def test_tool_choice_none_maps_to_function_calling_mode(app_secrets: object) -> None:
+    fm = FakeModels()
+    p = provider(fm, app_secrets)
+    await p.generate(model=M1, system="s", messages=[Message("user", "oi")], tools=[SPEC],
+                     deadline=monotonic() + 30, tool_choice="none")  # fmt: skip
+    await gen(p)
+    cfg = fm.calls[0]["config"]
+    assert cfg.tool_config.function_calling_config.mode == types.FunctionCallingConfigMode.NONE
+    assert len(cfg.tools[0].function_declarations) == 1
+    assert fm.calls[1]["config"].tool_config is None

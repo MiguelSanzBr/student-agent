@@ -308,3 +308,13 @@ async def test_empty_text_messages_skipped(app_secrets: object) -> None:
             Message("assistant", ""), Message("user", "oi")]  # fmt: skip
     await gen(provider(r, app_secrets), msgs)
     assert r.calls[0]["input"] == [{"role": "user", "content": "oi"}]
+
+
+async def test_tool_choice_none_maps_to_responses_param(app_secrets: object) -> None:
+    r = FakeResponses()
+    p = provider(r, app_secrets)
+    await p.generate(model=M1, system="s", messages=[Message("user", "oi")], tools=[SPEC],
+                     deadline=monotonic() + 30, tool_choice="none")  # fmt: skip
+    await gen(p)
+    assert r.calls[0]["tool_choice"] == "none" and len(r.calls[0]["tools"]) == 1
+    assert "tool_choice" not in r.calls[1]

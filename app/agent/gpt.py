@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 import openai
 
-from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
+from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, ToolChoice, Usage
 from app.agent.retry import BACKOFF_S, RetryBudget
 from app.config import AppSettings
 from app.tools.base import ToolSpec
@@ -126,6 +126,7 @@ class OpenAIProvider:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         effort = "none" if model in EFFORT_NONE_MODELS else "low"
         kw: dict[str, Any] = {
@@ -139,6 +140,8 @@ class OpenAIProvider:
                  "parameters": dict(t.parameters), "strict": False}
                 for t in tools
             ]  # fmt: skip
+        if tool_choice == "none":
+            kw["tool_choice"] = "none"
         if effort != "none":  # com store=False é o único jeito de reenviar o raciocínio
             kw["include"] = ["reasoning.encrypted_content"]
         retried = False

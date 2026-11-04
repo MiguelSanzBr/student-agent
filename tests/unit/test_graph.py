@@ -344,7 +344,9 @@ async def test_guard_retry_pass() -> None:
     assert (r.guard, r.status, r.llm_calls, r.answer) == ("retry_pass", "ok", 2, OK)
     assert r.pre_guard_answer == "Você deve R$ 1,00."
     fb = llm.calls[1].messages[-1]
-    assert fb.role == "user" and "money" in (fb.text or "") and llm.calls[1].tools == ()
+    assert fb.role == "user" and "money" in (fb.text or "") and llm.calls[1].tool_choice == "none"
+    assert llm.calls[1].tools == llm.calls[0].tools and len(llm.calls[1].tools) == 4
+    assert llm.calls[0].tool_choice == "auto"
     assert [m.text for m in r.new_messages if m.role == "assistant"] == [OK]
 
 
@@ -395,7 +397,9 @@ async def test_worst_path_within_recursion_limit() -> None:
     llm = ScriptedLLM([step] * 4 + [R("Você deve R$ 1,00."), R(OK)])
     r = await run(llm)
     assert r.llm_calls == 6 and r.guard == "retry_pass" and r.tools_class == "2+"
-    assert llm.calls[4].tools == ()  # a última rodada não declara ferramentas
+    # a última rodada e o feedback declaram todas as ferramentas e proíbem a chamada
+    assert [c.tool_choice for c in llm.calls] == ["auto"] * 4 + ["none", "none"]
+    assert all(c.tools == llm.calls[0].tools for c in llm.calls)
 
 
 async def test_budget_exceeded() -> None:
@@ -421,7 +425,15 @@ async def test_degraded_mode_two_rounds_no_retry() -> None:
     llm = ScriptedLLM([step, step, R("Você deve R$ 1,00.")])
     r = await run(llm, spend_level="degraded")
     assert r.llm_calls == 3 and r.cost_degraded and r.guard == "fallback"
-    assert llm.calls[2].tools == ()
+    assert llm.calls[2].tool_choice == "none" and llm.calls[2].tools == llm.calls[0].tools
+
+
+async def test_calls_returned_under_tool_choice_none_are_ignored() -> None:
+    step = R(None, C("get_financial_summary"))
+    llm = ScriptedLLM([step, step, step])  # a rodada "none" ainda devolve chamada
+    r = await run(llm, spend_level="degraded")
+    assert llm.calls[2].tool_choice == "none" and len(llm.calls) == 3
+    assert r.guard == "fallback" and r.tools_class == "2+" and r.answer
 
 
 async def test_eval_profile_never_degrades() -> None:

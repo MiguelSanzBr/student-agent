@@ -8,7 +8,7 @@ import httpx
 from google import genai
 from google.genai import errors, types
 
-from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
+from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, ToolChoice, Usage
 from app.agent.retry import BACKOFF_S, RetryBudget
 from app.config import AppSettings
 from app.tools.base import ToolSpec
@@ -126,6 +126,7 @@ class GeminiProvider:
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse:  # fmt: skip
         contents = _contents(messages, model)
         decls = [types.FunctionDeclaration(name=t.name, description=t.description,
@@ -139,6 +140,8 @@ class GeminiProvider:
             cfg = types.GenerateContentConfig(
                 system_instruction=system,
                 tools=[types.Tool(function_declarations=decls)] if decls else None,
+                tool_config=types.ToolConfig(function_calling_config=types.FunctionCallingConfig(
+                    mode=types.FunctionCallingConfigMode.NONE)) if tool_choice == "none" else None,
                 automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                 thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
                 max_output_tokens=MAX_OUTPUT_TOKENS,

@@ -45,10 +45,15 @@ class Message:
     turn: int = 0
 
 
+# "none": ferramentas declaradas (prefixo e cache intactos), mas o modelo não pode chamar.
+ToolChoice = Literal["auto", "none"]
+
+
 class LLMProvider(Protocol):
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
+        tool_choice: ToolChoice = "auto",
     ) -> LLMResponse: ...  # fmt: skip
 
 

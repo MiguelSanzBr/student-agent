@@ -470,3 +470,38 @@ async def test_thinking_tokens_split_from_output(
     resp.usage = usage(output_tokens=10, output_tokens_details=NS(thinking_tokens=4))
     r = await gen(provider(FakeMessages([resp])))
     assert (r.usage.output_tokens, r.usage.thinking_tokens) == (6, 4)
+
+
+async def test_tool_choice_none_keeps_full_tools(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    fm = FakeMessages()
+    await provider(fm).generate(
+        model=M1, system="s", messages=[Message("user", "a")], tools=[SPEC],
+        deadline=monotonic() + 5, tool_choice="none",
+    )  # fmt: skip
+    kw = fm.calls[0]
+    assert kw["tools"] == [{"name": "get_x", "description": "d", "input_schema": SPEC.parameters}]
+    assert kw["tool_choice"] == {"type": "none"}
+
+
+async def test_tool_choice_none_real_client_wire(app_secrets: object) -> None:
+    import json
+
+    seen: list[dict[str, Any]] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(json.loads(request.content))
+        return httpx2.Response(
+            200, json={"id": "m", "type": "message", "role": "assistant", "model": M1,
+                       "content": [{"type": "text", "text": "ok"}], "stop_reason": "end_turn",
+                       "usage": {"input_tokens": 1, "output_tokens": 1}},
+        )  # fmt: skip
+
+    client = anthropic.AsyncAnthropic(
+        api_key="k", http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    )
+    p = AnthropicProvider(AppSettings(), client_factory=lambda: client)
+    await p.generate(model=M1, system="s", messages=[Message("user", "a")], tools=[SPEC],
+                     deadline=monotonic() + 5, tool_choice="none")  # fmt: skip
+    assert seen[0]["tool_choice"] == {"type": "none"} and seen[0]["tools"][0]["name"] == "get_x"
