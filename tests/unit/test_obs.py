@@ -14,7 +14,7 @@ import structlog
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from prometheus_client import REGISTRY
 
-from app.agent.graph import AnswerKind, TurnStatus, _bare, _exec
+from app.agent.graph import AnswerKind, TurnStatus, _exec, bare_result
 from app.agent.llm import ToolCall
 from app.config import AppSettings
 from app.obs import annotations
@@ -175,7 +175,7 @@ async def test_turns_total_status_values() -> None:
         async def emit(e: Mapping[str, Any]) -> None:
             pass
 
-        await DefaultTurnService._done(svc, _bare(st, "x", MODEL), emit, "t", "web")  # type: ignore[arg-type]
+        await DefaultTurnService._done(svc, bare_result(st, "x", MODEL), emit, "t", "web")  # type: ignore[arg-type]
         if st != "cancelled":  # `cancelled` é contado no settle
             assert _sample("agent_turns_total", status=st, channel="web") == before + 1
     adm = await svc.admit(scope=SCOPE, channel="web")
