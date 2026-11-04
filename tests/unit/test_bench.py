@@ -118,12 +118,13 @@ async def test_ask_timed_reads_sse_debug_and_ttfe() -> None:
         assert await ask_timed(h, "tok", "c", "oi", student="s1", on=date(2026, 10, 31)) is None
 
 
-def test_served_model_must_equal_the_requested_one() -> None:
+def test_served_model_must_equal_the_requested_one_unless_allow_sim() -> None:
     import pytest
 
     from evals.latency.bench import check_served_model
 
-    check_served_model("gemini-3.8-flash", "gemini-3.8-flash")
-    for bad in ("demo-replay", "gemini-3.8-flash-lite", ""):
-        with pytest.raises(SystemExit):
-            check_served_model(bad, "gemini-3.8-flash")
+    assert check_served_model("gemini-3.8-flash", "gemini-3.8-flash", allow_sim=False) is False
+    for bad in ("loadtest", "demo-replay", ""):
+        with pytest.raises(SystemExit, match="--allow-sim"):
+            check_served_model(bad, "gemini-3.8-flash", allow_sim=False)
+        assert check_served_model(bad, "gemini-3.8-flash", allow_sim=True) is True  # simulated

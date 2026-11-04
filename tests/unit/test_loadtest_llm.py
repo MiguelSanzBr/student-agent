@@ -72,3 +72,17 @@ async def test_deadline_cuts_the_call() -> None:
         await llm.generate(model="m", system="", messages=[Message("user", "oi")], tools=(),
                            deadline=0.001)  # fmt: skip
     assert e.value.reason == "timeout"
+
+
+async def test_replies_are_labelled_loadtest_never_the_requested_model() -> None:
+    async def sleep(_: float) -> None: ...
+
+    for p_tool in (0.0, 1.0):
+        r = await _llm(sleep=sleep, p_tool=p_tool).generate(
+            model="gemini-3.8-flash",
+            system="",
+            messages=[Message("user", "oi")],
+            tools=SPECS,
+            deadline=1e9,
+        )
+        assert r.model == "loadtest"

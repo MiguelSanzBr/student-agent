@@ -375,6 +375,8 @@ class DefaultTurnService:
 
     async def _charge(self, u: Usage, model: str) -> None:
         on = reference_today(self.settings)
+        if model == "loadtest":  # rótulo do LLM de carga: cobra como o modelo configurado
+            model = self.settings.llm_model
         try:
             usd = cost_usd(u, model, on)
         except ValueError:

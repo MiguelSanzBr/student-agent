@@ -249,14 +249,19 @@ async def http_runner(a: argparse.Namespace) -> list[Sample]:
                 else:
                     raise SystemExit("admissão não liberou o turno")
                 if not out:
-                    check_served_model(smp.model, a.model)
+                    a.simulated |= check_served_model(smp.model, a.model, allow_sim=a.allow_sim)
                 out.append(smp)
     return out
 
 
-def check_served_model(served: str, wanted: str) -> None:
-    if served != wanted:
-        raise SystemExit(f"a API roda {served!r}, não {wanted!r}: suba-a com LLM_MODEL={wanted}")
+def check_served_model(served: str, wanted: str, *, allow_sim: bool) -> bool:
+    """True = modelo diferente do pedido (LLM simulado), só com --allow-sim: sai `simulated`."""
+    if served == wanted:
+        return False
+    if not allow_sim:
+        raise SystemExit(f"a API roda {served!r}, não {wanted!r}: suba-a com LLM_MODEL={wanted} "
+                         "(ou --allow-sim para ensaio simulado, que não é medição)")  # fmt: skip
+    return True
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -274,13 +279,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--rpd-left", type=int)
     ap.add_argument("--tokens-per-call", type=int, default=3000)
     a = ap.parse_args(argv)
+    a.simulated = a.runner == "sim"
     if a.runner == "sim" and not a.allow_sim:
         print("o runner sim é ensaio, não medição: use --allow-sim", file=sys.stderr)
         return 2
     samples = (asyncio.run(_sim_runner(a.per_class, a.seed)) if a.runner == "sim"
                else asyncio.run(http_runner(a)))  # fmt: skip
     rep = {"window": a.window, "model": a.model, "runner": a.runner,
-           "simulated": a.runner == "sim", **summarize(samples, seed=a.seed)}  # fmt: skip
+           "simulated": a.simulated, **summarize(samples, seed=a.seed)}  # fmt: skip
     text = json.dumps(rep, indent=2)
     out = (
         a.out

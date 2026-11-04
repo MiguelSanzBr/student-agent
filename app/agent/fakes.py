@@ -118,5 +118,5 @@ class LoadTestLLM:
                 {"enrollment": "1"} if "enrollment" in tool.parameters.get("properties", {}) else {}
             )
             call = ToolCall(f"load-{self._rng.getrandbits(32):08x}", tool.name, args)
-            return LLMResponse(None, (call,), Usage(3500, 60, 100), model)
-        return LLMResponse("Resposta de carga.", (), Usage(4000, 120, 300), model)
+            return LLMResponse(None, (call,), Usage(3500, 60, 100), "loadtest")
+        return LLMResponse("Resposta de carga.", (), Usage(4000, 120, 300), "loadtest")
