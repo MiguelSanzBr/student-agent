@@ -2,6 +2,7 @@ import random
 
 import pytest
 
+from app.config import load_slo_targets
 from evals.latency.bench import Sample, summarize
 
 
@@ -15,14 +16,18 @@ def _samples(n: int, cls: str, total: float, ttfe: float) -> list[Sample]:
 
 
 def test_summarize_checks_every_quantile_against_targets() -> None:
-    xs = _samples(100, "card", 4.0, 4.0) + _samples(100, "2+", 30.0, 3.0)
+    slo = load_slo_targets()  # valores derivados das metas carregadas, não de números fixos
+    tgt = {c: list(slo.targets[c].model_dump().values()) for c in ("card", "2+")}
+    ok_total = min(tgt["card"]) * 0.8  # com jitter de até 1,1x, abaixo de todo p50..p99 de card
+    xs = _samples(100, "card", ok_total, slo.ttfe["card"].p95 * 0.5)
+    xs += _samples(100, "2+", max(tgt["2+"]) * 3, 3.0)
     rep = summarize(xs, seed=1, n_boot=200)
     assert rep["classes"]["card"]["pass"] is True
-    assert rep["classes"]["2+"]["pass"] is False  # 30 s > p50..p99 de 2+
+    assert rep["classes"]["2+"]["pass"] is False  # 3x a maior meta de 2+
     assert set(rep["classes"]["card"]["quantiles"]) == {"p50", "p90", "p95", "p99"}
     q = rep["classes"]["card"]["quantiles"]["p95"]
-    assert q["ci"][0] <= q["value"] <= q["ci"][1] and q["target"] == 7.9
-    assert rep["classes"]["card"]["ttfe_p95"]["target"] == 7.9
+    assert q["ci"][0] <= q["value"] <= q["ci"][1] and q["target"] == slo.targets["card"].p95
+    assert rep["classes"]["card"]["ttfe_p95"]["target"] == slo.ttfe["card"].p95
     assert rep["share"] == {"card": 0.5, "2+": 0.5}
     assert rep["cost_per_turn_usd"] == 0.002 and rep["budget_exceeded_rate"] == 0.0
     assert rep["cache_ratio"] == 0.1

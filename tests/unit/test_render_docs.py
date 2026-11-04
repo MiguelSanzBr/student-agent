@@ -1,5 +1,6 @@
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -167,11 +168,17 @@ def test_build_numbers_uses_highest_non_rehearsal_round(tmp_path: Path) -> None:
     assert build_numbers(tmp_path)["quality.dev.pass1"] == "90,0% (IC indisponível)"
 
 
-def test_build_numbers_without_runner_outputs_has_no_runner_keys() -> None:
+def test_build_numbers_without_runner_outputs_has_no_runner_keys(tmp_path: Path) -> None:
+    shutil.copyfile(EVIDENCE / "data-quality.json", tmp_path / "data-quality.json")
     assert not any(
         k.startswith(("quality.", "security.", "guard.", "latency."))
-        for k in build_numbers(EVIDENCE)
+        for k in build_numbers(tmp_path)
     )
+
+
+def test_build_numbers_with_latency_a_has_latency_keys(tmp_path: Path) -> None:
+    shutil.copyfile(EVIDENCE / "latency-A.json", tmp_path / "latency-A.json")
+    assert any(k.startswith("latency.") for k in build_numbers(tmp_path))
 
 
 def test_find_hand_typed_detects_only_unmarked_values() -> None:

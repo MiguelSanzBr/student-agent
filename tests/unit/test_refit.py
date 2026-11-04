@@ -64,8 +64,24 @@ def test_degraded_turns_are_complete_samples(tmp_path: Path) -> None:
     assert excluded == 1 and len(comps["overhead"]) == 34
 
 
+PRIOR = (
+    Path(__file__).parents[1] / "fixtures" / "slo_targets_prior.yaml"
+)  # yaml anterior ao reajuste
+
+
 def _slo_copy(tmp_path: Path) -> Path:
-    return Path(shutil.copy(SLO_PATH, tmp_path / "slo_targets.yaml"))
+    return Path(shutil.copy(PRIOR, tmp_path / "slo_targets.yaml"))
+
+
+def test_repo_slo_already_refitted_and_new_refit_is_refused(tmp_path: Path) -> None:
+    from evals.latency.refit import main
+
+    assert SLO_PATH.read_text().count("reajuste único da janela A") == 4
+    slo = Path(shutil.copy(SLO_PATH, tmp_path / "slo_targets.yaml"))
+    s = str(_write(tmp_path / "s.jsonl", _rows()))
+    with pytest.raises(SystemExit, match="já reajustado"):
+        main(["--samples", s, "--slo", str(slo)])
+    assert slo.read_text() == SLO_PATH.read_text()
 
 
 def test_refit_edits_only_four_sections_and_keeps_comments(tmp_path: Path, capsys) -> None:
@@ -75,7 +91,7 @@ def test_refit_edits_only_four_sections_and_keeps_comments(tmp_path: Path, capsy
     before = slo.read_text()
     assert main(["--samples", str(_write(tmp_path / "s.jsonl", _rows())), "--slo", str(slo)]) == 0
     after = slo.read_text()
-    old, new = load_slo_targets(SLO_PATH), load_slo_targets(slo)
+    old, new = load_slo_targets(PRIOR), load_slo_targets(slo)
     assert new.components["tool_call"] != old.components["tool_call"]
     assert new.graph_budget_s != old.graph_budget_s
     assert new.targets != old.targets and new.ttfe != old.ttfe
