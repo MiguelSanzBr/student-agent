@@ -64,3 +64,29 @@ def test_iter1_rules_in_prompt() -> None:
         "Pedido vago",
     ):
         assert frag in SYSTEM_PREFIX
+
+
+def test_iter2_rules_in_prompt() -> None:
+    for frag in (
+        "mesmo que o cartão ou uma resposta anterior já traga o número",
+        "consulte o resumo financeiro",
+        "Só diga que não há previsão de conclusão ou registro depois de consultar a ferramenta",
+        "em algarismos e copiados da ferramenta",
+        "quantos com tentativa restante (mesmo que 0)",
+        "total para quitar, quantas vencidas e o próximo vencimento",
+        "Use a frase de recusa só para assunto de fora do atendimento",
+        "Pergunta do próprio atendimento sobre dado que não existe",
+        "sem citar nenhum valor em R$ nem outras datas",
+        "ainda assim chame draft_protocol e avise que já existe esse protocolo",
+        "quem decide é o aluno, no botão Confirmar",
+        "ouvidoria, falar com a secretaria",  # regra de pedido de serviço preservada
+        "processos seletivos de outros cursos",
+        "Não cite valores, datas nem dados do aluno".replace("Não", "não"),
+    ):
+        assert frag in SYSTEM_PREFIX, frag
+    for gone in (
+        "mesmo que o cartão já traga o número",
+        "Nunca diga que não há registro sem ter consultado a ferramenta",
+        "Dado que não existe (ano futuro, regra sem registro): diga que não consta",
+    ):
+        assert gone not in SYSTEM_PREFIX, gone
