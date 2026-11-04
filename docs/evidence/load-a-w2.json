@@ -1,0 +1,83 @@
+{
+  "ladder": "a",
+  "workers": 2,
+  "simulated": false,
+  "quota_turns_per_s": 0.895,
+  "derivation": {
+    "p50_turn_s": 3.021151467503036,
+    "mean_turn_s": 3.566086724846083,
+    "turn_slots": 8,
+    "slot_turns_per_s": 2.2433554249428105,
+    "rule": "quota_turns_per_s <= 0.4 * turn_slots / mean_turn_s",
+    "quota": {
+      "rpm": 179,
+      "tpm": 1074000,
+      "rpd": 14400000
+    },
+    "quota_turns_per_s": 0.895
+  },
+  "baseline_p95_s": 7.877109656999892,
+  "steps": [
+    {
+      "rate": 0.22375,
+      "sent": 18,
+      "ok": 18,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 1,
+      "cut": 0,
+      "p95": 7.877109656999892,
+      "reasons": {}
+    },
+    {
+      "rate": 0.4475,
+      "sent": 32,
+      "ok": 32,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 2,
+      "cut": 0,
+      "p95": 9.08553456700065,
+      "reasons": {}
+    },
+    {
+      "rate": 0.895,
+      "sent": 38,
+      "ok": 38,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 0,
+      "cut": 0,
+      "p95": 7.9902157170017745,
+      "reasons": {}
+    },
+    {
+      "rate": 1.3425,
+      "sent": 92,
+      "ok": 83,
+      "rejected": 9,
+      "rejected_no_retry_after": 0,
+      "retries": 3,
+      "cut": 0,
+      "p95": 8.422528251001495,
+      "reasons": {
+        "slots": 9
+      }
+    },
+    {
+      "rate": 1.79,
+      "sent": 118,
+      "ok": 87,
+      "rejected": 31,
+      "rejected_no_retry_after": 0,
+      "retries": 3,
+      "cut": 0,
+      "p95": 8.336994969999068,
+      "reasons": {
+        "slots": 11,
+        "quota": 20
+      }
+    }
+  ],
+  "pass": true
+}

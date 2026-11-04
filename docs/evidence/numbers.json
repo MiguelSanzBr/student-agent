@@ -34,6 +34,7 @@
   "latency.card.p95": "5,27 s",
   "latency.card.ttfe_p95": "5,25 s",
   "latency.cost.per_turn": "US$ 0,0007",
+  "latency.load.plateau": "escada (a) aprovada: 89 turnos admitidos no degrau mais alto, pico de 89",
   "latency.one.p50": "3,88 s",
   "latency.one.p95": "7,31 s",
   "latency.one.ttfe_p95": "1,98 s",

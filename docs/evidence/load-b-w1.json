@@ -1,0 +1,65 @@
+{
+  "ladder": "b",
+  "workers": 1,
+  "simulated": false,
+  "quota_turns_per_s": 50.0,
+  "derivation": null,
+  "baseline_p95_s": 8.394748918000914,
+  "steps": [
+    {
+      "rate": 25.0,
+      "sent": 1500,
+      "ok": 1500,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 49,
+      "cut": 0,
+      "p95": 8.394748918000914,
+      "reasons": {}
+    },
+    {
+      "rate": 50.0,
+      "sent": 3023,
+      "ok": 3023,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 86,
+      "cut": 1029,
+      "p95": 29.711176609000177,
+      "reasons": {}
+    },
+    {
+      "rate": 100.0,
+      "sent": 6049,
+      "ok": 6049,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 193,
+      "cut": 4485,
+      "p95": 45.444076521998795,
+      "reasons": {}
+    },
+    {
+      "rate": 200.0,
+      "sent": 12100,
+      "ok": 12100,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 345,
+      "cut": 10636,
+      "p95": 33.49272085600023,
+      "reasons": {}
+    },
+    {
+      "rate": 400.0,
+      "sent": 23993,
+      "ok": 23993,
+      "rejected": 0,
+      "rejected_no_retry_after": 0,
+      "retries": 743,
+      "cut": 23696,
+      "p95": 34.8996354840001,
+      "reasons": {}
+    }
+  ]
+}
