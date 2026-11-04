@@ -18,7 +18,7 @@ _LEXICON = (
 _NX = re.compile(r"\b(\d{1,2})\s*x\b", re.I)
 
 
-def _from_text(text: str) -> set[Condition]:
+def conditions_in(text: str) -> set[Condition]:
     found = {label for rx, label in _LEXICON if rx.search(text)}
     if "parcelamento" in found:
         found |= {f"parcelamento {n}x" for n in _NX.findall(text)}
@@ -29,7 +29,7 @@ def commitment_sources(records: Iterable[EntityRecord]) -> frozenset[Condition]:
     out: set[Condition] = set()
     for r in records:
         if r.kind == "servico":
-            out |= _from_text(r.fields.get("orientacao", ""))
+            out |= conditions_in(r.fields.get("orientacao", ""))
         elif r.kind == "acordo" and r.fields.get("status") == "ativo":
             out |= {"parcelamento"}
             if n := r.fields.get("parcelas"):

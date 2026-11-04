@@ -1,8 +1,8 @@
 # Léxico do guard (spec 6.4), em PT-BR, em minúsculas e com acento; o guard normaliza antes de comparar.
 entity_nouns: [matrícula, disciplina, fatura, boleto, mensalidade, acordo, parcela, pagamento, desconto, bolsa, protocolo, documento, declaração, histórico, diploma, prova, simulado, avaliação, nota, frequência, curso, matriz, calendário, serviço, contrato, turma, semestre]
 debt_nouns: [dívida, saldo, débito, pendência, inadimplência, atraso, "valor em aberto", "total para quitar", encargo, multa, juros]
-negators: [não, nenhum, nenhuma, sem, nada, nunca, "em dia", zerado, zerada, ausência]
+negators: [não, nenhum, nenhuma, nada, nunca, "em dia", zerado, zerada, ausência, "sem pendência", "sem pendências", "sem débito", "sem débitos", "sem dívida", "sem dívidas", "sem atraso", "sem atrasos", "sem fatura vencida", "sem faturas vencidas"]
 zero_words: [zero, zerado, zerada, nenhum, nenhuma, nada, "r$ 0,00", "0,00"]
-commitment_terms: [prometo, garanto, garantimos, "com certeza", "sem falta", "pode ficar tranquilo", "fica combinado", "vou resolver", "vamos resolver", "será aprovado", "será deferido", "será concluído", "será resolvido", "fica garantido", "no máximo"]
+commitment_terms: [prometo, garanto, garantimos, "sem falta", "pode ficar tranquilo", "fica combinado", "vou resolver", "vamos resolver", "será aprovado", "será deferido", "será concluído", "será resolvido", "fica garantido"]
 action_lemmas: [registrar, gerar, abrir, emitir, enviar, cancelar, trancar, reativar, solicitar, agendar, quitar, pagar, renegociar, confirmar, protocolar, criar, cadastrar, alterar, atualizar, aprovar, liberar, desbloquear, imprimir]
-confirmation_words: [sim, confirmo, confirmar, ok, pode, "pode sim", "pode abrir", "pode seguir", claro, certo, isso, "isso mesmo", quero, positivo, "com certeza"]
+confirmation_words: [sim, confirmo, pode, "pode sim", claro, "claro que sim", "isso mesmo", positivo, quero, "com certeza"]
