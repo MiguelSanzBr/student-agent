@@ -240,3 +240,95 @@ def test_lexicon_cleanup():
     assert not set(lex.commitment_terms) & set(lex.confirmation_words)
     assert not {"ok", "certo", "isso"} & set(lex.confirmation_words)
     assert "sem" not in lex.negators
+
+
+# --- fix round 1 ---------------------------------------------------------------------------
+ZERO_CARD = {"1.total_para_quitar": "R$ 0,00", "1.faturas_vencidas": "0"}
+
+
+def chk0(answer, *, records=None, calls=()):  # type: ignore[no-untyped-def]
+    return check_evidence(
+        answer,
+        question="",
+        records_by_entity=records or {},
+        card_facts=ZERO_CARD,
+        enrollment_indices=("1",),
+        tool_calls_this_turn=calls,
+        system_notes=(),
+        canary="c" * 32,
+        prompt_prefix=PREFIX,
+        ontology=ONTO,
+    )
+
+
+@pytest.mark.parametrize(
+    "answer,tool",
+    [
+        ("Nenhuma prova foi encontrada.", "get_lms_activity"),
+        ("Não há protocolos abertos.", "list_protocols"),
+        ("Você não possui acordos ativos.", "list_agreements"),
+        ("Não há simulados pendentes.", "get_lms_activity"),
+        ("Não há descontos vigentes.", "get_financial_summary"),
+    ],
+)
+def test_empty_domain_answer_backed_by_zero_record_tool_call(answer, tool):
+    r = chk0(answer, calls=(ToolCallTrace(tool, {}, 0),))
+    assert r.ok, r.failures
+    # sem chamada de ferramenta que sustente, continua bloqueado
+    assert chk0(answer).kinds() == {"polarity"}
+
+
+def test_empty_answer_blocked_when_tool_returned_records_of_that_kind():
+    from app.tools.base import EntityRecord
+
+    open_p = EntityRecord("protocolo", "20260022332", ("20260022332",), {"status": "aberto"})
+    r = chk0(
+        "Não há protocolos abertos.",
+        records=index_records((open_p,)),
+        calls=(ToolCallTrace("list_protocols", {}, 1),),
+    )
+    assert r.kinds() == {"polarity"}
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Sua média em Algoritmos foi 4,2.",
+        "Sua frequência em Algoritmos foi de 80%.",
+        "A fatura 7067951 vence em 08/10/2026.",
+        "O protocolo 20260022332 vence em 05/11/2026.",
+    ],
+)
+def test_numbers_anchored_to_cited_record(answer):
+    assert chk(answer).ok is False
+
+
+def test_cross_entity_positive_controls():
+    assert chk("Sua média em Cálculo I foi 4,2.").ok
+    assert chk("Sua frequência em Cálculo I foi de 80%.").ok
+    assert chk("O protocolo 20260022332 foi aberto em 08/10/2026.").ok
+    assert chk("A fatura 7067951 vence em 05/11/2026.").ok
+
+
+def test_leak_reported_even_when_answer_too_long():
+    r = chk("Você foi aprovado em Algoritmos. " * 80 + "c" * 32)
+    assert {"length", "canary"} <= r.kinds()
+
+
+def test_count_from_card_with_cited_record_is_evidence():
+    from app.tools.base import EntityRecord
+
+    rec = EntityRecord("protocolo", "20260022332", ("20260022332",), {"status": "aberto"})
+    r = check_evidence(
+        "Você tem 1 protocolos em aberto: 20260022332.",
+        question="",
+        records_by_entity=index_records((rec,)),
+        card_facts={"1.protocolos_abertos": "1"},
+        enrollment_indices=("1",),
+        tool_calls_this_turn=(),
+        system_notes=(),
+        canary="c" * 32,
+        prompt_prefix=PREFIX,
+        ontology=ONTO,
+    )
+    assert r.ok, r.failures

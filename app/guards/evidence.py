@@ -200,9 +200,46 @@ class _Ctx:
     notes: tuple[str, ...]
     question: str
     pool: Pool
+    base_pool: Pool
+    calls: tuple[ToolCallTrace, ...]
     sources: frozenset[str]
     lex: _Lex
     ont: Ontology
+
+
+def _merge(a: Pool, b: Pool) -> Pool:
+    return {k: a.get(k, set()) | b.get(k, set()) for k in a.keys() | b.keys()}
+
+
+# substantivo -> (padrão do nome da ferramenta, tipos de registro) usados na polaridade vazia
+_NOUN_SOURCES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    (
+        r"protocolo|documento|declarac|historico|diploma|pedido|solicitac",
+        r"protocol",
+        ("protocolo",),
+    ),
+    (r"fatura|boleto|mensalidade|parcela|pagamento", r"invoice|financial", ("fatura",)),
+    (r"acordo", r"agreement", ("acordo",)),
+    (r"desconto|bolsa", r"financial|discount|agreement", ("desconto",)),
+    (r"simulado|prova|avaliac|acesso|atividade|tentativa", r"lms|course_results", ("prova", "lms")),
+    (r"nota|disciplina|frequencia", r"course_results|academic", ("disciplina",)),
+    (r"curso|matriz|servico", r"catalog|curriculum", ("curso", "servico")),
+)  # noqa: E501
+
+
+def _empty_backed(c: _Ctx, noun: str, cited: Sequence[EntityRecord]) -> bool:
+    """Ausência sustentada: nenhum registro do tipo e uma chamada do turno que voltou vazia."""
+    stem = noun.rstrip("s")
+    tool_rx, kinds = next(((t, k) for n, t, k in _NOUN_SOURCES if re.search(n, stem)), (r".", ()))
+    vals = [v for r in cited for v in r.fields.values()]
+    vals += [v for k, v in c.card.items() if stem in fold(k)]
+    of_kind = [r for r in c.records.values() if r.kind in kinds or stem in fold(r.kind)]
+    vals += [v for r in of_kind for v in r.fields.values()]
+    if any(_zero_like(v) or fold(v) in ("pago", "quitado") for v in vals):
+        return True
+    return not of_kind and any(
+        tc.returned_records == 0 and re.search(tool_rx, tc.name) for tc in c.calls
+    )
 
 
 def _total_pool(c: _Ctx, enrs: Sequence[str]) -> set[str]:
@@ -274,17 +311,8 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
         if noun == "financeiro" or noun in debt or stem(noun) in debt:
             if not _fin_zero(c, sorted(enrs), cited, bool(re.search(r"vencid|atras|inadimpl", f))):
                 return False
-        else:
-            vals = [v for r in cited for v in r.fields.values()]
-            vals += [v for k, v in c.card.items() if noun.rstrip("s") in fold(k)]
-            vals += [
-                v
-                for r in c.records.values()
-                if noun.rstrip("s") in fold(r.kind)
-                for v in r.fields.values()
-            ]
-            if not any(_zero_like(v) or fold(v) in ("pago", "quitado") for v in vals):
-                return False
+        elif not _empty_backed(c, noun, cited):
+            return False
     return True
 
 
@@ -331,17 +359,19 @@ def _check_sentence(c: _Ctx, idx: int, text: str, imported: bool) -> list[Failur
         )
     )
     q_years = {t.norm[:4] for t in tokenize(c.question) if t.kind in ("period", "date")}
+    # com entidade citada, só valem os valores dela e os do cartão/notas/argumentos
+    ps = _merge(_pool([v for r in cited for v in _rec_texts(r)]), c.base_pool) if cited else c.pool
     for t in toks:
         k, p = t.kind, c.pool
         if k in ("url", "opaque"):
             fail(k, t.raw, ent)  # type: ignore[arg-type]
         elif k in ("email", "cpf", "cnpj", "phone", "id", "decimal", "pct", "int", "date", "money"):
-            allowed = p.get(k, set())
+            allowed = ps.get(k, set())
             if k == "money" and t is anchored:
                 allowed = _total_pool(c, sorted(enrs)) | _pool(
                     [v for r in cited for v in r.fields.values()]).get("money", set())  # fmt: skip
             if k == "date" and len(t.norm) == 5:
-                allowed = p.get("ddmm", set())
+                allowed = ps.get("ddmm", set())
             if t.norm not in allowed:
                 fail(k, t.raw, ent)  # type: ignore[arg-type]
         elif k == "period":
@@ -359,7 +389,7 @@ def _check_sentence(c: _Ctx, idx: int, text: str, imported: bool) -> list[Failur
                 if cited or enrs:
                     texts = [v for r in cited for v in _rec_texts(r)]
                     texts += [v for key, v in c.card.items() if key.split(".")[0] in enrs]
-                    allowed = _pool(texts).get("int", set())
+                    allowed = _merge(_pool(texts), c.base_pool).get("int", set())
                     if not cited:  # só "matrícula N": cartão e registros dessa matrícula
                         allowed |= _pool([v for r in c.records.values() if r.id in enrs
                                           for v in _rec_texts(r)]).get("int", set())  # fmt: skip
@@ -421,8 +451,6 @@ def check_evidence(
     prompt_prefix: str,
     ontology: Ontology,
 ) -> GuardResult:
-    if len(answer) > load_slo_targets().limits["default"].answer_chars:
-        return GuardResult(False, (Failure("length", 0, str(len(answer)), None),), None)
     lex = _lex(ontology)
     texts = [t for r in records_by_entity.values() for t in _rec_texts(r)]
     texts += [*card_facts.values(), *system_notes]
@@ -435,12 +463,15 @@ def check_evidence(
     ):
         sources.add("desconto")
     c = _Ctx(records_by_entity, card_facts, enrollment_indices, system_notes, question, pool,
+             _pool([*card_facts.values(), *system_notes, *args]), tool_calls_this_turn,
              frozenset(sources), lex, ontology)  # fmt: skip
     failures: list[Failure] = []
     if canary and canary in answer:
         failures.append(Failure("canary", 0, "canary", None))
     if _ngrams(prompt_prefix) & _ngrams(answer):
         failures.append(Failure("prompt_ngram", 0, "prefixo", None))
+    if len(answer) > load_slo_targets().limits["default"].answer_chars:
+        return GuardResult(False, (*failures, Failure("length", 0, str(len(answer)), None)), None)
     sentences = split_sentences(answer)
     items = [(i, s, False) for i, s in enumerate(sentences)]
     first = fold(answer).split()
