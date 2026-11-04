@@ -1,0 +1,13 @@
+# Allowlist de privilégios de tabela por role e schema (conferida por test_grants_match_allowlist
+# contra information_schema.role_table_grants). "*" = todas as tabelas do schema. etl_owner é dono
+# das tabelas e fica fora da lista; ninguém recebe TRUNCATE, e agent_app nunca tem DELETE/UPDATE.
+# rls.sql aplica estes mesmos grants.
+agent_app:
+  canon: {"*": [SELECT]}
+  agent_rw:
+    protocol_request: [SELECT, INSERT]
+    feedback: [SELECT, INSERT]
+    turn_output: [INSERT]
+ops_audit:
+  agent_rw:
+    turn_output: [SELECT]
