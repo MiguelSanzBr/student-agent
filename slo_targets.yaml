@@ -1,0 +1,20 @@
+# Fonte única dos números operacionais. VALORES PROVISÓRIOS: a Task 3 (spike de latência)
+# os substitui pelos medidos/previstos pela fórmula pré-registrada.
+frozen: false
+quotas:  # provisório: cotas reais vêm do spike
+  gemini-3.5-flash: {rpm: 1000, tpm: 1000000, rpd: 10000}
+  gemini-3.5-flash-lite: {rpm: 4000, tpm: 4000000, rpd: 50000}
+admission:
+  quota_fraction: 0.9
+targets:  # segundos, por classe de ferramentas do turno
+  card: {p50: 3.5, p90: 5.0, p95: 6.0, p99: 8.0}
+  "1": {p50: 5.0, p90: 7.0, p95: 8.0, p99: 11.0}
+  "2+": {p50: 8.0, p90: 11.0, p95: 12.0, p99: 16.0}
+ttfe:  # POST -> 1º progress/answer; card = latência total
+  card: {p95: 6.0}
+  "1": {p95: 4.0}
+  "2+": {p95: 4.0}
+graph_budget_s: 20.0
+buckets: [0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24]
+turn_slots: 8
+infra_overhead_p95_ms: 300

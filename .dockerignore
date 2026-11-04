@@ -1,0 +1,10 @@
+.git
+.worktrees
+.superpowers
+.venv
+.env
+data
+docs
+tests
+**/__pycache__
+.*_cache

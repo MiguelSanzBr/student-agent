@@ -1,0 +1,6 @@
+# Esqueleto: sobreposição para as medições de carga/latência (CPU limitada, 1 container).
+# Uso: docker compose -f docker-compose.yml -f ops/compose.eval.yml --profile eval up
+# Preenchido nas tarefas de latência e avaliação.
+services:
+  api:
+    cpus: 2

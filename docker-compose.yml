@@ -1,0 +1,157 @@
+name: ${COMPOSE_PROJECT_NAME:-student-agent}
+
+x-secret-vol: &ro-app
+  - secrets-app:/run/secrets/app:ro
+
+x-api: &api
+  build: .
+  user: "10001:10001"
+  read_only: true
+  tmpfs: [/tmp, /tmp/prom]
+  environment:
+    PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+    APP_ENV: ${APP_ENV:-dev}
+    LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+    LLM_BACKEND: ${LLM_BACKEND:-aistudio}
+    GCP_PROJECT: ${GCP_PROJECT:-}
+    GCP_LOCATION: ${GCP_LOCATION:-global}
+    DEV_LOGIN: ${DEV_LOGIN:-false}
+    OTEL_INSTRUMENTATION_A2A_SDK_ENABLED: "false"
+  volumes: *ro-app
+  command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+  depends_on:
+    init-secrets: {condition: service_completed_successfully}
+    db: {condition: service_healthy}
+    redis: {condition: service_healthy}
+
+services:
+  init-secrets:  # root, one-shot; vê o .env (só ele); re-sincroniza a chave do Gemini a cada up
+    build: .
+    user: "0:0"
+    command: ["python", "-m", "scripts.init_secrets", "/out", "/src/.env"]
+    volumes:
+      - secrets-db:/out/db
+      - secrets-redis:/out/redis
+      - secrets-app:/out/app
+      - secrets-etl:/out/etl
+      - secrets-evals:/out/evals
+      - etl-out:/out/etl-out
+      - eval-out:/out/eval-out
+      - ./:/src:ro
+    restart: "no"
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: student
+      POSTGRES_PASSWORD_FILE: /run/secrets/db/postgres_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - secrets-db:/run/secrets/db:ro
+      - ./ops/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    ports: ["127.0.0.1:${DB_PORT:-55432}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d student"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+
+  redis:
+    image: redis:7
+    user: "999:999"
+    command: ["sh", "-c", 'exec redis-server --requirepass "$$(cat /run/secrets/redis/redis_password)"']
+    volumes:
+      - secrets-redis:/run/secrets/redis:ro
+    ports: ["127.0.0.1:${REDIS_PORT:-56379}:6379"]
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$(cat /run/secrets/redis/redis_password)" redis-cli ping | grep -q PONG']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+
+  etl:  # one-shot (Task 5): `docker compose run --rm etl`
+    build: .
+    user: "10001:10001"
+    profiles: [etl]
+    command: ["python", "-m", "etl"]
+    volumes:
+      - ./data:/data:ro
+      - secrets-etl:/run/secrets/etl:ro
+      - etl-out:/out
+      - eval-out:/eval-out
+    depends_on:
+      init-secrets: {condition: service_completed_successfully}
+      db: {condition: service_healthy}
+
+  api:
+    <<: *api
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+
+  # --- profiles ---
+  phoenix:  # versão fixada no spike da Task 3
+    image: ${PHOENIX_IMAGE:-arizephoenix/phoenix:latest}
+    profiles: [obs]
+    volumes: [phoenix-data:/mnt/data]
+    environment: {PHOENIX_WORKING_DIR: /mnt/data}
+    ports: ["127.0.0.1:${PHOENIX_PORT:-6006}:6006"]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [obs]
+    volumes: ["./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"]
+
+  api-redteam:  # perfil de limites "eval", em outra porta
+    <<: *api
+    profiles: [eval]
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+      APP_ENV: dev
+      LIMITS_PROFILE: eval
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      OTEL_INSTRUMENTATION_A2A_SDK_ENABLED: "false"
+    ports: ["127.0.0.1:${REDTEAM_PORT:-8100}:8000"]
+
+  evals:
+    build: .
+    user: "10001:10001"
+    profiles: [eval]
+    command: ["python", "-m", "evals"]
+    volumes:
+      - secrets-evals:/run/secrets/evals:ro
+      - eval-out:/out
+    depends_on:
+      api-redteam: {condition: service_started}
+
+  api-vertex:  # conta de serviço montada somente leitura
+    <<: *api
+    profiles: [vertex]
+    environment:
+      LLM_BACKEND: vertex
+      GOOGLE_APPLICATION_CREDENTIALS: /run/gcp/sa.json
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+      OTEL_INSTRUMENTATION_A2A_SDK_ENABLED: "false"
+    volumes:
+      - secrets-app:/run/secrets/app:ro
+      - ${GCP_SA_FILE:-/dev/null}:/run/gcp/sa.json:ro
+    ports: ["127.0.0.1:${VERTEX_PORT:-8200}:8000"]
+
+  langflow:  # exige Langflow >= 1.11 (A2A Agent)
+    image: ${LANGFLOW_IMAGE:-langflowai/langflow:latest}
+    profiles: [langflow]
+    ports: ["127.0.0.1:${LANGFLOW_PORT:-7860}:7860"]
+
+volumes:
+  secrets-db:
+  secrets-redis:
+  secrets-app:
+  secrets-etl:
+  secrets-evals:
+  etl-out:
+  eval-out:
+  pgdata:
+  phoenix-data:
