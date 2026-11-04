@@ -4,6 +4,8 @@ import asyncio
 import os
 import sys
 
+from pydantic import ValidationError
+
 from app.api.dev import load_golden
 from app.config import AppSettings
 from app.infra.redis import RealRedis
@@ -11,7 +13,11 @@ from app.infra.stores.tickets import LoginTickets
 
 
 async def main(case: str) -> str:
-    s = AppSettings()
+    try:
+        s = AppSettings()
+    except ValidationError as e:  # o pydantic ecoaria o valor do segredo: só os nomes dos campos
+        campos = ", ".join(sorted({str(x["loc"][0]) for x in e.errors() if x["loc"]}))
+        raise SystemExit(f"configuração inválida: {campos}") from None
     if not s.dev_login:
         raise SystemExit("DEV_LOGIN desligado")
     pk = load_golden(s.etl_out_dir / "golden_login.json").get(case)

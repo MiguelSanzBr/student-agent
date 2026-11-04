@@ -1566,7 +1566,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = ">=0.20" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2,<4" },
     { name = "pydantic-settings", specifier = ">=2.16,<3" },
-    { name = "pyjwt", specifier = ">=2.9" },
+    { name = "pyjwt", specifier = ">=2.10" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "redis", specifier = ">=5" },
     { name = "structlog", specifier = ">=24" },

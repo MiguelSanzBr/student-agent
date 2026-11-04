@@ -10,7 +10,7 @@ from app.data.db import Pool, assert_safe_role, create_pool
 from app.infra.redis import RealRedis
 
 
-async def startup_checks(settings: AppSettings, pool: Pool, redis: RealRedis) -> None:
+async def startup_checks(pool: Pool, redis: RealRedis) -> None:
     """Aborta se a role da API for privilegiada ou se o Redis (com senha) não responder."""
     async with pool.connection() as conn:
         await assert_safe_role(conn)
@@ -28,9 +28,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ) from None
     pool = create_pool(settings)
     redis = RealRedis(settings.redis_host, settings.redis_port, settings.redis_password)
-    await pool.open(wait=True)
     try:
-        await startup_checks(settings, pool, redis)
+        await pool.open(wait=True)
+        await startup_checks(pool, redis)
         app.state.settings, app.state.pool, app.state.redis = settings, pool, redis
         yield
     finally:

@@ -34,7 +34,7 @@ def verify_token(token: str, aud: Aud, settings: AppSettings) -> UUID:
             options={"require": ["exp", "sub", "aud"]},
         )  # fmt: skip
         return UUID(claims["sub"])
-    except (jwt.PyJWTError, ValueError, TypeError, KeyError):
+    except (jwt.PyJWTError, ValueError, TypeError, KeyError, AttributeError):
         raise InvalidToken("token inválido") from None
 
 

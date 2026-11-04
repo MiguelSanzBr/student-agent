@@ -284,13 +284,13 @@ def test_healthz(settings: AppSettings, golden_file: Path) -> None:
 @pytest.mark.parametrize("row", [(True, False), (False, True), None])
 async def test_startup_aborts_privileged_role(settings: AppSettings, row: Any) -> None:
     with pytest.raises(RuntimeError, match="privilegiada"):
-        await startup_checks(settings, FakePool(row), PingRedis())  # type: ignore[arg-type]
+        await startup_checks(FakePool(row), PingRedis())  # type: ignore[arg-type]
 
 
 async def test_startup_ok_and_redis_down(settings: AppSettings) -> None:
-    await startup_checks(settings, FakePool(), PingRedis())  # type: ignore[arg-type]
+    await startup_checks(FakePool(), PingRedis())  # type: ignore[arg-type]
     with pytest.raises(ConnectionError):
-        await startup_checks(settings, FakePool(), PingRedis(False))  # type: ignore[arg-type]
+        await startup_checks(FakePool(), PingRedis(False))  # type: ignore[arg-type]
 
 
 async def test_startup_aborts_bad_secret(app_secrets: Path) -> None:
@@ -307,3 +307,65 @@ def test_bind_127() -> None:
     root = Path(__file__).resolve().parents[2]
     c = yaml.safe_load((root / "docker-compose.yml").read_text())
     assert c["services"]["api"]["ports"] == ["127.0.0.1:${API_PORT:-8000}:8000"]
+
+
+def test_prod_rejects_dev_login(app_secrets: Path) -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        AppSettings(app_env="prod", dev_login=True, cookie_secure=True)
+
+
+def test_prod_requires_cookie_secure(app_secrets: Path) -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        AppSettings(app_env="prod", cookie_secure=False)
+    AppSettings(app_env="prod", cookie_secure=True)
+    assert AppSettings(app_env="dev").cookie_secure is False
+
+
+def test_verify_token_non_str_sub(settings: AppSettings) -> None:
+    from app.api.auth import InvalidToken
+
+    now = wall_now()
+    tok = jwt.encode(
+        {"sub": 123, "aud": "chat", "exp": now + timedelta(minutes=5)}, settings.jwt_secret
+    )
+    with pytest.raises(InvalidToken):
+        verify_token(tok, "chat", settings)
+
+
+async def test_lifespan_closes_redis_on_pool_failure(
+    app_secrets: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.main as m
+
+    closed: list[bool] = []
+
+    class BadPool:
+        async def open(self, **kw: Any) -> None:
+            raise ConnectionError("db fora")
+
+        async def close(self) -> None:
+            return None
+
+    async def aclose(self: Any) -> None:
+        closed.append(True)
+
+    monkeypatch.setattr(m, "create_pool", lambda s: BadPool())
+    monkeypatch.setattr(m.RealRedis, "aclose", aclose)
+    with pytest.raises(ConnectionError):
+        async with lifespan(FastAPI()):
+            pass
+    assert closed == [True]
+
+
+def test_compose_dev_login_only_dev_and_healthcheck() -> None:
+    import yaml
+
+    root = Path(__file__).resolve().parents[2]
+    c = yaml.safe_load((root / "docker-compose.yml").read_text())
+    env = c["x-api"]["environment"]
+    assert env["APP_ENV"] == "${APP_ENV:-dev}" and env["DEV_LOGIN"] == "${DEV_LOGIN:-true}"
+    assert "/healthz" in " ".join(c["services"]["api"]["healthcheck"]["test"])

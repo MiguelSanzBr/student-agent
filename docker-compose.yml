@@ -12,7 +12,7 @@ x-api: &api
     LLM_BACKEND: ${LLM_BACKEND:-aistudio}
     GCP_PROJECT: ${GCP_PROJECT:-}
     GCP_LOCATION: ${GCP_LOCATION:-global}
-    DEV_LOGIN: ${DEV_LOGIN:-false}
+    DEV_LOGIN: ${DEV_LOGIN:-true}  # demo local; AppSettings recusa dev_login com APP_ENV=prod
     OTEL_INSTRUMENTATION_A2A_SDK_ENABLED: "false"
   volumes:
     - secrets-app:/run/secrets/app:ro
@@ -89,6 +89,11 @@ services:
   api:
     <<: *api
     ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   # --- profiles ---
   phoenix:  # versão fixada no spike da Task 3

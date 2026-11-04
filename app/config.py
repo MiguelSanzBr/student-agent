@@ -177,6 +177,14 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
         return (v or "").strip() or None
 
     @model_validator(mode="after")
+    def _prod_hardening(self) -> Self:
+        if self.app_env == "prod" and self.dev_login:
+            raise ValueError("dev_login não pode ficar ligado com app_env=prod")
+        if self.app_env == "prod" and not self.cookie_secure:
+            raise ValueError("app_env=prod exige cookie_secure=true")
+        return self
+
+    @model_validator(mode="after")
     def _capture_only_dev_eval(self) -> Self:
         if self.otel_capture_content and not (
             self.app_env == "dev" and self.limits_profile == "eval"

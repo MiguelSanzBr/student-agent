@@ -51,6 +51,11 @@ lint:
 
 check: lint test
 
-smoke login a2a-demo investigate phoenix-import eval-dev eval-test eval-guard eval-security \
+smoke a2a-demo investigate phoenix-import eval-dev eval-test eval-guard eval-security \
 eval-latency load-test package:
 	$(NOT_YET)
+
+login:
+	@test -n "$(CASE)" || { echo "use CASE=4" >&2; exit 1; }
+	@docker compose exec -T -e PUBLIC_BASE_URL=http://localhost:$${API_PORT:-8000} api \
+		python -m scripts.login_url $(CASE)
