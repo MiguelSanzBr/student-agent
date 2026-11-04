@@ -676,7 +676,9 @@ async def test_deadline_expires_mid_tools() -> None:
 
     tl = [Tool(_spec("get_financial_summary"), slow, "financeiro")]
     llm = ScriptedLLM([R(None, C("get_financial_summary")), R(OK)])
-    r = await run(llm, tl=tl, deadline=monotonic() + 0.05)
+    # 0,5 s: rodando isolado, a partida a frio (config, grafo) passava dos 50 ms antes da 1ª chamada
+    st = AppSettings()
+    r = await run(llm, tl=tl, settings=st, deadline=monotonic() + 0.5)  # a ferramenta leva 1 s
     assert r.status == "budget_exceeded" and r.llm_calls == 1 and len(llm.calls) == 1
 
 
