@@ -207,6 +207,7 @@ def test_seal_roundtrip(tmp_path: Path) -> None:
     man = json.loads((out / "manifest.json").read_text())
     assert man["templates_test_only.yaml.age"] == {
         "sha256": hashlib.sha256(data).hexdigest(), "test_only": 16,
+        "plain_sha256": hashlib.sha256(plain.read_bytes()).hexdigest(),
     }  # fmt: skip
     assert man["attacks_blind.yaml.age"] == {"sha256": "x"}  # outras entradas intactas
     import pyrage

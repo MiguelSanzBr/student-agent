@@ -1,10 +1,12 @@
 {
+  "attacks_blind.yaml.age": {
+    "attacks": 55,
+    "plain_sha256": "7791ecae2612b7ce1f31e118df021e8a3a3153d3e9cc8d1b8c36e306fa330942",
+    "sha256": "a6aeaa9ab587001048b9838d4fab558615b15e118b25662cde4063adb50271d8"
+  },
   "templates_test_only.yaml.age": {
+    "plain_sha256": "574087be93269bf75768487ac7133e08c62fe39de7dad86bbbe9d3226a3f65b9",
     "sha256": "c6e277e7598dcfa96ea10b0b1dbdc6e6334bd658321cf000ebc5d7f74139aebd",
     "test_only": 30
-  },
-  "attacks_blind.yaml.age": {
-    "sha256": "a6aeaa9ab587001048b9838d4fab558615b15e118b25662cde4063adb50271d8",
-    "attacks": 55
   }
 }

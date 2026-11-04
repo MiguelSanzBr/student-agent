@@ -3,7 +3,7 @@
     uv run python -m evals.holdout.seal [plaintext] [--out evals/holdout]
 
 O texto claro (data/holdout/templates_test_only.yaml, fora do git) só é lido aqui: nada dele
-é impresso. O manifesto guarda o SHA-256 do `.age` e a contagem de templates `test_only`.
+é impresso. O manifesto guarda o SHA-256 do `.age`, o do texto claro e a contagem de templates `test_only`.
 """
 
 from __future__ import annotations
@@ -38,7 +38,11 @@ def seal(plain: Path, pub: Path, out: Path) -> None:
     (out / name).write_bytes(enc)
     mf = out / "manifest.json"
     man = json.loads(mf.read_text()) if mf.exists() else {}
-    man[name] = {"sha256": hashlib.sha256(enc).hexdigest(), "test_only": n}
+    man[name] = {
+        "sha256": hashlib.sha256(enc).hexdigest(),
+        "plain_sha256": hashlib.sha256(data).hexdigest(),
+        "test_only": n,
+    }
     mf.write_text(json.dumps(man, indent=2, sort_keys=True) + "\n")
 
 
