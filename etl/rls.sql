@@ -98,6 +98,9 @@ CREATE POLICY ins ON agent_rw.feedback FOR INSERT TO agent_app WITH CHECK (perso
 
 -- turn_output: agent_app só insere; ops_audit lê o não expirado; a purga (etl_owner) enxerga e apaga só
 -- o expirado. Quem lê/purga precisa de `SET app.now` (sem missing_ok: esquecê-lo falha alto).
+-- Limite conhecido: o TTL é consultivo contra uma sessão ops_audit maliciosa (ela pode fazer
+-- `SET app.now` e ler expirados); a regra do relógio proíbe ler a hora no SQL. As linhas expiradas são
+-- removidas fisicamente pela purga do etl_owner.
 ALTER TABLE agent_rw.turn_output ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_rw.turn_output FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS ins ON agent_rw.turn_output;

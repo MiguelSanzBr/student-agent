@@ -167,6 +167,14 @@ def test_grants_match_allowlist(db: Db) -> None:
     assert not {p for r, _, _, p in got if r == "agent_app"} & {"TRUNCATE", "DELETE", "UPDATE"}
 
 
+def _scope(kind: str) -> list[str]:
+    ent = yaml.safe_load((ETL.parent / "ontology" / "entities.yaml").read_text())
+    return sorted(t for t, v in ent.items() if v["scope"] == kind)
+
+
+PERSON, FAMILY, GLOBAL = _scope("person"), _scope("family"), _scope("global")
+
+
 def non_global(db: Db) -> list[str]:
     onto_entities = yaml.safe_load((ETL.parent / "ontology" / "entities.yaml").read_text())
     scoped_tables = {t for t, v in onto_entities.items() if v["scope"] != "global"}
@@ -183,7 +191,15 @@ def test_force_rls_on_all_non_global_tables(db: Db) -> None:
         ).fetchall()
     forced = {r for _, r, rls, force in rows if rls and force}
     assert forced == set(non_global(db))
-    assert {r for _, r, _, _ in rows} >= forced  # global fica sem RLS
+    globais = {r for _, r, _, _ in rows} - forced
+    assert globais == set(GLOBAL)
+    assert not [r for _, r, rls, force in rows if r in globais and (rls or force)]
+    with db.connect() as c:
+        sem_policy = c.execute(
+            "SELECT c.relname FROM pg_class c WHERE c.relforcerowsecurity AND NOT EXISTS "
+            "(SELECT 1 FROM pg_policy p WHERE p.polrelid = c.oid)"
+        ).fetchall()
+    assert sem_policy == []
 
 
 def test_agent_rw_has_no_fk_to_canon(db: Db) -> None:
@@ -230,8 +246,12 @@ def test_drop_schema_canon_cascade_preserves_agent_rw_policies(db: Db) -> None:
     assert before > 0 and n() == before
     with scoped(db, "agent_app", A) as c:
         c.execute(INSERT_REQ, ("SA-2026-000001", A, "DOC-001", "d1"))
+        c.commit()
+    with scoped(db, "agent_app", A) as c:
         with pytest.raises(errors.InsufficientPrivilege):
             c.execute(INSERT_REQ, ("SA-2026-000002", B, "DOC-001", "d2"))
+    with scoped(db, "agent_app", A) as c:
+        assert count(c, "agent_rw.protocol_request") == 1
     with scoped(db, "agent_app", B) as c:
         assert count(c, "agent_rw.protocol_request") == 0
 
@@ -289,3 +309,86 @@ def test_schema_matches_ontology() -> None:
             if target:
                 t, f = target.split(".")
                 assert f in cols[t], target
+
+
+@pytest.mark.parametrize("table", PERSON)
+def test_person_table_isolation(db: Db, table: str) -> None:
+    with db.connect() as c:
+        c.execute(f"INSERT INTO canon.{table} (person_key) VALUES (%s), (%s)", (A, B))  # type: ignore[call-overload]
+    db.apply("rls.sql")
+    for me, other in ((A, B), (B, A)):
+        with scoped(db, "agent_app", me) as c:
+            assert count(c, f"canon.{table} WHERE person_key = '{me}'") == 1  # controle positivo
+            assert count(c, f"canon.{table} WHERE person_key = '{other}'") == 0
+            assert count(c, f"canon.{table}") == 1
+    with scoped(db, "agent_app") as c:
+        assert count(c, f"canon.{table}") == 0
+
+
+@pytest.mark.parametrize("table", FAMILY)
+def test_family_table_isolation(db: Db, table: str) -> None:
+    col = "family" if table == "brand" else "brand_family"
+    with db.connect() as c:
+        c.execute(f"INSERT INTO canon.{table} ({col}) VALUES (%s), (%s)", (SP, LITORAL))  # type: ignore[call-overload]
+    db.apply("rls.sql")
+    for mine, other in ((SP, LITORAL), (LITORAL, SP)):
+        with scoped(db, "agent_app", A, "{" + mine + "}") as c:
+            assert count(c, f"canon.{table} WHERE {col} = '{mine}'") == 1
+            assert count(c, f"canon.{table} WHERE {col} = '{other}'") == 0
+    with scoped(db, "agent_app", A) as c:  # pessoa definida, famílias não
+        assert count(c, f"canon.{table}") == 0
+
+
+@pytest.mark.parametrize("table", ["protocol_request", "feedback"])
+def test_agent_rw_person_isolation(db: Db, table: str) -> None:
+    db.apply("rls.sql")
+    ins = {
+        "protocol_request": INSERT_REQ,
+        "feedback": "INSERT INTO agent_rw.feedback VALUES (%s, %s, true, %s)",
+    }[table]
+    args = {
+        "protocol_request": lambda p, n: (f"SA-2026-00000{n}", p, "DOC-001", f"d{n}"),
+        "feedback": lambda p, n: (f"t{n}", p, "ok"),
+    }[table]
+    for n, p in enumerate((A, B), 1):
+        with scoped(db, "agent_app", p) as c:
+            c.execute(ins, args(p, n))
+            c.commit()
+        with scoped(db, "agent_app", p) as c, pytest.raises(errors.InsufficientPrivilege):
+            c.execute(ins, args(B if p == A else A, n + 2))
+    for me, other in ((A, B), (B, A)):
+        with scoped(db, "agent_app", me) as c:
+            assert count(c, f"agent_rw.{table} WHERE person_key = '{me}'") == 1
+            assert count(c, f"agent_rw.{table} WHERE person_key = '{other}'") == 0
+
+
+def test_turn_output_insert_other_person_rejected(db: Db) -> None:
+    db.apply("rls.sql")
+    with scoped(db, "agent_app", A) as c, pytest.raises(errors.InsufficientPrivilege):
+        c.execute(
+            "INSERT INTO agent_rw.turn_output VALUES ('t', %s, now(), now(), '{}')",
+            (B,),
+        )
+
+
+def test_empty_person_key_nothing(db: Db) -> None:
+    seed(db)
+    db.apply("rls.sql")
+    with scoped(db, "agent_app", "") as c:
+        assert count(c, "canon.person") == 0
+    with scoped(db, "agent_app", A) as c:  # app.brands ausente: catálogo por família some
+        assert count(c, "canon.price") == 0
+        assert count(c, "canon.person") == 1
+
+
+def test_etl_owner_cannot_select_live_turn_output(db: Db) -> None:
+    db.apply("rls.sql")
+    with scoped(db, "agent_app", A) as c:
+        c.execute(
+            "INSERT INTO agent_rw.turn_output VALUES ('t-live', %s, %s, %s, '{}')",
+            (A, "2026-11-01T00:00Z", "2026-11-08T00:00Z"),
+        )
+        c.commit()
+    with db.connect("etl_owner", autocommit=False) as c:
+        c.execute("SELECT set_config('app.now', '2026-11-03T00:00Z', true)")
+        assert count(c, "agent_rw.turn_output") == 0
