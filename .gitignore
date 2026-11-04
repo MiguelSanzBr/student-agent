@@ -1,0 +1,15 @@
+# dados do case (não versionar)
+data/
+
+# ferramentas locais
+.claude/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# segredos
+.env
