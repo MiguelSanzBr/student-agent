@@ -25,7 +25,7 @@ def test_perturbation_dev_recall_fpr():
 def test_dev_set_has_every_group_with_enough_distinct_strings():
     res = score(build_dev_set(40, 7), ONTO)
     for g in ("authored:negations", "authored:commitments", "authored:actions", "authored:status",
-              "authored:leaks", "authored:empty", "authored:controls", "swap", "question"):  # fmt: skip
+              "authored:leaks", "authored:empty", "authored:controls", "swap", "question"):  # fmt: skip  # noqa: E501
         s = res[g]
         assert s.n_block + s.n_ctl >= 8, (g, s)
 
