@@ -1,6 +1,6 @@
 """Bancada de latência (spec §6.5): previsto × medido em todos os quantis, por classe.
 
-    make eval-latency WINDOW=B N=100 MODEL=gemini-3.8-flash
+    make eval-latency WINDOW=B N=100 MODEL=claude-haiku-5-5
 
 Runner padrão (`http`): a API no perfil eval (EVAL_API_URL, iniciada com `LLM_MODEL=<--model>`);
 um turno por vez, uma pergunta do dataset dev por classe de ferramentas; POST /chat em SSE;
@@ -268,7 +268,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="bench")
     ap.add_argument("--per-class", type=int, required=True)
     ap.add_argument("--window", choices=["A", "B", "C"], required=True)
-    ap.add_argument("--model", default="gemini-3.8-flash", help="deve ser o LLM_MODEL da API")
+    ap.add_argument("--model", default="claude-haiku-5-5", help="deve ser o LLM_MODEL da API")
     ap.add_argument("--runner", choices=["http", "sim"], default="http")
     ap.add_argument("--allow-sim", action="store_true", help="libera o ensaio simulado")
     ap.add_argument("--base-url", default=os.environ.get("EVAL_API_URL", "http://localhost:8100"))

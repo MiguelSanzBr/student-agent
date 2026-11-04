@@ -107,7 +107,7 @@ def test_default_model_has_quota_and_price(app_secrets: Path) -> None:
     from app.obs.cost import _PRICES
 
     s = AppSettings()
-    assert s.llm_model == "gemini-3.8-flash"
+    assert s.llm_model == "claude-haiku-5-5"
     assert s.llm_model in s.slo.quotas and s.llm_model in _PRICES
 
 
@@ -157,7 +157,8 @@ def _keys(app_secrets: Path, *names: str) -> None:
         ((), "replay"),
         (("openai_api_key",), "openai"),
         (("anthropic_api_key", "openai_api_key"), "anthropic"),
-        (("gemini_api_key", "anthropic_api_key", "openai_api_key"), "gemini"),
+        (("gemini_api_key", "anthropic_api_key", "openai_api_key"), "anthropic"),
+        (("gemini_api_key", "openai_api_key"), "gemini"),
     ],
 )
 def test_auto_resolves_in_order(app_secrets: Path, keys: tuple[str, ...], expected: str) -> None:
@@ -171,9 +172,9 @@ def test_auto_resolves_in_order(app_secrets: Path, keys: tuple[str, ...], expect
         ("gemini", "gemini-3.8-flash"),
         ("anthropic", "claude-haiku-5-5"),
         ("openai", "gpt-6.1-terra"),
-        ("replay", "gemini-3.8-flash"),
-        ("fake", "gemini-3.8-flash"),
-        ("loadtest", "gemini-3.8-flash"),
+        ("replay", "claude-haiku-5-5"),
+        ("fake", "claude-haiku-5-5"),
+        ("loadtest", "claude-haiku-5-5"),
     ],
 )
 def test_default_model_per_provider(app_secrets: Path, provider: str, model: str) -> None:

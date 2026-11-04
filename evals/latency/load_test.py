@@ -179,7 +179,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument(
         "--workers", type=int, default=1, help="só rotula o resultado (UVICORN_WORKERS)"
     )
-    ap.add_argument("--model", default="gemini-3.8-flash")
+    ap.add_argument("--model", default="claude-haiku-5-5")
     ap.add_argument("--factors", help="degraus como múltiplos da cota, ex.: 0.25 (ensaio curto)")
     ap.add_argument("--duration", type=float, default=60.0, help="segundos por degrau")
     ap.add_argument("--seed", type=int, default=42)

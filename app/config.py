@@ -17,10 +17,10 @@ from pydantic_settings import (
 SLO_PATH = Path(__file__).resolve().parent.parent / "slo_targets.yaml"
 MIN_SECRET = 32
 REAL_PROVIDERS = ("gemini", "anthropic", "openai")
-FALLBACK_MODEL = "gemini-3.8-flash"  # replay/fake/loadtest: comportamento de sempre
+FALLBACK_MODEL = "claude-haiku-5-5"  # replay/fake/loadtest: comportamento de sempre
 MODEL_FAMILY = {"gemini": "gemini-", "anthropic": "claude-", "openai": "gpt-"}
 DEFAULT_MODELS = {
-    "gemini": FALLBACK_MODEL,
+    "gemini": "gemini-3.8-flash",
     "anthropic": "claude-haiku-5-5",
     "openai": "gpt-6.1-terra",
 }
@@ -195,10 +195,10 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
 
     @property
     def resolved_provider(self) -> str:
-        """Única fonte da regra do `auto`: gemini, anthropic, openai, senão replay."""
+        """Única fonte da regra do `auto`: anthropic, gemini, openai, senão replay."""
         if self.llm_provider != "auto":
             return self.llm_provider
-        for name in ("gemini", "anthropic", "openai"):
+        for name in ("anthropic", "gemini", "openai"):
             if getattr(self, f"{name}_api_key"):
                 return name
         return "replay"

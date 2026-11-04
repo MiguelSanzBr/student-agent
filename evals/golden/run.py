@@ -4,7 +4,7 @@ registrados, turno inválido refeito 1x, teto duro aborta, anotação no Phoenix
 Roda no container `evals` (ver `make eval-dev|eval-test`; ops/compose.eval.yml): tokens por
 `evals.tokens.mint` (segredos em /run/secrets/app), dados em /data, ETL em /etl-out e /eval-out.
 
-    python -m evals.golden.run --split dev --model gemini-3.8-flash --record --round 1
+    python -m evals.golden.run --split dev --model claude-haiku-5-5 --record --round 1
     python -m evals.golden.run --resummarize DIR [--labels L --utility U --judge J --dev-dir D]
 
 `--model` precisa casar com o modelo que a API serve (`done.model` do 1º turno; senão aborta).

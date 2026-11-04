@@ -19,7 +19,7 @@ Método, limites e o que não foi medido: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 
 ```
 mkdir -p data && cp /caminho/do/case/dados.zip data/dados.zip   # o zip do case; não vai no repositório
-cp .env.example .env    # a chave de um dos três provedores (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`) é opcional; sem nenhuma (`LLM_PROVIDER=auto`, modo local/dev) o agente roda em modo demonstração; `APP_ENV=prod` exige uma
+cp .env.example .env    # a chave de um dos três provedores (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY` ou `OPENAI_API_KEY`; com várias, `LLM_PROVIDER=auto` escolhe nesta ordem) é opcional; sem nenhuma (`LLM_PROVIDER=auto`, modo local/dev) o agente roda em modo demonstração; `APP_ENV=prod` exige uma
 docker compose up -d --wait
 docker compose run --rm etl   # carga única: cria o banco e grava os logins dos casos golden
 make login CASE=4       # imprime uma URL de login de uso único

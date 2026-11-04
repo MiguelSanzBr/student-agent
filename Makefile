@@ -55,9 +55,9 @@ check: lint test
 # Runner da qualidade (Task 31): no container `evals` (segredos em /run/secrets, dados e ETL por
 # volume; só dados.zip é montado). Antes: o ETL precisa ter rodado (eval_students.json,
 # golden_login.json). O container não tem git: GIT_SHA/GIT_DIRTY/FROZEN_SHA vêm daqui.
-#   make eval-dev  MODEL=gemini-3.8-flash ROUND=1 [ARGS=...]    (dev: ARGS=--rehearsal = ensaio)
-#   (MODEL=claude-haiku-5-5 ou gpt-6.1-terra também; MODEL vira o LLM_MODEL da api-eval)
-#   make eval-test MODEL=gemini-3.8-flash ROUND=1 HOLDOUT=/caminho/templates_test_only.yaml \
+#   make eval-dev  MODEL=claude-haiku-5-5 ROUND=1 [ARGS=...]    (dev: ARGS=--rehearsal = ensaio)
+#   (MODEL=gemini-3.8-flash ou gpt-6.1-terra também; MODEL vira o LLM_MODEL da api-eval)
+#   make eval-test MODEL=claude-haiku-5-5 ROUND=1 HOLDOUT=/caminho/templates_test_only.yaml \
 #                  ARGS="--dev-json /eval-out/quality/dev-r2/quality.json --spend-today X --rpd-left N"
 # HOLDOUT (opt-in, nunca padrão): o YAML decifrado pelo autor, montado só nesta execução.
 # O comando que apaga volumes do compose (down -v) apaga o eval-out (transcripts, marcador do
@@ -91,15 +91,15 @@ package:  # MODE=a|b (ver scripts/package.sh)
 # Latência (Task 33): o runner roda em container (segredos do app para o JWT, ETL_OUT_DIR, dados em
 # /data); a API alvo é a de perfil eval (api-eval; API_URL=... troca) iniciada com LLM_MODEL=$(MODEL).
 LAT = $(EVAL_DC) run --build --rm -e EVAL_OUT_DIR=/out redteam python -m evals.latency
-eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] MODEL=gemini-3.8-flash [ARGS=...]
+eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] MODEL=claude-haiku-5-5 [ARGS=...]
 	@test -n "$(WINDOW)" || { echo "use WINDOW=A|B|C" >&2; exit 1; }
 	$(LAT).bench --window $(WINDOW) --per-class $(or $(N),100) --data /data/dados.zip \
-	  --base-url $(or $(API_URL),http://api-eval:8000) --model $(or $(MODEL),gemini-3.8-flash) $(ARGS)
+	  --base-url $(or $(API_URL),http://api-eval:8000) --model $(or $(MODEL),claude-haiku-5-5) $(ARGS)
 
 # Escadas (a) e (b) contra a API (LLM_PROVIDER=loadtest, Redis e limitador reais), sem gastar:
 # make load-test LANE=d [LADDER=a|b] [WORKERS=1|2] [CPUS=1.0] [ARGS=--duration 30]; roda sozinho na
 # máquina; a raia fica de pé (make lane-down LANE=x). Precisa do ETL carregado na raia (`etl` com DATA_SRC=...), que grava o golden_login.json.
-LOAD_MODEL ?= gemini-3.8-flash  # API (compose.load.yml) e runner usam o mesmo
+LOAD_MODEL ?= claude-haiku-5-5  # API (compose.load.yml) e runner usam o mesmo
 LDC = $(LANE_ENV) LOAD_MODEL=$(LOAD_MODEL) UVICORN_WORKERS=$(or $(WORKERS),1) API_CPUS=$(or $(CPUS),1.0) \
       SLO_FILE=$(LANE_DIR)-slo.yaml docker compose -f docker-compose.yml -f ops/compose.lane.yml -f ops/compose.eval.yml -f ops/compose.load.yml --profile eval
 load-test:
