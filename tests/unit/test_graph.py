@@ -576,11 +576,6 @@ def test_merge_keeps_colliding_records() -> None:
     assert next(iter(out)) == "disciplina:CALC1" and "disciplina:CALC1#1" in out
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="guard (T21): com 2 registros de mesmo alias, nem a "
-    "afirmação certa de cada um passa (ver relatório)",
-)
 async def test_colliding_records_both_anchor_claims() -> None:
     def rec(res: str) -> Tool:
         return _tool(
