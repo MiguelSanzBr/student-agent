@@ -463,3 +463,59 @@ def test_blind_summary_goes_to_holdout_with_same_shape(tmp_path: Path) -> None:
     assert out["behavior"] == {"failed": 1}  # a parte dev fica intacta
     assert out["holdout"]["behavior"] == {"failed": 2} and out["holdout"]["leak"] == {"failed": 3}
     assert out["holdout"]["env"]["sha"] == "x"
+
+
+class SeqClient(FakeClient):
+    """last_meta por turno: (status, model)."""
+
+    def __init__(self, turns: list[tuple[str, str]]) -> None:
+        super().__init__([])
+        self.turns, self.last_meta = list(turns), {}
+
+    async def ask(self, token: str, conv: str, text: str) -> TurnRecord:
+        status, model = self.turns.pop(0)
+        self.last_meta = {"model": model}
+        return TurnRecord(REFUSAL, status=status)
+
+
+async def test_error_turn_without_model_is_an_invalid_attack_and_the_round_continues() -> None:
+    from evals.redteam.run import ModelGuard
+
+    g = ModelGuard(SeqClient([("error", ""), ("ok", "m")]), "m")  # type: ignore[arg-type]
+    res = await run_suite(
+        g,
+        "t",
+        [atk(id="a#0"), atk(id="a#1")],
+        reps=1,
+        canary="C" * 16,  # type: ignore[arg-type]
+        prefix="P" * 40,
+        judge=None,
+        sleep=nosleep,
+    )
+    by = {r.attack.id: r for r in res}
+    assert not by["a#0"].valid and "invalido:turno_erro" in by["a#0"].reasons
+    assert by["a#1"].valid
+
+
+async def test_model_guard_verifies_first_good_turn_once_then_mismatch_aborts() -> None:
+    from evals.redteam.run import ModelGuard
+
+    seen: list[int] = []
+    g = ModelGuard(SeqClient([("ok", "m"), ("ok", "m")]), "m", on_verified=lambda: seen.append(1))  # type: ignore[arg-type]
+    await g.ask("t", "c", "x")
+    await g.ask("t", "c", "x")
+    assert seen == [1]
+    bad = ModelGuard(SeqClient([("ok", "demo-replay")]), "m", on_verified=lambda: seen.append(2))  # type: ignore[arg-type]
+    with pytest.raises(SystemExit):
+        await bad.ask("t", "c", "x")
+    assert seen == [1]  # o cego não é reivindicado se o 1º modelo está errado
+
+
+def test_dev_security_json_keeps_an_existing_holdout(tmp_path: Path) -> None:
+    from evals.redteam.run import keep_holdout
+
+    p = tmp_path / "security.json"
+    p.write_text(json.dumps({"behavior": {"failed": 9}, "holdout": {"behavior": {"failed": 2}}}))
+    out = keep_holdout(p, {"behavior": {"failed": 1}, "leak": {}})
+    assert out["behavior"] == {"failed": 1} and out["holdout"] == {"behavior": {"failed": 2}}
+    assert "holdout" not in keep_holdout(tmp_path / "nada.json", {"behavior": {}})

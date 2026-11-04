@@ -544,3 +544,13 @@ async def test_error_before_any_llm_call_charges_nothing_to_the_daily_budget(
         await turn(svc)
     assert await svc.budget.used(SUB) == 0 and await spent(svc) == 0
     assert await slots_in_use(svc) == 0
+
+
+async def test_demo_replay_label_is_priced_zero_without_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from app.agent.llm import Usage
+
+    svc = make_service(AppSettings(), scripted(OK))
+    await svc._charge(Usage(1000, 100), "demo-replay")
+    assert await spent(svc) == 0 and "sem preço" not in caplog.text

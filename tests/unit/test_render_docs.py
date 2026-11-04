@@ -239,3 +239,12 @@ def test_build_numbers_reads_leg_schema_and_rejects_disagreement(tmp_path: Path)
     )
     with pytest.raises(ValueError, match="pessoas"):
         build_numbers(tmp_path)
+
+
+def test_build_numbers_refuses_simulated_latency(tmp_path: Path) -> None:
+    (tmp_path / "quality").mkdir()
+    _real_evidence(tmp_path)
+    p = tmp_path / "latency-A.json"
+    p.write_text(json.dumps({**json.loads(p.read_text()), "simulated": True}))
+    with pytest.raises(ValueError, match="simulated"):
+        build_numbers(tmp_path)

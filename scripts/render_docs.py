@@ -127,6 +127,8 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
     if (sec := _load(evidence_dir / "security.json")) is not None:
         out |= _security(sec)
     if (lat := _load(evidence_dir / "latency-A.json")) is not None:
+        if lat.get("simulated"):
+            raise ValueError("latency-A.json tem simulated=true: ensaio, não medição")
         out |= _latency(lat, _load(evidence_dir / "load-a-w1.json"))
     if (dq := _load(evidence_dir / "data-quality.json")) is not None:
         checks = {c["name"]: c["legs"] for c in dq["checks"]}
