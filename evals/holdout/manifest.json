@@ -2,5 +2,9 @@
   "templates_test_only.yaml.age": {
     "sha256": "c6e277e7598dcfa96ea10b0b1dbdc6e6334bd658321cf000ebc5d7f74139aebd",
     "test_only": 30
+  },
+  "attacks_blind.yaml.age": {
+    "sha256": "a6aeaa9ab587001048b9838d4fab558615b15e118b25662cde4063adb50271d8",
+    "attacks": 55
   }
 }
