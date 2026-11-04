@@ -67,3 +67,20 @@ def test_card_ttfe_follows_final_p95_target():
 def test_fit_lognormal_rejects_bad_samples(bad):
     with pytest.raises(ValueError, match="amostras"):
         fit_lognormal(bad)
+
+
+def test_refit_after_window_a_updates_targets():
+    from app.config import load_slo_targets
+    from evals.latency.formula import refit_after_window_a
+
+    rng = random.Random(3)
+    cur = load_slo_targets()
+    samples = {"tool_call": [rng.lognormvariate(1.5, 0.3) for _ in range(300)]}
+    new = refit_after_window_a(samples, n=20_000)
+    assert new.components["tool_call"].mu == pytest.approx(1.5, abs=0.1)
+    assert new.components["answer_call"] == cur.components["answer_call"]  # sem amostra: mantém
+    assert new.targets["2+"].p95 > cur.targets["2+"].p95
+    assert new.graph_budget_s == pytest.approx(new.targets["2+"].p99 * 1.2, abs=0.02) or (
+        new.graph_budget_s >= new.targets["2+"].p99 * 1.2 - 0.02
+    )
+    assert new.frozen is False and new.quotas == cur.quotas

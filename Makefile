@@ -52,8 +52,15 @@ lint:
 check: lint test
 
 eval-dev eval-test eval-guard eval-security \
-eval-latency load-test package:
+package:
 	$(NOT_YET)
+
+eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] [MODEL=gemini-3.8-flash]
+	@test -n "$(WINDOW)" || { echo "use WINDOW=A|B|C" >&2; exit 1; }
+	uv run python -m evals.latency.bench --window $(WINDOW) --per-class $(or $(N),100) $(if $(MODEL),--model $(MODEL))
+
+load-test:  # escadas (a) e (b) do loadgen; rodar sozinho na máquina (docs/evidence/latency.md)
+	uv run python -m evals.latency.load_test
 
 phoenix-import:  # make phoenix-import FILE=docs/evidence/phoenix/<run>.json (PHOENIX_URL)
 	@test -n "$(FILE)" || { echo "use FILE=...json" >&2; exit 1; }

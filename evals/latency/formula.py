@@ -5,6 +5,10 @@ import random
 import statistics
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.config import SloTargets
 
 
 @dataclass(frozen=True)
@@ -79,3 +83,36 @@ def targets(
 
 def graph_budget_s(predicted: Mapping[str, ClassQuantiles]) -> float:
     return predicted["2+"].p99 * 1.2
+
+
+# Metas iniciais da spec §6.5 (o piso do max(inicial, previsto)); k de ferramentas e retry do guard
+# como nos priors de docs/evidence/spikes.md.
+INITIAL = {
+    "card": {"p50": 3.5, "p95": 6.0},
+    "1": {"p95": 8.0, "ttfe_p95": 4.0},
+    "2+": {"p95": 12.0, "ttfe_p95": 4.0},
+}
+K_TOOLS = {"card": [0], "1": [1], "2+": [2, 2, 3, 4]}
+P_GUARD_RETRY = 0.05
+
+
+def refit_after_window_a(
+    samples: Mapping[str, Sequence[float]], *, n: int = 200_000, seed: int = 42
+) -> "SloTargets":
+    """Única atualização das metas (depois da janela A): reajusta os lognormais dos componentes
+    com amostra e refaz targets/ttfe/graph_budget_s pela mesma fórmula. `frozen` fica como está
+    (o M4 é quem congela)."""
+    from app.config import Lognormal, SloTargets, load_slo_targets
+
+    cur = load_slo_targets()
+    comps = {k: LogNormal(v.mu, v.sigma) for k, v in cur.components.items()}
+    comps.update({k: fit_lognormal(v) for k, v in samples.items()})
+    pred = {c: simulate_class(comps, k, P_GUARD_RETRY, n=n, seed=seed) for c, k in K_TOOLS.items()}
+    tg = targets(INITIAL, pred)
+    r = lambda x: round(x, 2)  # noqa: E731
+    data = cur.model_dump()
+    data["components"] = {k: Lognormal(mu=v.mu, sigma=v.sigma) for k, v in comps.items()}
+    data["targets"] = {c: {q: r(v[q]) for q in ("p50", "p90", "p95", "p99")} for c, v in tg.items()}
+    data["ttfe"] = {c: {"p95": r(v["ttfe_p95"])} for c, v in tg.items()}
+    data["graph_budget_s"] = r(graph_budget_s(pred))
+    return SloTargets.model_validate(data)

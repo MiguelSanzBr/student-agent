@@ -14,6 +14,7 @@ from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from app.agent.graph import SpendLevel, TurnResult, bare_result, run_turn
+from app.agent.levers import approved_sentences
 from app.agent.llm import LLMProvider, LLMResponse, Message, Usage
 from app.agent.messages import DRAFT_PENDING_USE_BUTTON
 from app.agent.prompt import SYSTEM_PREFIX
@@ -231,6 +232,9 @@ class DefaultTurnService:
             if r.status in ERROR_STATUSES:
                 await emit({"event": "error", "message": r.answer})
             elif r.answer:
+                if s.lever_sentence_stream:  # depois do guard: só frases já aprovadas
+                    for sentence in approved_sentences(r.answer, r.guard):
+                        await emit({"event": "answer_delta", "text": sentence})
                 await emit({"event": "answer", "text": r.answer})
             await asyncio.shield(self._persist(sub, channel, conversation_id, r))
             await self.outputs.put(sub, trace_id, self._typed(r))

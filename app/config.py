@@ -161,6 +161,8 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     phoenix_project: str = "student-agent"  # projeto do Phoenix (export/import por rodada)
     dataset_sha: str | None = None  # sha do dataset carregado (atributo dataset.sha)
     reference_date: date = date(2026, 10, 31)
+    lever_hedge_first_call: bool = False  # 2ª requisição idêntica no p90 da 1ª chamada do turno
+    lever_sentence_stream: bool = False  # frases aprovadas pelo guard saem em answer_delta
     slo: SloTargets = Field(default_factory=load_slo_targets)
 
     @property
