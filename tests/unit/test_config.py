@@ -236,3 +236,24 @@ def test_validation_error_hides_secret_values(app_secrets: Path) -> None:
     with pytest.raises(ValidationError) as e:
         AppSettings(jwt_secret="SEGREDOVAZADO" + "x" * 30, llm_provider="anthropic")
     assert "SEGREDO" not in str(e.value) and "input_value" not in str(e.value)
+
+
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [("anthropic", "gpt-6.1-terra"), ("openai", "claude-opus-5-5"), ("gemini", "claude-opus-5-5")],
+)
+def test_model_must_match_provider_family(app_secrets: Path, provider: str, model: str) -> None:
+    _keys(app_secrets, "gemini_api_key", "anthropic_api_key", "openai_api_key")
+    with pytest.raises(ValidationError, match="família"):
+        AppSettings(llm_provider=provider, llm_model=model)  # type: ignore[arg-type]
+
+
+def test_auto_with_foreign_model_is_rejected(app_secrets: Path) -> None:
+    _keys(app_secrets, "anthropic_api_key", "openai_api_key")
+    with pytest.raises(ValidationError, match="família"):
+        AppSettings(llm_model="gpt-6.1-terra")
+
+
+def test_scripted_providers_skip_family_check(app_secrets: Path) -> None:
+    for p in ("replay", "fake", "loadtest"):
+        AppSettings(llm_provider=p, llm_model="claude-opus-5-5")  # type: ignore[arg-type]

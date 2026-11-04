@@ -18,6 +18,7 @@ SLO_PATH = Path(__file__).resolve().parent.parent / "slo_targets.yaml"
 MIN_SECRET = 32
 REAL_PROVIDERS = ("gemini", "anthropic", "openai")
 FALLBACK_MODEL = "gemini-3.8-flash"  # replay/fake/loadtest: comportamento de sempre
+MODEL_FAMILY = {"gemini": "gemini-", "anthropic": "claude-", "openai": "gpt-"}
 DEFAULT_MODELS = {
     "gemini": FALLBACK_MODEL,
     "anthropic": "claude-opus-5-5",
@@ -230,6 +231,12 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
         self.llm_model = self.llm_model or DEFAULT_MODELS.get(
             self.resolved_provider, FALLBACK_MODEL
         )
+        prefix = MODEL_FAMILY.get(self.resolved_provider)
+        if prefix and not self.llm_model.startswith(prefix):
+            raise ValueError(
+                f"llm_model={self.llm_model!r} não é da família do provedor "
+                f"{self.resolved_provider} (esperado {prefix}*)"
+            )
         if self.llm_model not in self.slo.quotas:
             raise ValueError(
                 f"llm_model={self.llm_model!r} sem cota em slo_targets.yaml (quotas): "
