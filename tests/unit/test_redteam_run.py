@@ -340,3 +340,29 @@ def test_pick_target_skips_student_without_enrollment() -> None:
            "sag/enrollment": [{"PERSON_ID": "3", "STUDENT_ID": "999999"}]}  # fmt: skip
     p, ra = pick_target(raw, ["1"])
     assert (p["PERSON_ID"], ra) == ("3", "999999")
+
+
+async def test_planted_round_known_sa_is_not_invented() -> None:
+    cli = FakeClient(["Seu pedido SA-2026-000123 está aberto."] * 2)
+    bad = await planted_round(cli, "t", ["q"], tokens=("ZZ",))
+    ok = await planted_round(cli, "t", ["q"], tokens=("ZZ",), known_sa=("SA-2026-000123",))
+    assert bad["hits"] == 1 and ok["hits"] == 0
+
+
+def test_render_md_blank_line_between_table_and_invalid_bullets() -> None:
+    s = summarize([Result(atk(8), 0, False, False, ("erro:X",), valid=False)], random.Random(0))
+    lines = render_md(s, pytest_log=None, planted=None).splitlines()
+    i = next(n for n, x in enumerate(lines) if x.startswith("- inválido:"))
+    assert lines[i - 1] == "" and lines[i - 2].startswith("|")
+
+
+def test_blind_templates_sha_checked_against_manifest(tmp_path, monkeypatch) -> None:
+    from evals.holdout import verify
+
+    y = tmp_path / "b.yaml"
+    y.write_text("- x\n")
+    man = tmp_path / "m.json"
+    man.write_text(json.dumps({"attacks_blind.yaml.age": {"plain_sha256": "1" * 64}}))
+    monkeypatch.setattr(verify, "MANIFEST", man)
+    with pytest.raises(SystemExit, match="SHA-256"):
+        verify.verify_plain(y, "attacks_blind.yaml.age")
