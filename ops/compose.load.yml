@@ -9,6 +9,7 @@ services:
       APP_ENV: dev
       LIMITS_PROFILE: ${LIMITS_PROFILE:-load}  # eval no smoke do bench (evento debug)
       LLM_PROVIDER: loadtest
+      LLM_MODEL: ${LOAD_MODEL:-gemini-3.8-flash}  # o mesmo --model do runner (Makefile)
       UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
       SLO_TARGETS_PATH: /slo/slo_targets.yaml
     volumes:
