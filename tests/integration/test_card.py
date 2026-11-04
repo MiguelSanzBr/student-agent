@@ -78,7 +78,7 @@ def test_card_has_no_person_name(harness: Harness) -> None:
 
 def test_card_pending_draft_line(harness: Harness) -> None:
     ctx = harness.ctx(1)
-    d = DraftCard("d1", "tok", DraftKey("DOC-001", None), "Declaração de matrícula", None,
+    d = DraftCard("d1", DraftKey("DOC-001", None), "Declaração de matrícula", None,
                   "R$ 0,00", "01/11/2026", "x", "w", "c1", "1")  # fmt: skip
     pk = harness.person[1]
 

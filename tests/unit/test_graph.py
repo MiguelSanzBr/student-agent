@@ -85,7 +85,7 @@ def _tool(name: str, out: ToolOutput | Callable[[ToolContext], ToolOutput], doma
 
 
 def DRAFT(code: str = "DOC-002", label: str | None = None) -> DraftCard:
-    return DraftCard("d1", "SECRET-TOKEN", DraftKey(code, None), "Histórico escolar impresso",
+    return DraftCard("d1", DraftKey(code, None), "Histórico escolar impresso",
                      label, "R$ 20,00", "05/11/2026", "", "aviso", "conv", "1")  # fmt: skip
 
 
@@ -281,7 +281,7 @@ async def test_draft_only_then_rest_call_empty() -> None:
     assert r.draft is not None and r.guard == "n/a" and r.status == "ok"
     rest_call = llm.calls[1].messages
     assert rest_call[-1].role == "user" and rest_call[-1].text == REST_INSTRUCTION
-    assert "SECRET-TOKEN" not in json.dumps([m.tool_result for m in rest_call])
+    assert r.draft.draft_id not in json.dumps([m.tool_result for m in rest_call])
     assert all(m.text != REST_INSTRUCTION for m in r.new_messages)
 
 
@@ -546,15 +546,15 @@ def _all_json(msgs: Sequence[Message]) -> str:
     )  # fmt: skip
 
 
-async def test_draft_token_and_id_never_in_any_message() -> None:
-    d = DraftCard(TOKEN_ID, "SECRET-TOKEN", DraftKey("DOC-002", None), "Histórico escolar impresso",
+async def test_draft_id_never_in_any_message() -> None:
+    d = DraftCard(TOKEN_ID, DraftKey("DOC-002", None), "Histórico escolar impresso",
                   None, "R$ 20,00", "05/11/2026", "", "aviso", "conv", "1")  # fmt: skip
     llm = ScriptedLLM([R(None, C("draft_protocol", {"service_code": "x"})), R(OK)])
     r = await run(llm, tl=tools(d))
     scanned = [_all_json(c.messages) for c in llm.calls] + [_all_json(r.new_messages)]
     assert len(scanned) == 3
     for blob in scanned:
-        assert "SECRET-TOKEN" not in blob and TOKEN_ID not in blob
+        assert TOKEN_ID not in blob
     assert r.draft is not None and r.draft.draft_id == TOKEN_ID
 
 

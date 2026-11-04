@@ -62,7 +62,6 @@ class DraftKey:
 @dataclass(frozen=True)
 class DraftCard:
     draft_id: str
-    token: str
     key: DraftKey
     service_name_pt: str
     enrollment_label: str | None
@@ -74,7 +73,7 @@ class DraftCard:
     enrollment_index: str  # "1".."3"; idem
 
     def public(self) -> dict[str, str]:
-        """Vai no SSE, nunca ao LLM: sem o token, conversation_id nem enrollment_index."""
+        """Vai no SSE, nunca ao LLM: sem conversation_id nem enrollment_index."""
         return {
             "draft_id": self.draft_id,
             "service_code": self.key.service_code,

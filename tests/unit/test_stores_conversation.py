@@ -21,7 +21,7 @@ def _limits(app_secrets):  # type: ignore[no-untyped-def]
 
 
 def _card(did: str = "d1", subject: str | None = None, conv: str = CONV) -> DraftCard:
-    return DraftCard(did, "tok", DraftKey("ACA-020", subject), "2ª chamada", "Curso 1", "R$ 0,00",
+    return DraftCard(did, DraftKey("ACA-020", subject), "2ª chamada", "Curso 1", "R$ 0,00",
                      "05/11/2026", "desc", "aviso", conv, "1")  # fmt: skip
 
 

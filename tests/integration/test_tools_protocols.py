@@ -234,14 +234,14 @@ async def test_draft_token_not_in_data(pool, loaded_db) -> None:  # type: ignore
     ctx = await _ctx(pool, loaded_db, 1)
     out = await _run("draft_protocol", ctx, service_code="DOC-002", description="para o estágio")
     card = out.draft
-    assert card and card.token and card.draft_id and card.description == "para o estágio"
+    assert card and card.draft_id and card.description == "para o estágio"
     blob = json.dumps(out.data)
-    assert card.token not in blob and card.draft_id not in blob and ctx.conversation_id not in blob
+    assert card.draft_id not in blob and ctx.conversation_id not in blob
     assert set(out.data) == {"rascunho_exibido", "servico", "taxa", "prazo"}
     assert out.data["taxa"] == "R$ 20,00" and out.data["prazo"] == "03/11/2026"
-    assert "token" not in card.public() and "conversation_id" not in card.public()
+    assert "conversation_id" not in card.public()
     pending = await ctx.drafts.pending(ctx.scope.person_key, ctx.conversation_id)
-    assert pending is not None and pending.token == card.token
+    assert pending is not None and pending.draft_id == card.draft_id
 
 
 async def test_description_max_500(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]

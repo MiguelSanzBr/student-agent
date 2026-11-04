@@ -35,7 +35,7 @@ def client() -> Iterator[TestClient]:
 
 def _card(draft_id: str = "d1") -> DraftCard:
     return DraftCard(
-        draft_id, "tok", DraftKey("DOC-001", None), "Declaração", None, "R$ 0,00", "02/11/2026",
+        draft_id, DraftKey("DOC-001", None), "Declaração", None, "R$ 0,00", "02/11/2026",
         "", "aviso", "conv-1", "1",
     )  # fmt: skip
 

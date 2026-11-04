@@ -50,7 +50,7 @@ def test_card_messages_synthetic_function_response() -> None:
 
 
 def test_wrap_tool_result_only_data() -> None:
-    d = DraftCard("id1", "TOKEN", DraftKey("DOC-001", None), "Decl", None, "R$ 0,00", "01/01/2027",
+    d = DraftCard("id1", DraftKey("DOC-001", None), "Decl", None, "R$ 0,00", "01/01/2027",
                   "", "aviso", "conv", "1")  # fmt: skip
     out = wrap_tool_result(ToolOutput({"a": "b"}, draft=d, untrusted=True))
     assert out == {"a": "b"} and "TOKEN" not in str(out)

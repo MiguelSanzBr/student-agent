@@ -27,10 +27,10 @@ def test_registry_11_identical_specs() -> None:
             assert p["properties"]["enrollment"]["enum"] == ["1", "2", "3"]
 
 
-def test_draftcard_public_no_token() -> None:
+def test_draftcard_public_no_dead_token() -> None:
+    assert "token" not in DraftCard.__dataclass_fields__
     card = DraftCard(
         "d1",
-        "secret",
         DraftKey("DOC-001", None),
         "Declaração",
         None,
@@ -42,7 +42,6 @@ def test_draftcard_public_no_token() -> None:
         "2",
     )
     pub = card.public()
-    assert "token" not in pub and "secret" not in pub.values()
     assert not {"conversation_id", "enrollment_index"} & set(pub)
     assert not {"conv-1", "2"} & set(pub.values())
 

@@ -1,4 +1,3 @@
-import secrets
 import uuid
 from collections.abc import Mapping
 from datetime import date, datetime
@@ -266,7 +265,6 @@ async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     due = fmt_date(sla_due(ctx.today, svc.sla_hours))
     card = DraftCard(
         draft_id=uuid.uuid4().hex,
-        token=secrets.token_urlsafe(32),
         key=key,
         service_name_pt=svc.ui_label,
         enrollment_label=enr.label if len(ctx.scope.enrollments) > 1 else None,
