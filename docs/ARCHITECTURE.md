@@ -4,7 +4,7 @@ Este documento explica o que foi decidido, por que, e o que cada decisão custa.
 
 O agente consulta, explica e orienta sobre vida acadêmica, financeiro, protocolos, LMS e catálogo. Ele abre protocolos, mas só como rascunho que o próprio aluno confirma com um clique. Pelo A2A ele só consulta e orienta.
 
-A tese que organiza tudo: **o que precisa ser garantido não pode depender do comportamento do modelo.** Isolamento entre alunos, ausência de dado corporativo, limites de capacidade e correção de valores são propriedades da arquitetura e são testados sem LLM. O modelo é medido onde ele realmente decide: roteamento, redação e recusa.
+A tese que organiza tudo: **o que precisa ser garantido não pode depender do comportamento do modelo.** Isolamento entre alunos, ausência de dado corporativo, limites de capacidade e correção de valores são propriedades da arquitetura, testadas sem LLM. O modelo é medido onde ele realmente decide: roteamento, redação e recusa.
 
 ## 1. Visão geral
 
@@ -25,11 +25,11 @@ flowchart LR
 
 Um turno funciona assim:
 
-1. A API autentica o JWT (o canal define a audiência) e chama `admit()` **antes** de abrir o stream. Sem cota, o aluno recebe 429 ou 503 com `Retry-After`; nada é cortado no meio.
+1. A API autentica o JWT (o canal define a audiência) e chama `admit()` **antes** de abrir o stream. Sem cota, o aluno recebe 429 ou 503 com `Retry-After`.
 2. O `TurnService` monta a requisição ao modelo: prompt fixo, as 11 declarações de ferramenta fixas, e o **cartão do aluno** como resposta sintética de uma chamada `get_student_card`.
 3. O grafo alterna `llm` e `tools`. Cada chamada de ferramenta abre uma conexão própria de banco, já com a identidade do aluno no RLS.
 4. O texto gerado pelo modelo passa pelo EvidenceGuard. Reprovado, o modelo tenta mais uma vez com o feedback; reprovado de novo, as frases reprovadas são removidas (degradação por tipo) ou, se nada sobra, o texto vira um fallback montado a partir dos registros.
-5. O mesmo `TurnService` atende o SSE do chat e o A2A. Nenhum canal escapa dos limites porque nenhum canal tem limites próprios.
+5. O mesmo `TurnService` atende o SSE do chat e o A2A, então nenhum canal tem limites próprios.
 
 ## 2. As dez decisões centrais
 
@@ -91,11 +91,11 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 **Pergunta difícil:** o agente abre protocolos. Como impedir que um texto malicioso faça ele abrir o que não deve?
 
-**Decisão.** O modelo nunca abre nada. Ele pode **preparar um rascunho** com `draft_protocol`, e só passam serviços de uma allowlist e que o aluno pode pedir (elegibilidade por regra: por exemplo, diploma só se formado e sem diploma emitido; revisão de nota e segunda chamada checadas por disciplina). O cartão do rascunho e o texto que o acompanha são montados pelo servidor; o token do rascunho vai por um evento próprio do SSE e nunca é serializado para o modelo. A confirmação é um clique no chat web, que revalida serviço e elegibilidade, toma um `pg_advisory_xact_lock(hashtextextended(...))` calculado no SQL e faz um INSERT idempotente (`draft_id UNIQUE`). Se a conversa já teve texto livre de sistema (taint), `draft_protocol` é recusado na execução.
+**Decisão.** O modelo nunca abre nada. Ele pode **preparar um rascunho** com `draft_protocol`, e só passam serviços de uma allowlist e que o aluno pode pedir (elegibilidade por regra: por exemplo, diploma só se formado e sem diploma emitido; revisão de nota e segunda chamada checadas por disciplina). O cartão do rascunho e o texto que o acompanha são montados pelo servidor; o rascunho fica no Redis preso ao aluno, com um `draft_id` (uuid4) que vai por um evento próprio do SSE e nunca é serializado para o modelo. A confirmação é um clique no chat web, que consome o `draft_id` uma vez (GETDEL), revalida serviço e elegibilidade, toma um `pg_advisory_xact_lock(hashtextextended(...))` calculado no SQL e faz um INSERT idempotente (`draft_id UNIQUE`). Se a conversa já teve texto livre de sistema (taint), `draft_protocol` é recusado na execução.
 
 **Alternativas.** O modelo abre direto; `interrupt()` do LangGraph; confirmação pelo A2A.
 
-**Trade-off.** O aluno dá um clique a mais e o agente não "resolve" sozinho. Isso é a mitigação de excesso de autonomia (OWASP LLM06). Pelo A2A não é possível garantir que quem confirma é uma pessoa, então a escrita simplesmente não existe nesse canal. O lock usa `hashtextextended` no SQL porque o `hash()` do Python muda a cada processo.
+**Trade-off.** O aluno dá um clique a mais e o agente não "resolve" sozinho. Pelo A2A não é possível garantir que quem confirma é uma pessoa, então a escrita simplesmente não existe nesse canal. O lock usa `hashtextextended` no SQL porque o `hash()` do Python muda a cada processo.
 
 ### D11. Avaliação com oráculo independente e holdout cego
 
@@ -126,11 +126,11 @@ O spike com o cliente real do SDK mostrou três fatos que moldaram o desenho:
 
 - tarefa alheia em `GetTask`, `CancelTask` e `SendMessage` devolve `TaskNotFound` (<!-- num:a2a.TASK_NOT_FOUND -->-32001<!-- /num -->), e `ListTasks` de outro aluno devolve lista vazia;
 - um `contextId` alheio é **aceito** pelo SDK, então o isolamento da conversa é do executor, e não do protocolo;
-- uma exceção no executor, no TaskStore ou no context builder vira `InternalError(str(e))` com a mensagem original, e o SDK a registra. Por isso o TaskStore e o context builder ficam em wrappers que levantam uma mensagem fixa, o executor captura tudo, o logger `a2a` é silenciado e a telemetria do SDK é desligada.
+- uma exceção no executor, no TaskStore ou no context builder vira `InternalError(str(e))` com a mensagem original, e o SDK a registra. Por isso há wrappers com mensagem fixa, o executor captura tudo, o logger `a2a` é silenciado e a telemetria do SDK é desligada.
 
 **Alternativa.** Só HTTP próprio.
 
-**Trade-off.** O A2A é mais protocolo do que um endpoint simples, e o SDK tem arestas (o `GetExtendedAgentCard` com o card declarado devolve <!-- num:a2a.GetExtendedAgentCard_com_extended_agent_card_False -->-32004<!-- /num -->, e não o <!-- num:a2a.EXTENDED_CARD_NOT_CONFIGURED -->-32007<!-- /num --> que a leitura da especificação sugeria). Em troca, os 11 métodos têm teste de posse com controle positivo do dono (`tests/e2e/test_a2a.py`). A demonstração é `make a2a-demo`, com o cliente do SDK; o consumo por Langflow ou ADK é desenho, e não foi demonstrado.
+**Trade-off.** O A2A é mais protocolo do que um endpoint simples, e o SDK tem arestas (o `GetExtendedAgentCard` com o card declarado devolve <!-- num:a2a.GetExtendedAgentCard_com_extended_agent_card_False -->-32004<!-- /num -->, e não o <!-- num:a2a.EXTENDED_CARD_NOT_CONFIGURED -->-32007<!-- /num --> que a leitura da especificação sugeria). Em troca, os 11 métodos têm teste de posse (`tests/e2e/test_a2a.py`). A demonstração é `make a2a-demo`; o consumo por Langflow ou ADK é desenho, não demonstrado.
 
 ### D16. Observabilidade que liga qualidade e operação
 
@@ -159,11 +159,11 @@ O spike com o cliente real do SDK mostrou três fatos que moldaram o desenho:
 
 **Pergunta difícil:** como responder a maior parte das perguntas com uma única chamada ao modelo, mantendo o cache do prefixo?
 
-**Decisão.** Um resumo do aluno de até 400 tokens (estimados; `tests/integration/test_card.py`), sem nome, é entregue como `functionResponse` de uma chamada sintética a `get_student_card`. Traz as matrículas, o total para quitar, o próximo vencimento, protocolos abertos, a próxima avaliação e a cobertura de dados. O prompt de sistema e as 11 declarações de ferramenta são idênticos para todos os alunos, então o cache implícito do provedor é preservado.
+**Decisão.** Um resumo do aluno de até 400 tokens (estimados; `tests/integration/test_card.py`), sem nome, é entregue como `functionResponse` de uma chamada sintética a `get_student_card`. Traz matrículas, total para quitar, próximo vencimento, protocolos abertos, próxima avaliação e cobertura de dados. O prompt de sistema e as 11 declarações de ferramenta são idênticos para todos os alunos, então o cache implícito do provedor é preservado.
 
 **Alternativas.** Só ferramentas (uma chamada a mais em toda pergunta); cartão como texto da mensagem do usuário.
 
-**Trade-off.** Um `functionResponse` não pode ser forjado pelo aluno, que um texto de usuário poderia imitar. O custo é que o Gemini pode exigir a declaração da função sintética e a assinatura de pensamento; isso é checado no portão do primeiro dia, que ainda não rodou (**pendente: sem chave do Gemini**). Se for exigido, a função entra sem parâmetros e devolve o mesmo cartão.
+**Trade-off.** Um `functionResponse` não pode ser forjado pelo aluno, que um texto de usuário poderia imitar. O custo é que o Gemini pode exigir a declaração da função sintética e a assinatura de pensamento; isso é checado no portão do primeiro dia (**pendente: sem chave do Gemini**). Se exigido, a função entra sem parâmetros e devolve o mesmo cartão.
 
 ## 3. Decisões menores
 
@@ -180,7 +180,7 @@ O motivo de não serem centrais: ou são consequência direta de uma central, ou
 | D13 | JWT HS256 com algoritmo fixo e `aud` por canal | Identidade no corpo | Padrão; em produção, token exchange (RFC 8693) |
 | D14 | `person_key` = HMAC-SHA256(segredo, CPF) | UUIDv5 | UUIDv5 é reversível por quem conhece o CPF |
 | D18 | AI Studio ou Vertex, com o mesmo código | Só um | Portabilidade |
-| D19 | `LLM_PROVIDER=auto`: sem chave, replay roteirizado que chama as ferramentas de verdade (`app/agent/replay.py`) | Exigir chave | Quem avalia roda sem chave |
+| D19 | `LLM_PROVIDER=auto`: sem chave, replay roteirizado que chama as ferramentas de verdade (`app/agent/replay.py`) | Exigir chave | Quem avalia roda sem chave (modo local/dev). `app_env=prod` exige Gemini com chave e limites default; `replay`, `fake`, `loadtest` e `auto` sem chave são recusados na subida |
 | D20 | Só `core/clock.py` lê relógio | Relógio livre | Respostas iguais depois de 10/11; testado por regex |
 | D22 | `enrollment` é um enum estável "1", "2" ou "3" | Rótulos por aluno | Cache e escopo |
 | D23 | `init-secrets` gera todos os segredos, um volume por consumidor, lidos só de arquivo | `.env` de exemplo | Segredo público permite forjar JWT |
@@ -232,8 +232,8 @@ O ETL recria o schema `canon` a cada carga, numa transação: cria as tabelas, f
 
 Os quatro sistemas não compartilham chave. A resolução foi verificada nos CSV e contra um oráculo independente:
 
-- **Pessoa:** pelo CPF. O `PERSON_ID` não serve: 15 CPFs têm dois.
-- **Matrícula:** (marca, RA) com dígito verificador mod 11. Nunca só o RA, porque há RAs repetidos em 2 a 5 marcas EAD.
+- **Pessoa:** pelo CPF. O `PERSON_ID` não serve: 15 CPFs têm dois (`docs/research/2026-11-03-perfil-dos-dados.md`).
+- **Matrícula:** (marca, RA) com dígito verificador mod 11. Nunca só o RA, porque há 173 RAs repetidos em 2 a 5 marcas EAD (mesma fonte).
 - **LMS:** SSO por tenant e padrão `PRES_nnnnn` ou `EAD_nnnnn`, mais as contas manuais ligadas por `user_loggedin`. Resultado: <!-- num:data.lms_accounts -->1003<!-- /num --> contas. Contas de professor, administração, integração e `aluno.teste*` não entram em contagem nenhuma.
 - **Financeiro:** pelo contrato da matrícula (<!-- num:data.contracts -->1065<!-- /num --> contratos resolvidos), nunca por `taxId` nem `customerId`.
 - **Secretaria:** cinco regras em ordem de confiança.
@@ -252,9 +252,9 @@ O invariante conferido é que o solicitante é o aluno ou um pagador do contrato
 
 ### 5.3 Escolhas de precisão
 
-**Na dúvida, não liga.** Há casos que outro sinal resolveria, mas que ficam sem vínculo de propósito: dois `Stu_ID` com erro de digitação, e responsáveis que pagam duas matrículas e abrem protocolo sem dizer de qual. Ligar errado mostraria o protocolo de uma pessoa a outra; deixar sem ligar apenas esconde um protocolo. Os <!-- num:data.protocols_unlinked -->22<!-- /num --> protocolos sem vínculo são o custo declarado dessa escolha.
+**Na dúvida, não liga.** Há casos que outro sinal resolveria, mas que ficam sem vínculo de propósito: dois `Stu_ID` com erro de digitação, e responsáveis que pagam duas matrículas e abrem protocolo sem dizer de qual. Ligar errado mostraria o protocolo de uma pessoa a outra; não ligar só o esconde. Os <!-- num:data.protocols_unlinked -->22<!-- /num --> protocolos sem vínculo são o custo declarado dessa escolha.
 
-Outra escolha: **o agente não recalcula nota nem média.** Mostra a nota armazenada. Quando a frequência contradiz o resultado (reprovado por falta com frequência acima do mínimo), a ferramenta sinaliza a divergência, o agente mostra os dois valores, diz qual é o oficial e oferece a revisão de nota.
+Outra escolha: **o agente não recalcula nota nem média.** Mostra a nota armazenada. Quando a frequência contradiz o resultado (reprovado por falta com frequência acima do mínimo), a ferramenta sinaliza a divergência, o agente mostra os dois valores, diz qual é o oficial e oferece revisão.
 
 ### 5.4 O que nunca é carregado
 
@@ -282,12 +282,13 @@ A pergunta de projeto é se a segurança sobrevive a um modelo comprometido. Por
 | Vazamento entre alunos | Ferramentas sem identidade, enum de índice, RLS forçado, grants por allowlist, reset do pool, `RKey` | Teste do **LLM comprometido**; IDOR por recurso e nos 11 métodos A2A; `contextId` alheio |
 | Vazamento corporativo | Destino por coluna no ETL; catálogo por família | Varredura por valor do dump de `canon` (CPF, e-mail, telefone, IP, referência de transação, CNPJ, nome de não-aluno); os logins de analista ausentes |
 | Injeção indireta | `texto_livre` nunca ao LLM; texto tipificado; taint fixo | Marcador plantado em **toda** célula de texto dos 47 CSV, passado pelo ETL e por um LLM comprometido: nenhum marcador em saída confiável |
-| Excesso de autonomia | Allowlist, elegibilidade, cartão do servidor, token fora do LLM, clique humano, lock | Confirmação concorrente; dois rascunhos concorrentes; token alheio; `SA-` digitado pelo aluno |
+| Excesso de autonomia | Allowlist, elegibilidade, cartão do servidor, `draft_id` preso ao aluno e fora do LLM, uso único, clique humano, lock | Confirmação concorrente; dois rascunhos concorrentes; `draft_id` alheio; `SA-` digitado pelo aluno |
 | Falsa promessa | Guard ancorado no registro, compromisso exige fonte | Testes do guard com controles positivos |
 | Exceção vazando pelo A2A | Wrappers, executor que captura tudo, logger e telemetria do SDK desligados | Um `RuntimeError` com URL de banco não aparece na resposta, nos logs nem nos spans |
 | Chave Redis montada à mão | `RKey` e `RKind`, mypy em `app/` | Teste que proíbe `RKey(` fora de `core/rkey.py` |
 | Consumo abusivo | Admissão a 90% da cota, vaga por turno, rate limit, orçamento, teto | Testes, inclusive via A2A, e a escada de carga com cota simulada |
-| CSRF e saída | SameSite=Strict, `Origin`, JSON, CSP, `nosniff`, texto puro | Testes |
+| CSRF e saída | SameSite=Strict; mesma origem (`Origin` × `Host`) e JSON em `POST /chat`, `/protocols/confirm` e `/feedback`; A2A só com Bearer; CSP, `nosniff`, texto puro | Testes |
+| Entrada abusiva | `contextId` e `taskId` do A2A em `^[A-Za-z0-9_-]{1,64}$` (regra do web); corpo até 64 KiB (413) | Testes |
 
 **Ataques com LLM real.** São 15 categorias: jailbreak, roleplay, quebra de papel, falsa promessa, extração de prompt literal e por paráfrase, sequestro de rascunho e escalada multi-turno (comportamento); identidade, outro aluno, outra marca, funcionários e credenciais (vazamento); injeção plantada e armazenada (zero por construção, conferido pelo teste do marcador). O número primário é a suíte completa de desenvolvimento, com 2 repetições, rodada **antes** de qualquer correção, mais uma rodada de holdout cego e adaptativo no SHA congelado, em que um redator cego escreve os templates sem ver o código e um LLM atacante os refina em até 3 tentativas. A unidade do intervalo de Wilson é o **template de ataque**: ele falha se qualquer mutação ou repetição falhar.
 
@@ -342,10 +343,10 @@ Há duas alavancas, desligadas por padrão: o hedge da primeira chamada no p90 e
 A decisão está em D16. Em operação:
 
 - **Logs** em JSON com `trace_id`, sem PII. Exceção só pelo tipo.
-- **Spans:** `chat.turn` (AGENT, aberto antes do evento `meta`) contém `agent.call_model` (LLM), `agent.tool` (TOOL, com `db.query`) e `agent.guard` (GUARDRAIL, com desfecho e kinds). Atributos de modelo, tokens (inclusive cache e raciocínio) e hashes do prompt, das ferramentas e do dataset.
-- **Métricas** Prometheus em modo multiprocesso, com buckets vindos de `slo_targets.yaml`: turnos por status e canal, latência por classe, TTFE, erros e retries de LLM, rejeições de admissão, vagas em uso, desfecho do guard, tipo de resposta por domínio, funil do rascunho, tokens, custo e feedback.
+- **Spans:** `chat.turn` (AGENT, aberto antes do evento `meta`) contém `agent.call_model` (LLM), `agent.tool` (TOOL, com `db.query`) e `agent.guard` (GUARDRAIL, com desfecho e kinds). Atributos de modelo, tokens (com cache e raciocínio) e hashes do prompt, das ferramentas e do dataset.
+- **Métricas** Prometheus em modo multiprocesso, com buckets vindos de `slo_targets.yaml`: turnos, latência, TTFE, erros e retries de LLM, admissão, vagas, guard, tipo de resposta, funil do rascunho, tokens, custo e feedback.
 - **SLO:** latência e TTFE por classe, custo por dia e qualidade (degradado mais fallback, 👎, recusa e vazio por domínio). Status `degraded` e `fallback` contam como disponíveis, mas entram no SLO de qualidade. O alerta fica proposto, não implantado.
-- **Phoenix** com volume persistente; a rodada de teste é exportada para `docs/evidence/phoenix/`, para que quem avalia veja os traces e as anotações sem subir nada.
+- **Phoenix** com volume persistente; a rodada de teste é exportada para `docs/evidence/phoenix/`, para ver os traces sem subir nada.
 
 ## 10. Integração em produção
 
@@ -361,6 +362,7 @@ Esta seção descreve o caminho, não algo já feito. Fora do escopo: deploy em 
 
 <!-- autor: acrescentar aqui os "limites conhecidos" registrados no sábado, depois do congelamento -->
 
+- Limites de segurança conhecidos: a pilha de avaliação local compartilha banco, Redis e o segredo do JWT com a API; o `init-secrets` monta o repositório só-leitura como root; `/metrics` e o Phoenix não têm autenticação (só em 127.0.0.1); o JWT não tem `iss`; o teto de corpo olha só o `Content-Length`.
 - O guard não pega um valor correto atribuído à entidade errada quando a frase não cita nenhuma entidade.
 - Os <!-- num:data.protocols_unlinked -->22<!-- /num --> protocolos sem vínculo (ver 5.3) não aparecem para nenhum aluno, por escolha de precisão.
 - A regra de média e aprovação não existe nos dados, e o agente diz isso em vez de inferir.

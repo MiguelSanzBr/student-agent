@@ -14,13 +14,13 @@ COPY scripts ./scripts
 COPY slo_targets.yaml ./
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 
-# Imagem dos runners de avaliação (compose.eval: redteam, etl-redteam). A da API (último estágio,
-# o padrão) não leva templates de ataque, golden, tokens nem cliente de avaliação.
-# o golden.json (CPFs de teste) só entra nos estágios que o leem: etl (golden_login) e eval; nunca na API
+# Imagem do ETL e do golden_login: só acrescenta o golden.json (CPFs de teste), que nunca entra na API.
 FROM base AS etl
 COPY tests/fixtures/golden.json ./tests/fixtures/golden.json
 USER 10001
 
+# Imagem dos runners de avaliação (compose.eval: redteam, etl-redteam). A da API (último estágio,
+# o padrão) não leva templates de ataque, golden, tokens nem cliente de avaliação.
 FROM base AS eval
 COPY tests/fixtures/golden.json ./tests/fixtures/golden.json
 COPY evals/client.py evals/stats.py evals/preflight.py evals/tokens.py ./evals/

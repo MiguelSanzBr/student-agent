@@ -18,8 +18,8 @@ Método, limites e o que não foi medido: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 ## Como rodar
 
 ```
-cp .env.example .env    # GEMINI_API_KEY é opcional; sem ela (`LLM_PROVIDER=auto`) o agente roda em modo demonstração
-docker compose up
+cp .env.example .env    # GEMINI_API_KEY é opcional; sem ela (`LLM_PROVIDER=auto`, modo local/dev) o agente roda em modo demonstração; `APP_ENV=prod` exige a chave
+docker compose up -d --wait
 make login CASE=4       # imprime uma URL de login de uso único
 make a2a-demo           # cliente A2A: lê o card e faz uma pergunta
 ```
