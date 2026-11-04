@@ -55,25 +55,50 @@ def _real_evidence(d: Path) -> None:
 
     for tag, split in (("dev-r1", "dev"), ("dev-r2", "dev"), ("test-r1", "test")):
         outs = [
-            Outcome(f"t{n}@s{n % 4}", f"s{n % 4}", f"t{n}", "academico" if n % 2 else "cruzamento",
-                    "shared" if n % 3 else "test_only", "pass" if n % 5 else "fail", 1,
-                    expect_refusal=n % 4 == 0, refused_unduly=n % 7 == 0)
+            Outcome(
+                f"t{n}@s{n % 4}",
+                f"s{n % 4}",
+                f"t{n}",
+                "academico" if n % 2 else "cruzamento",
+                "shared" if n % 3 else "test_only",
+                "pass" if n % 5 else "fail",
+                1,
+                expect_refusal=n % 4 == 0,
+                refused_unduly=n % 7 == 0,
+            )
             for n in range(40)
         ]
-        q = golden(RoundResult(outs), strata={f"s{i}": "x" for i in range(4)}, n_boot=50,
-                   meta={"split": split, "round": int(tag[-1])})
+        q = golden(
+            RoundResult(outs),
+            strata={f"s{i}": "x" for i in range(4)},
+            n_boot=50,
+            meta={"split": split, "round": int(tag[-1])},
+        )
         (d / "quality" / tag).mkdir(parents=True)
         (d / "quality" / tag / "quality.json").write_text(json.dumps(q))
-    rs = [Result(Attack(f"a#{i}", 1 + 7 * (i > 2), f"t{i}", ("x",)), 0, i == 0, i == 4, ()) for i in range(6)]
-    sec = redteam(rs, random.Random(0)) | {"holdout": {"behavior": redteam(rs, random.Random(0))["behavior"]}}
+    rs = [
+        Result(Attack(f"a#{i}", 1 + 7 * (i > 2), f"t{i}", ("x",)), 0, i == 0, i == 4, ())
+        for i in range(6)
+    ]
+    sec = redteam(rs, random.Random(0)) | {
+        "holdout": {"behavior": redteam(rs, random.Random(0))["behavior"]}
+    }
     (d / "security.json").write_text(json.dumps(sec))
     g = {"blind": {"recall": _d(wilson(8, 10)), "false_block": _w(0, 10)}}
     (d / "guard.json").write_text(json.dumps(g))
-    xs = [Sample(f"s{i % 10}", c, 3.0 + i / 100, 1.0, {"overhead": 0.2}, cost_usd=0.002,
-                 input_tokens=100) for c in ("card", "1", "2+") for i in range(30)]
+    xs = [
+        Sample(
+            f"s{i % 10}", c, 3.0 + i / 100, 1.0, {"overhead": 0.2}, cost_usd=0.002, input_tokens=100
+        )
+        for c in ("card", "1", "2+")
+        for i in range(30)
+    ]
     (d / "latency-A.json").write_text(json.dumps({"window": "A", **latency(xs, seed=1, n_boot=50)}))
-    (d / "load-a-w1.json").write_text(json.dumps({"ladder": "a", "pass": True, "steps": [
-        {"rate": 1, "ok": 10}, {"rate": 2, "ok": 18}]}))
+    (d / "load-a-w1.json").write_text(
+        json.dumps(
+            {"ladder": "a", "pass": True, "steps": [{"rate": 1, "ok": 10}, {"rate": 2, "ok": 18}]}
+        )
+    )
 
 
 def test_build_numbers_maps_real_runner_outputs(tmp_path: Path) -> None:
@@ -83,7 +108,9 @@ def test_build_numbers_maps_real_runner_outputs(tmp_path: Path) -> None:
     marked = set()
     for doc in DOCS:
         marked |= {k for k in re.findall(r"<!-- num:([\w.\-]+) -->", doc.read_text())}
-    assert {k for k in marked if k.split(".")[0] in {"quality", "security", "guard", "latency"}} <= set(n)
+    assert {
+        k for k in marked if k.split(".")[0] in {"quality", "security", "guard", "latency"}
+    } <= set(n)
     assert n["security.holdout.behavior.success"].startswith("1/3 templates")
     assert n["latency.load.plateau"].startswith("escada (a) aprovada: 18")
     assert n["latency.two_plus.p95"].endswith(" s")
@@ -98,7 +125,10 @@ def test_build_numbers_uses_highest_non_rehearsal_round(tmp_path: Path) -> None:
 
 
 def test_build_numbers_without_runner_outputs_has_no_runner_keys() -> None:
-    assert not any(k.startswith(("quality.", "security.", "guard.", "latency.")) for k in build_numbers(EVIDENCE))
+    assert not any(
+        k.startswith(("quality.", "security.", "guard.", "latency."))
+        for k in build_numbers(EVIDENCE)
+    )
 
 
 def test_find_hand_typed_detects_only_unmarked_values() -> None:

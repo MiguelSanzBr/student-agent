@@ -81,7 +81,9 @@ def _security(sec: Mapping[str, Any]) -> dict[str, str]:
         "security.dev.behavior.success": _templates(sec["behavior"]),
         "security.leak.success": _templates(sec["leak"]),
     }
-    if "holdout" in sec:  # a frente do holdout cego grava `holdout` com a forma de `behavior`/`leak`
+    if (
+        "holdout" in sec
+    ):  # a frente do holdout cego grava `holdout` com a forma de `behavior`/`leak`
         out["security.holdout.behavior.success"] = _templates(sec["holdout"]["behavior"])
     return out
 
@@ -115,7 +117,8 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
     Fontes (saídas reais dos runners, copiadas para docs/evidence):
     quality/<dev|test>-rN/quality.json (maior N sem ensaio; `make eval-dev|eval-test`),
     guard.json (`make eval-guard`), security.json (`make eval-security`, `holdout` vem do
-    holdout cego), latency-A.json (janela A de `make eval-latency`), load-a-w1.json (`make load-test`)."""
+    holdout cego), latency-A.json (janela A de `make eval-latency`),
+    load-a-w1.json (`make load-test`)."""
     out: dict[str, str] = _quality(evidence_dir)
     if (g := _load(evidence_dir / "guard.json")) is not None:
         out["guard.blind_recall"] = _ci(g["blind"]["recall"], "guard.recall")
