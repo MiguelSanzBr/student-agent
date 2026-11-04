@@ -1,71 +1,76 @@
-# Agente de atendimento ao aluno — plano de implementação (v3)
+# Agente de atendimento ao aluno — plano de implementação (v4, congelado)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Agente que atende o aluno autenticado (acadêmico, financeiro, protocolos, LMS, catálogo) com isolamento garantido pela arquitetura, respostas presas à evidência e evidências medidas de qualidade, segurança, latência e observabilidade.
+**Goal:** Agente que atende o aluno autenticado com isolamento por construção, respostas presas à evidência e evidências medidas de qualidade, segurança, latência e observabilidade.
 
-**Architecture:**
-- **ETL:** resolve as entidades dos 4 sistemas num Postgres canônico com RLS forçado e sem dado interno.
-- **API:** FastAPI stateless; a identidade vem só do JWT.
-- **Turno:** um `TurnService` comum ao chat SSE e ao A2A monta o cartão do aluno e roda um `StateGraph` do LangGraph sobre o `google-genai`.
-- **Ferramentas:** tipadas, sem parâmetro de identidade.
-- **Saída:** um EvidenceGuard determinístico checa toda resposta.
+**Architecture:** O ETL resolve as entidades dos 4 sistemas e grava num Postgres canônico com RLS forçado (o RLS é aplicado depois da carga), sem dado interno e com o texto livre tipificado. Uma FastAPI stateless lê a identidade só do JWT. Um `TurnService`, comum ao chat SSE e ao A2A 1.0, admite o turno contra a cota global, monta o cartão do aluno e roda um `StateGraph` do LangGraph sobre o `google-genai`. As ferramentas são tipadas e não recebem identidade. Toda resposta passa por um EvidenceGuard determinístico.
 
-**Tech Stack:** Python 3.12, uv, FastAPI, psycopg 3 + psycopg_pool, Postgres 17, Redis 7, `google-genai` 2.34, `langgraph` 1.2, `a2a-sdk[http-server]` 1.3, `jsonschema`, `pyjwt`, `structlog`, `opentelemetry-sdk` + `openinference-semantic-conventions` (Phoenix no compose), `prometheus-client`, pytest (+ pytest-asyncio, fakeredis, hypothesis), ruff, mypy.
+**Tech Stack:** Python 3.12, uv, FastAPI, psycopg 3 + psycopg_pool, Postgres 17, Redis 7, `google-genai` 2.34, `langgraph` 1.2, `a2a-sdk[http-server]` 1.3, `jsonschema`, `pyjwt`, `structlog`, `opentelemetry-sdk` + `openinference-semantic-conventions` + `arize-phoenix-otel`, `prometheus-client`, pytest (+ pytest-asyncio, fakeredis, hypothesis), ruff, mypy.
 
-**Spec:** [docs/superpowers/specs/2026-11-03-agente-atendimento-aluno-design.md](../specs/2026-11-03-agente-atendimento-aluno-design.md) (v3) · Pesquisa: [docs/research/2026-11-03-perfil-dos-dados.md](../../research/2026-11-03-perfil-dos-dados.md) · Case: `data/case/README.md` (fora do git)
+**Spec:** [docs/superpowers/specs/2026-11-03-agente-atendimento-aluno-design.md](../specs/2026-11-03-agente-atendimento-aluno-design.md) (v4). Pesquisa: [docs/research/2026-11-03-perfil-dos-dados.md](../../research/2026-11-03-perfil-dos-dados.md). Case: `data/case/README.md`, fora do git.
 
 ## Global Constraints
 
-- **Commits:** autor `Miguel Sanz <miguelsanzb.p@gmail.com>` (config local do repo), sem trailers de coautoria. Conventional Commits em PT-BR. Conferir com `git log -1 --format='%an <%ae>%n%b'`.
-- **Código e dados:** nenhum código de outro projeto copiado; `data/` nunca entra no git; segredos nunca no git (são gerados por `init-secrets`).
-- **Idioma:** identificadores de código em inglês. Prompt, respostas, chaves dos dados que o LLM lê e docs em PT-BR.
-- **Relógio:** só em `core/clock.py`. `reference_today(settings) -> date` (negócio, `2026-10-31`) e `wall_now() -> datetime` (operação: JWT, rate limit, `created_at`). Teste proíbe `now()`, `CURRENT_DATE`, `CURRENT_TIMESTAMP`, `date.today`, `datetime.now`, `datetime.utcnow` e `time.time` fora desse módulo, inclusive no SQL. Datas de calendário são `date`; instantes são `timestamptz`, exibidos em America/Sao_Paulo.
+- **Commits:** autor `Miguel Sanz <miguelsanzb.p@gmail.com>` (configuração local), sem trailers. Conventional Commits em PT-BR.
+- **Código e dados:** nenhum código de outro projeto; `data/` e segredos fora do git.
+- **Idioma:** identificadores em inglês. Prompt, respostas, chaves de dados lidas pelo LLM e docs em PT-BR.
+- **Relógio:** só em `core/clock.py`, com `reference_today(settings) -> date` (2026-10-31) e `wall_now() -> datetime`. O teste usa a regex `(?<![\w.])now\(|CURRENT_DATE|CURRENT_TIMESTAMP|date\.today|datetime\.now|datetime\.utcnow|time\.time\(` sobre `core/`, `app/`, `etl/`, `evals/` (exceto `evals/latency/`) e `*.sql`, e isenta só `core/clock.py`.
+- **Chaves Redis:** todas vêm de `core.rkey.rkey(kind, sub, channel, id)`. Um teste proíbe f-string, `%` ou `+` montando chave Redis fora desse módulo.
 - **Ferramentas:**
-  - nenhum parâmetro de identidade;
-  - `enrollment` ∈ `{"1","2","3"}`, mapeado no servidor;
-  - schema com `additionalProperties: false`, passado via `parameters_json_schema`;
-  - declarações e prefixo do system prompt **idênticos para todos os alunos**;
-  - ≤ 20 itens + `total` por lista;
-  - vazio → `"Nenhum registro encontrado."`.
-- **Formatos:** `R$ 1.234,56`; `dd/mm/aaaa`; nota com uma casa decimal.
+  - as 11 são **sempre declaradas**, sem parâmetro de identidade;
+  - `enrollment` ∈ {"1","2","3"};
+  - schema com `additionalProperties:false`, passado via `parameters_json_schema`;
+  - a recusa por canal ou por taint acontece **na execução**;
+  - ≤ 20 itens + `total`;
+  - vazio → "Nenhum registro encontrado.".
+- **Formatos:** `R$ 1.234,56`; `dd/mm/aaaa`; nota com 1 casa decimal.
 - **Limites (perfil `default`):**
-  - entrada ≤ 2000 caracteres;
-  - 20 mensagens/min por aluno;
-  - 200.000 tokens/dia por aluno;
-  - teto global de US$ 20/dia (degrada para flash-lite MINIMAL a 80%, 503 a 100%);
-  - histórico de 5 turnos, TTL 1800 s;
-  - JWT HS256 de 30 min;
-  - rascunho com TTL de 600 s;
-  - grafo ≤ 4 rodadas, orçamento de 20 s, `recursion_limit = 2·rounds + 6`.
-  - Perfil `eval` com limites próprios: turno bloqueado por limite = inválido.
+
+  | Item | Valor |
+  |---|---|
+  | Entrada | ≤ 2000 caracteres |
+  | Mensagens | 20/min por aluno |
+  | Tokens | 200.000/dia por aluno |
+  | Teto global | US$ 20/dia (a 80%: sem retry do guard e ≤ 2 rodadas; a 100%: 503) |
+  | Histórico | 5 turnos, TTL 1800 s; saídas de ferramenta com mais de 300 tokens são compactadas |
+  | JWT | HS256, 30 min, `aud` ∈ {chat, a2a} |
+  | Rascunho | 600 s |
+  | Ticket de login | 300 s |
+  | Grafo | ≤ 4 rodadas; orçamento de 20 s; `recursion_limit = 2·rounds + 6` |
+  | LLM | `llm_timeout_s=8`; retry ≤ 10% com piso de 3/min |
+  | Admissão | balde RPM+TPM global |
+
+  O perfil `eval` tem limites próprios, não degrada o modelo e conta turno bloqueado como inválido.
 - **Banco:**
-  - schemas `canon` (recriado pelo ETL) e `agent_rw` (persistente);
-  - roles `etl_owner` (NOSUPERUSER) e `agent_app` (NOBYPASSRLS);
-  - `FORCE ROW LEVEL SECURITY`;
-  - a API aborta se a própria role for superuser ou bypassrls, ou se algum segredo for de exemplo;
-  - a API nunca recebe segredos do ETL nem monta `data/`.
-- **Escrita:**
-  - `AGENT_SERVICES = {DOC-001, DOC-002, DOC-003, DOC-040, DOC-041, ACA-011, ACA-020, ACA-021, FIN-030, FIN-031, FIN-032, TEC-060, GEN-090, OUV-099}`;
-  - elegibilidade por regra;
-  - só no canal web, sem taint;
-  - token nunca no contexto do LLM.
-- **Lint:** ruff (linha 100); `mypy --strict` em `core/`, `etl/`, `app/guards/`, `app/rules/`.
+  - schemas `canon` (recriado) e `agent_rw` (persistente);
+  - roles `etl_owner` NOSUPERUSER e `agent_app` NOBYPASSRLS, com grants por allowlist (`etl/grants.yaml`);
+  - a carga roda numa transação: tabelas → COPY → RLS/grants;
+  - a API aborta se a própria role for privilegiada ou se algum segredo for inválido;
+  - a API não recebe segredos do ETL nem monta `data/`.
+- **Segredos:**
+  - `init-secrets` gera cada valor compartilhado uma vez e faz `chown` por consumidor (`db` → 999, `app`/`etl` → 10001), com modo 0400;
+  - os settings leem segredos **só** de arquivo (env e .env desligados para esses campos);
+  - o canário tem 32 caracteres hexadecimais.
+- **Escrita:** `AGENT_SERVICES = {DOC-001, DOC-002, DOC-003, DOC-040, DOC-041, ACA-011, ACA-020, ACA-021, FIN-030, FIN-031, FIN-032, TEC-060, GEN-090, OUV-099}`, com elegibilidade (inclusive protocolo aberto). Só pelo canal web, sem taint. O token nunca entra no contexto do LLM. O texto do turno de rascunho é fixo.
+- **A2A 1.0:** `enable_v0_3_compat=False`. Os testes usam `SendMessage`, `GetTask`, `CancelTask`, `SubscribeToTask`, `ListTasks` e `CreateTaskPushNotificationConfig`. Item "não encontrado" deve resultar em `TaskNotFoundError` (-32001), com controle positivo.
+- **Lint:** ruff (linha 100); `mypy --strict` em `core/`, `etl/`, `app/guards/` e `app/rules/`.
 - **Revisão:**
-  - **por tarefa** nas tarefas de segurança: 9, 12, 16, 18, 19, 20, 22, 23, 24, 25;
-  - **por fase** nas demais;
-  - implementadores de tarefas mecânicas (3, 5, 21, 26, 31) podem usar modelo mais barato;
+  - por tarefa nas tarefas 1, 2, 11, 12, 13, 14, 18, 20, 21, 22, 24, 25, 26, 27 e 29;
+  - por fase nas demais;
+  - modelo mais barato só nas tarefas 5, 7 e 23;
   - `ponytail-review` e `pytest-coverage` ao fim de cada fase;
-  - `security-review` + `code-review` na Task 32.
-- **Skills:** sempre `superpowers:test-driven-development` e `superpowers:verification-before-completion`; `fastapi-expert` nas Tasks 22–27.
+  - `security-review` no sábado de manhã (Task 31, passo 1), antes da rodada de teste.
+- **Skills:** sempre `superpowers:test-driven-development` e `superpowers:verification-before-completion`; `fastapi-expert` nas tarefas 24–29.
+- **Congelamento de comportamento no M4.** Depois dele, qualquer correção em `app/agent`, `app/guards`, `app/tools` ou `app/rules` exige refazer 1 rodada de ataques e os itens de qualidade afetados, regravar o replay e declarar o SHA e o delta nas evidências.
 
 ## Review Focus
 
-1. **Aluno com matrícula ativa + formada pergunta sobre diploma ou dívida.** A resposta diz de qual matrícula fala e oferece a outra; o financeiro sem filtro traz a quebra + total. Testes nas Tasks 15, 14 e 20.
-2. **Protocolo de outro aluno** recebe a mesma mensagem de inexistente. Teste na Task 16.
-3. **Banca roda depois de 10/11:** resposta idêntica. Testes nas Tasks 1, 13 e 15.
-4. **Gemini 429/5xx/timeout ou cota esgotada:** nova tentativa só se houver tempo. Depois, evento `error` em PT-BR sem stack trace, com métrica. Também via A2A. Testes nas Tasks 2, 23 e 25.
-5. **Pergunta fora da janela dos dados ou domínio vazio:** responde "não há dados antes de dd/mm/aaaa" ou "Nenhum registro encontrado.", nunca "0". Testes nas Tasks 15, 17 e 20.
+1. **Aluno com matrícula ativa e formada** (golden 9: diploma emitido na matrícula 2) pergunta sobre diploma: a resposta usa a matrícula certa e cita o diploma emitido. Tasks 18, 20, 22.
+2. **Fluxo "ver provas → pedir 2ª chamada"** funciona sem taint, porque o texto foi tipificado; texto plantado bloqueia o pedido. Tasks 12, 22.
+3. **Banca roda depois de 10/11:** a resposta é a mesma. Tasks 1, 15, 17.
+4. **Gemini com 429/5xx/timeout ou cota global esgotada:** 503 com `Retry-After` na admissão; durante o turno, retry só se houver tempo e depois evento `error` em PT-BR. Vale também via A2A. Tasks 4, 25, 27.
+5. **Pergunta fora da cobertura, domínio vazio ou disciplina fora da matriz:** a mensagem certa para cada caso, nunca "0". Tasks 16, 17, 19, 22.
 
 ---
 
@@ -73,76 +78,67 @@
 
 | Caminho | Responsabilidade |
 |---|---|
-| `pyproject.toml`, `uv.lock`, `Makefile`, `docker-compose.yml`, `Dockerfile`, `.dockerignore`, `.env.example`, `.gitattributes`, `.github/workflows/ci.yml`, `AGENTS.md`, `CLAUDE.md` | Projeto e regras |
-| `scripts/init_secrets.py`, `ops/postgres/init.sh`, `ops/prometheus/prometheus.yml` | Segredos, roles, scrape |
-| `core/normalize.py`, `format.py`, `keys.py`, `clock.py`, `ontology.py`, `scope.py` | Compartilhado |
-| `ontology/entities.yaml`, `enums.yaml`, `tables.yaml`, `coverage.yaml`, `tools/*.yaml`, `subject_aliases.yaml` | Ontologia |
-| `etl/config.py`, `raw.py`, `resolve_core.py`, `resolve_lms.py`, `resolve_secretary.py`, `build.py`, `schema.sql`, `rls.sql`, `load.py`, `report.py`, `__main__.py` | ETL |
-| `app/config.py` | `AppSettings` |
-| `app/data/db.py`, `app/data/card.py`, `app/data/queries/*.py` | Pool, escopo, cartão, consultas |
-| `app/rules/finance.py`, `academic.py`, `lms.py`, `protocols.py`, `eligibility.py`, `coverage.py` | Regras puras |
-| `app/tools/base.py`, `registry.py`, `academic.py`, `finance.py`, `protocols.py`, `lms.py`, `catalog.py` | Ferramentas |
-| `app/infra/redis_stores.py` | Rate limit, orçamento, teto, RPM, histórico, rascunhos, TaskStore A2A |
-| `app/agent/llm.py`, `gemini.py`, `fakes.py`, `replay.py`, `prompt.py`, `messages.py`, `graph.py` | Agente |
-| `app/guards/input.py`, `evidence.py` | Guards |
+| raiz, `.github/`, `ops/` | projeto, compose, CI, segredos, roles, scrape, Langflow opcional |
+| `core/` | `normalize`, `format`, `keys`, `clock`, `rkey`, `ontology`, `scope` |
+| `ontology/` | `entities`, `enums`, `tables`, `free_text_templates`, `tools/*.yaml`, `subject_names_pt` |
+| `etl/` | `config`, `raw`, `resolve_*`, `build`, `schema.sql`, `rls.sql`, `grants.yaml`, `load`, `report`, `__main__` |
+| `app/config.py`, `app/contracts` (re-export) | settings e tipos |
+| `app/data/` | `db`, `card`, `queries/*` |
+| `app/rules/` | `finance`, `academic`, `lms`, `protocols`, `eligibility`, `coverage` |
+| `app/tools/` | `base`, `registry`, domínios |
+| `app/infra/redis_stores.py` | admissão, rate limit, orçamento, teto, histórico, rascunhos, tickets, TaskStore A2A |
+| `app/agent/` | `llm`, `gemini`, `fakes`, `replay`, `prompt`, `messages`, `graph` |
+| `app/guards/` | `input`, `evidence` |
 | `app/service/turn.py` | TurnService |
-| `app/api/auth.py`, `dev.py`, `chat.py`, `protocols.py`, `feedback.py`, `a2a.py`, `app/main.py` | API |
-| `app/obs/logging.py`, `tracing.py`, `metrics.py`, `cost.py` | Observabilidade |
-| `app/web/*` | Chat web |
-| `scripts/make_fixture.py`, `gen_subject_aliases.py`, `a2a_client_demo.py`, `package.sh` | Utilitários |
-| `evals/oracle.py`, `tokens.py`, `client.py`, `stats.py`, `golden/*`, `guard/*`, `redteam/*`, `latency/*` | Avaliação |
-| `tests/unit`, `tests/integration`, `tests/e2e`, `tests/live`, `tests/fixtures/mini`, `tests/adversarial.py` | Testes |
-| `docs/ARCHITECTURE.md`, `docs/SLO.md`, `docs/evidence/*.md` | Documentação |
+| `app/api/` | `auth`, `dev`, `chat`, `protocols`, `feedback`, `a2a`, `health`; `app/main.py` |
+| `app/obs/` | `logging`, `tracing`, `metrics`, `cost`, `annotations` |
+| `app/web/` | chat |
+| `scripts/` | `init_secrets`, `make_fixture`, `gen_subject_names`, `login_url`, `a2a_demo`, `package` |
+| `evals/` | `oracle`, `tokens`, `client`, `stats`, `golden/`, `guard/`, `redteam/`, `latency/`, `replays/` |
+| `tests/` | `unit`, `integration`, `e2e`, `live`, `fixtures/mini`, `adversarial.py` |
+| `docs/` | `ARCHITECTURE.md`, `SLO.md`, `evidence/` |
 
-## Interfaces centrais
+## Interfaces centrais (criadas na Task 2)
 
 ```python
+# core/rkey.py
+def rkey(kind: str, sub: UUID, channel: Literal["web", "a2a", "-"], id: str) -> str: ...
+
 # core/scope.py
 @dataclass(frozen=True)
 class EnrollmentRef:
-    index: str            # "1" | "2" | "3" (ordem: principal primeiro, depois status_date desc)
-    enrollment_key: UUID
-    label: str            # "ADS EAD - UniSaoPaulo (ativa)"
-    brand: str            # código SAG
-    brand_family: str     # sem "_EAD"
-    status: str
-    is_primary: bool
-
+    index: str; enrollment_key: UUID; label: str; brand: str; brand_family: str
+    status: str; is_primary: bool
 @dataclass(frozen=True)
 class StudentScope:
-    person_key: UUID
-    first_name: str
-    enrollments: tuple[EnrollmentRef, ...]     # ≤ 3
-    brand_families: tuple[str, ...]
+    person_key: UUID; first_name: str
+    enrollments: tuple[EnrollmentRef, ...]; brand_families: tuple[str, ...]
 
 # app/data/card.py
 @dataclass(frozen=True)
-class StudentCard:
-    text: str                       # ≤ 400 tokens, PT-BR, marcado como contexto de sistema
-    facts: dict[str, str]           # ex.: {"1.total_para_quitar": "R$ 49.508,43", "1.provas_pendentes": "0"}
+class StudentCard: text: str; facts: dict[str, str]   # chaves "<índice>.<campo>" e "geral.<campo>"
 
 # app/tools/base.py
 @dataclass(frozen=True)
 class ToolSpec: name: str; description: str; parameters: dict[str, Any]
 @dataclass(frozen=True)
 class DraftCard:
-    draft_id: str; service_code: str; service_name_pt: str; enrollment_label: str
+    draft_id: str; token: str; service_code: str; service_name_pt: str; enrollment_label: str
     fee: str; due_date: str; description: str; warning: str
+    def public(self) -> dict[str, str]: ...       # sem token, para o SSE; nunca ao LLM
 @dataclass(frozen=True)
 class ToolOutput:
-    data: dict[str, Any]            # o que o LLM vê (chaves PT)
-    untrusted: bool = False         # algum campo free_text presente
-    draft: DraftCard | None = None
+    data: dict[str, Any]; untrusted: bool = False; draft: DraftCard | None = None
 @dataclass(frozen=True)
 class ToolContext:
-    scope: StudentScope
-    settings: AppSettings
-    channel: Literal["web", "a2a"]
-    db: Callable[[], AbstractAsyncContextManager[AsyncConnection]]
-    drafts: DraftStore
+    scope: StudentScope; settings: AppSettings; channel: Literal["web", "a2a"]
+    conversation_id: str; tainted: bool
+    db: Callable[[], AbstractAsyncContextManager[AsyncConnection]]; drafts: DraftStore
 Handler = Callable[[ToolContext, dict[str, Any]], Awaitable[ToolOutput]]
 @dataclass(frozen=True)
-class Tool: spec: ToolSpec; handler: Handler; read_only: bool = True
+class Tool:
+    spec: ToolSpec; handler: Handler; read_only: bool = True
+    allowed: Callable[[ToolContext], str | None] = lambda ctx: None   # motivo de recusa ou None
 
 # app/agent/llm.py
 @dataclass(frozen=True)
@@ -151,236 +147,264 @@ class ToolCall: id: str; name: str; args: dict[str, Any]; provider_meta: bytes |
 class Usage: input_tokens: int = 0; output_tokens: int = 0; thinking_tokens: int = 0; cached_tokens: int = 0
 @dataclass(frozen=True)
 class LLMResponse:
-    text: str | None; tool_calls: tuple[ToolCall, ...]; usage: Usage
+    text: str | None; tool_calls: tuple[ToolCall, ...]; usage: Usage; model: str
     finish_reason: str = "STOP"; provider_meta: bytes | None = None
 @dataclass(frozen=True)
 class Message:
     role: Literal["user", "assistant", "tool", "system_note"]
-    text: str | None = None
-    tool_calls: tuple[ToolCall, ...] = ()
-    tool_call_id: str | None = None
-    tool_name: str | None = None
-    tool_result: dict[str, Any] | None = None
-    untrusted: bool = False
-    provider_meta: bytes | None = None
-    turn: int = 0
+    text: str | None = None; tool_calls: tuple[ToolCall, ...] = ()
+    tool_call_id: str | None = None; tool_name: str | None = None
+    tool_result: dict[str, Any] | None = None; untrusted: bool = False
+    provider_meta: bytes | None = None; model: str | None = None; turn: int = 0
 class LLMProvider(Protocol):
-    async def generate(self, *, system: str, messages: Sequence[Message],
+    async def generate(self, *, model: str, system: str, messages: Sequence[Message],
                        tools: Sequence[ToolSpec], deadline: float) -> LLMResponse: ...
-class LLMUnavailable(Exception): reason: str   # "timeout" | "quota" | "queue" | "server"
+class LLMUnavailable(Exception): reason: Literal["timeout", "quota", "queue", "server"]
 
 # app/agent/graph.py
 @dataclass(frozen=True)
 class TurnResult:
     answer: str
-    status: Literal["ok", "degraded", "fallback", "budget_exceeded", "llm_unavailable", "blocked_limit"]
+    status: Literal["ok", "degraded", "fallback", "budget_exceeded", "llm_unavailable", "blocked_limit", "fixed"]
     guard: Literal["pass", "retry_pass", "degraded", "fallback", "n/a"]
-    draft: DraftCard | None
-    tool_calls: tuple[str, ...]
-    llm_calls: int
-    usage: Usage
-    timings_ms: dict[str, float]
-    new_messages: tuple[Message, ...]
+    draft: DraftCard | None; tool_calls: tuple[str, ...]; llm_calls: int; model: str
+    usage: Usage; timings_ms: dict[str, float]; first_event_ms: float | None
+    pre_guard_answer: str | None; new_messages: tuple[Message, ...]
 
 # app/service/turn.py
 class TurnService:
     async def handle(self, *, scope: StudentScope, conversation_id: str, text: str,
                      channel: Literal["web", "a2a"], emit: Callable[[dict], Awaitable[None]]) -> TurnResult: ...
+
+# app/obs/tracing.py (fachada; exportadores na Task 29)
+def span(name: str, kind: Literal["AGENT", "LLM", "TOOL", "GUARDRAIL", "CHAIN"], **attrs) -> ContextManager[Span]: ...
+# app/obs/metrics.py (declarativo; todas as métricas da spec §9.4 definidas aqui)
 ```
 
-## Raias, estimativas e marcos
+## Cronograma, estimativas e marcos
 
-Estimativas P50 / P90 de relógio, com implementador e revisor:
+**P50 / P90 (horas de relógio, implementador + revisor):**
 
-| Tarefa | P50 | P90 | | Tarefa | P50 | P90 |
+| Task | P50 | P90 | | Task | P50 | P90 |
 |---|---|---|---|---|---|---|
-| 1 Base | 1,25 | 2 | | 18 Cartão + exposição + LLM comprometido | 1,25 | 2 |
-| 2 Spikes + provider | 2 | 3 | | 19 Guards + perturbação | 1,75 | 2,5 |
-| 3 Normalização | 0,5 | 0,75 | | 20 Prompt + grafo | 2 | 3 |
-| 4 Raw + fixture + oráculo | 1,75 | 2,5 | | 21 Replay | 0,5 | 0,75 |
-| 5 Ontologia | 1,25 | 2 | | 22 Auth + dev login | 1 | 1,5 |
-| 6 Resolução core | 0,75 | 1 | | 23 TurnService + SSE | 1,5 | 2,5 |
-| 7 Resolução LMS | 0,75 | 1 | | 24 Confirmação, feedback, CSRF/IDOR | 0,75 | 1,25 |
-| 8 Resolução secretaria | 0,75 | 1,25 | | 25 A2A | 1,5 | 2,5 |
-| 9 Schema + RLS | 1 | 1,5 | | 26 Web | 0,75 | 1 |
-| 10 Build | 1,75 | 2,5 | | 27 Observabilidade | 1,25 | 2 |
-| 11 Carga + relatório | 1 | 1,5 | | 28 Dataset + plano de análise | 2 | 3 |
-| 12 Escopo + base | 1 | 1,5 | | 29 Runner + juiz (+1,5 h de rodada) | 2 | 3 |
-| 13 Regras | 1 | 1,5 | | 30 Ataques (+1 h de rodada) | 1,75 | 2,5 |
-| 14 Acadêmico | 1 | 1,5 | | 31 Latência e carga (+1 h de rodada) | 1,5 | 2,5 |
-| 15 Financeiro | 1,25 | 2 | | 32 Docs + revisões | 2,5 | 3,5 |
-| 16 Protocolos | 1,5 | 2 | | 33 Pacote + teste do zero | 1 | 1,5 |
-| 17 LMS + catálogo | 1 | 1,5 | | | | |
+| 1 Base | 1,5 | 2,5 | | 19 LMS + catálogo | 1,25 | 2 |
+| 2 Contratos | 1 | 1,5 | | 20 Cartão + exposição + LLM comprometido | 1,5 | 2,5 |
+| 3 Spikes | 1,5 | 2,5 | | 21 Guards + perturbação | 2,5 | 3,5 |
+| 4 Provider | 2,5 | 3,5 | | 22 Prompt + grafo | 3 | 4,5 |
+| 5 Normalização | 0,5 | 0,75 | | 23 Replay | 0,5 | 0,75 |
+| 6 Raw + fixture + oráculo | 3 | 4 | | 24 Auth + dev | 1,25 | 2 |
+| 7 Ontologia | 1,5 | 2,5 | | 25 TurnService + SSE + `compose-smoke` | 2,5 | 3,5 |
+| 8 Resolução core | 0,75 | 1 | | 26 Confirmação + feedback | 1 | 1,5 |
+| 9 Resolução LMS | 0,75 | 1 | | 27 A2A | 2,5 | 4 |
+| 10 Resolução secretaria | 1 | 1,5 | | 28 Web | 0,75 | 1 |
+| 11 Schema + RLS + grants | 1 | 1,5 | | 29 Observabilidade | 2 | 3 |
+| 12 Build | 2 | 3 | | 30 Dataset + análise | 3 | 4 |
+| 13 Carga + relatório | 1,25 | 2 | | 31 Qualidade (código + rodadas) | 3 + 2,5 | 4,5 + 3,5 |
+| 14 Escopo + registro | 1,25 | 2 | | 32 Ataques (código + rodada) | 3 + 1 | 4 + 1,5 |
+| 15 Regras | 1,25 | 2 | | 33 Latência e carga (código + rodadas) | 2 + 1,5 | 3 + 2 |
+| 16 Acadêmico | 1 | 1,5 | | 34 Docs | 3 | 4 |
+| 17 Financeiro | 1,25 | 2 | | 35 Pacote + teste do zero | 1 | 1,5 |
+| 18 Protocolos | 1,75 | 2,5 | | | | |
 
-**Raias:**
-- **Dia 1:** T1 → (T2 ∥ T3 → T6 → (T7 ∥ T8)) · T4 · T5 → T9. Depois T10 → T11.
-- **Dia 2:** (T12 ∥ T13) → (T14 ∥ T15) e (T16 ∥ T17) em 2 worktrees → T18. Em paralelo: T19 → T20 → T21. Depois T22 → T23.
-- **Dia 3 (tarde):** T24 ∥ T25 ∥ T26 ∥ T27.
-- **Dia 4:** T28 → (T29 ∥ T30 ∥ T31).
-- **Dia 5:** rodadas; T32; T33.
+**Agenda por dia** (raias = subagentes em paralelo; worktrees só nas raias marcadas):
 
-**Caminho crítico:** P50 ≈ 26 h, P90 ≈ 37 h. A janela vai de qua 9h a dom 18h, sem a sexta de manhã.
+| Dia | Raia A | Raia B | Raia C | Marco |
+|---|---|---|---|---|
+| **Qua 04** (9h–24h) | T1 → T2 → T5 → T8 → (T9 ∥ T10) → T12 → T13 | T3 (9h, sem depender de T1) → T4 | T6 → T7 → T11 | **M1 22h** |
+| **Qui 05** | T14 ∥ T15 → (T16 ∥ T17) e (T18 ∥ T19) em worktrees → T20 | T21 → T22 → T23 | T30 (só precisa de T6 e T13) | **M2 22h** |
+| **Sex 06** (manhã livre) | T24 → T25 → (T26 ∥ T28) | T27 | T29 → T31/T32/T33 (código) → carga da T33 (noite) | **M3 22h** |
+| **Sáb 07** | T31.1 `security-review` (manhã) → rodada dev → ajuste (≤ 3 h) → T32 (ataques + correções) → **congelar** → teste 1× (T31) → rótulos (Miguel) | | | **M4 22h** |
+| **Dom 08** | 7h: bench sozinho (T33) → T34 (esqueleto escrito no sábado à noite) → T35 → congelamento 18h | | | |
+| **Seg 09** | Miguel: reescrita, vídeo, ensaio; refazer o pacote (+0,25 h); envio | | | |
+| **Ter 10** | buffer até 12h | | | |
 
-**Merges sem conflito:**
-- `registry.py` nasce na T12 já com os 11 nomes e handlers stub, e cada domínio troca só o próprio stub;
-- saídas declaradas em `ontology/tools/<domínio>.yaml`;
-- `fakes.py` pertence à T2, e `tests/adversarial.py` à T18.
+Caminho crítico estimado: **P50 ≈ 36 h, P90 ≈ 48 h**, contra uma janela útil de ~60 h (qua 9h → dom 18h, sem a sexta de manhã).
 
-**Pré-requisito do Miguel (terça à noite):** chave paga do Gemini em `.env` (AI Studio) ou projeto GCP (Vertex).
-
-**Portões do Miguel:** só nos 4 marcos. A execução segue se não houver objeção em 1 h.
+**Marcos e ação de corte:**
 
 | Marco | Critério | Se falhar |
 |---|---|---|
-| **M1 · qua 22h** | `data-quality.md` com igualdade por regra; `spikes.md` com portão de latência, cache entre alunos, posse do A2A e stream do LangGraph | Aliases saem do caminho crítico (teste com skip). Se o spike do A2A falhar, o A2A vira cartão + `message/send` com bearer. Se o portão de latência falhar, as metas da spec §1.3 são reescritas na hora |
-| **M2 · qui 22h** | Chat ponta a ponta com Gemini real para os golden 1 e 4, com o cartão respondendo em 1 chamada | A T27 fica em logs + Prometheus (Phoenix depois); cobertura só em financeiro e LMS |
-| **M3 · sex 22h** | Fase 4 fechada, `make check` verde | Carga até o 1º joelho; 2º modelo sai; ataques em 1 rodada |
-| **M4 · sáb 22h** | `quality.md`, `guard.md`, `security.md` gerados | Bench com n = 100 no total; conversas mínimas (12) |
-| **Dom 18h** | código congelado, pacote e teste do zero feitos | — |
+| M1 | `data-quality.md` com igualdade por regra (3911, 1003, 273/273); `spikes.md` com portão, cache, A2A 1.0 (posse, push) e stream do LangGraph | Depuração do ETL limitada a 2 h; as Tasks 15, 21 e 22 seguem na fixture. Se o spike do A2A falhar, o A2A vira `SendMessage` + `GetTask` com `InMemoryTaskStore` com dono. Se o portão disparar, as metas são reescritas pela fórmula |
+| M2 | Chat ponta a ponta com Gemini real para os golden 1 e 4 (cartão em 1 chamada); `compose-smoke` verde | Sem `/feedback` nem 2º modelo; a carga vai só até o 1º joelho |
+| M3 | Fase 4 fechada; carga da T33 rodada | Langflow e Vertex saem; ataques em 1 rodada |
+| M4 | `quality.md`, `guard.md` e `security.md` gerados no SHA congelado | Bench com n ≥ 60 na classe principal; 12 conversas |
 
 **Nunca cortar:**
-- isolamento (RLS, roles, JWT, ferramentas sem identidade, segredos gerados);
+- isolamento: RLS, grants, JWT, ferramentas sem identidade, `rkey`, segredos;
 - EvidenceGuard com perturbação;
 - escrita restrita;
 - LLM comprometido;
 - ataques (≥ 1 rodada);
-- eval de teste (1 rodada no escolhido);
+- teste de qualidade (1 rodada);
 - latência real;
-- `docker compose up` único;
+- `docker compose up` + `make login`;
 - replay;
-- A2A mínimo (cartão + `message/send` + bearer + posse);
-- conversas curadas;
+- A2A mínimo com posse;
+- **Phoenix mínimo** (AGENT → LLM → TOOL → GUARDRAIL);
+- conversas;
 - resumo executivo e documento.
 
 **Agenda humana:**
-- ter: chave;
-- qua: amostra de 20 aliases (opcional);
-- sáb: 30 rótulos às cegas (~1 h);
-- dom: ler o rascunho do documento;
-- seg: reescrever trechos na própria voz, vídeo de 3 min, ensaiar as 10 decisões ★ e as 15 perguntas difíceis (fora do repo), envio;
-- ter: buffer até 12h.
+- **Ter (noite):** chave do Gemini.
+- **Cada marco:** 5 linhas próprias por decisão ★ da fase:
+  - M1: D3, D23;
+  - M2: D1, D2, D6, D21;
+  - M3: D8, D15, D16, D17;
+  - M4: D11.
+- **Qua:** amostra dos nomes PT das disciplinas.
+- **Sáb:** 30 rótulos às cegas (~1 h) + 24 respostas de ataque (~30 min) + 20 itens conferidos à mão (~20 min).
+- **Dom:** ler o rascunho.
+- **Seg:** reescrita, vídeo, ensaio e decisão da §12.
+
+Portões assíncronos: segue-se se não houver objeção em 1 h.
 
 ---
 
-## Fase 0 — Base e spikes
+## Fase 0 — Base, contratos e spikes
 
-### Task 1: Base, segredos gerados, compose, CI e relógio
+### Task 1: Base, segredos, compose, CI e relógio
+**Depende de:** —
 
 **Files:**
-- Create: `pyproject.toml`, `Makefile`, `docker-compose.yml`, `Dockerfile`, `.dockerignore`, `.env.example`, `.gitattributes`, `.github/workflows/ci.yml`, `AGENTS.md`, `CLAUDE.md`, `scripts/init_secrets.py`, `ops/postgres/init.sh`, `core/__init__.py`, `core/clock.py`, `app/__init__.py`, `app/config.py`, `etl/__init__.py`, `etl/config.py`, `tests/conftest.py`
+- Create: `pyproject.toml`, `Makefile`, `docker-compose.yml`, `Dockerfile`, `.dockerignore`, `.env.example`, `.gitattributes`, `.github/workflows/ci.yml`, `AGENTS.md`, `CLAUDE.md`, `scripts/init_secrets.py`, `ops/postgres/init.sh`, `core/clock.py`, `app/config.py`, `etl/config.py`, `tests/conftest.py`
 - Test: `tests/unit/test_config.py`, `tests/unit/test_clock_rule.py`, `tests/unit/test_init_secrets.py`
 
 **Interfaces:**
-- Produces: `init_secrets(root: Path) -> None`, idempotente.
-  - Cria `root/app/{jwt_secret,dev_login_secret,prompt_canary,redis_password,agent_app_password}`, `root/etl/{person_key_secret,etl_owner_password,agent_app_password}` e `root/db/{etl_owner_password,agent_app_password}` com `secrets.token_urlsafe(48)` (o canário com `token_hex(8)`).
-  - Não sobrescreve o que já existe. Permissão 0400.
-- Produces: `AppSettings`, com `secrets_dir="/run/secrets/app"` e `.env` só para valores não secretos e para `GEMINI_API_KEY`. Campos:
-  - **ambiente e conexões:** `app_env: Literal["dev","prod"]="dev"`, `db_host`, `db_name`, `redis_host`;
-  - **segredos:** `jwt_secret`, `dev_login_secret`, `prompt_canary`, `redis_password`, `agent_app_password`;
-  - **sessão e tempo:** `public_origin`, `dev_login=False`, `golden_login_path=Path("/run/etl-out/golden_login.json")`, `reference_date=date(2026,10,31)`, `timezone`;
-  - **LLM:** `llm_provider`, `llm_model="gemini-3.5-flash-lite"`, `llm_fallback_model="gemini-3.5-flash-lite"`, `llm_thinking_level="MINIMAL"`, `llm_timeout_s=8.0`, `llm_rpm_limit=600`, `llm_max_concurrency=16`, `llm_queue_max=64`, `max_output_tokens=800`, `judge_model="gemini-4-argon"`, `gemini_api_key`;
-  - **limites:** `limits_profile: Literal["default","eval"]`, mais os da Global Constraints;
-  - **pool e observabilidade:** `pool_max_size=10`, `otel_endpoint`, `otel_capture_content=False`.
-  - Validadores:
-    - recusa segredo vazio, < 24 caracteres, ou contendo `change-me`/`example`;
-    - `otel_capture_content=True` exige `app_env="dev"`.
-- Produces: `EtlSettings` (`secrets_dir="/run/secrets/etl"`).
-- Produces: `core/clock.py` com `reference_today(settings) -> date` e `wall_now() -> datetime` (UTC).
-- Produces: `docker-compose.yml`. Serviços:
-
-  | Serviço | O que faz |
-  |---|---|
-  | `init-secrets` | one-shot; volumes `secrets-app`, `secrets-etl`, `secrets-db` |
-  | `db` | postgres:17; `init.sh` lê `/run/secrets/db` e cria roles e schemas `canon`/`agent_rw` |
-  | `redis` | `--requirepass` lido do segredo |
-  | `etl` | one-shot; monta `data/` (ro), `secrets-etl`, `etl-out` e `eval-out` |
-  | `api` | `secrets-app` + `etl-out` (ro); **sem** `data/`; porta `127.0.0.1:8000` |
-
-  - Profile `obs`: `phoenix` (127.0.0.1:6006), `prometheus` (127.0.0.1:9090).
-  - Profile `eval`: `evals` (monta `eval-out`, `secrets-app` (ro), `data/` (ro) para o oráculo).
-- Produces: `.dockerignore` (`data/`, `.env`, `.git`, `docs/superpowers/`, `tests/fixtures/`); `.gitattributes` com `docs/superpowers/ export-ignore`.
-- Produces: CI com serviço postgres:17. Um step `psql` cria roles e schemas com senhas geradas pelo próprio job; depois `make check`.
-- Produces: Makefile com `up`, `down`, `test`, `test-full`, `test-live`, `lint`, `check`, `eval-quality`, `eval-guard`, `eval-security`, `eval-latency`, `load-test`, `package`.
+- `init_secrets(root, uids={"db":999,"app":10001,"etl":10001})`:
+  - gera uma vez `agent_app_password` e `etl_owner_password` e grava a mesma cópia nos volumes que precisam;
+  - gera `jwt_secret`, `dev_login_secret` e `redis_password` (48 bytes urlsafe) e `prompt_canary` (`token_hex(16)`);
+  - modo 0400, `chown` por volume, idempotente.
+- `AppSettings`:
+  - `settings_customise_sources`: segredos só do `secrets_dir=/run/secrets/app`;
+  - campos da spec, mais `llm_backend: Literal["aistudio","vertex"]`, `gcp_project`, `gcp_location`, `llm_fallback_model="gemini-3.5-flash-lite"` e `limits_profile`;
+  - recusa segredo vazio, com menos de 24 caracteres ou com `change-me`/`example`;
+  - `otel_capture_content=True` exige `app_env="dev"`.
+- `EtlSettings` (`/run/secrets/etl`).
+- `core/clock.py`.
+- Compose:
+  - `init-secrets` como root, one-shot;
+  - `db` (postgres:17) com `init.sh`;
+  - `redis` com `--requirepass`;
+  - `etl` (uid 10001) com `data/` ro, `secrets-etl`, `etl-out` e `eval-out`;
+  - `api` (uid 10001) com `secrets-app` e `etl-out` ro, **sem** `data/`, em `127.0.0.1:8000`, com `PROMETHEUS_MULTIPROC_DIR`;
+  - profiles `obs` (phoenix e prometheus em 127.0.0.1), `eval` e `langflow` (opcional).
+- `Makefile`: `up`, `down`, `login`, `a2a-demo`, `test`, `test-full`, `test-live`, `lint`, `check`, `eval-*`, `load-test` e `package`.
+- CI:
+  - job `check` com step `psql` que cria roles e schemas;
+  - job `compose-smoke`, ligado na Task 25.
 
 - [ ] **Step 1: Write the failing tests**
-  - `test_app_settings_defaults`.
-  - `test_placeholder_secret_rejected` (`"change-me-please-0000000000"` → `ValidationError`).
-  - `test_short_secret_rejected`.
-  - `test_capture_content_requires_dev`.
-  - `test_app_settings_has_no_etl_secrets` (sem `person_key_secret` nem `etl_owner_password`).
-  - `test_init_secrets_random_idempotent_and_0400`.
-  - `test_clock_only_in_core_clock`: regex `now\(\)|CURRENT_DATE|CURRENT_TIMESTAMP|date\.today|datetime\.now|datetime\.utcnow|time\.time\(` sobre `core/`, `app/`, `etl/`, `evals/` e `*.sql`, exceto `core/clock.py` e `evals/latency/` (medição de duração).
-- [ ] **Step 2:** `uv run pytest tests/unit -v` → FAIL.
-- [ ] **Step 3:** Implementar. `AGENTS.md` com as Global Constraints, comandos, layout e "dados em `data/`".
-- [ ] **Step 4:** `make lint && uv run pytest tests/unit -v` → PASS; `docker compose config` válido; `docker compose up init-secrets db redis` sobe.
-- [ ] **Step 5: Commit** — `chore: base com segredos gerados, compose, CI e relógio único`.
+  - `test_defaults`
+  - `test_placeholder_secret_rejected`
+  - `test_short_secret_rejected`
+  - `test_canary_32_hex`
+  - `test_env_cannot_override_secret`
+  - `test_capture_content_requires_dev`
+  - `test_app_settings_has_no_etl_secrets`
+  - `test_init_secrets_shared_values_equal_across_volumes`
+  - `test_init_secrets_owner_and_mode`
+  - `test_init_secrets_idempotent`
+  - `test_clock_only_in_core_clock`: casa `now()` e **não** casa `wall_now()`.
+- [ ] **Step 2–4:** FAIL → implementar → PASS; `docker compose up init-secrets db redis` sobe e `init.sh` lê os segredos.
+- [ ] **Step 5: Commit** — `chore: base com segredos gerados por consumidor, compose, CI e relógio único`.
 
-### Task 2: Provider Gemini, fakes e spikes ao vivo
+### Task 2: Contratos centrais e fachadas
+**Depende de:** 1
 
 **Files:**
-- Create: `app/agent/llm.py`, `app/agent/gemini.py`, `app/agent/fakes.py`, `app/infra/redis_stores.py` (só `RpmLimiter`), `app/obs/tracing.py` (fachada no-op), `app/obs/cost.py`
-- Test: `tests/unit/test_gemini_adapter.py`, `tests/unit/test_fakes.py`, `tests/unit/test_cost.py`, `tests/live/test_spikes.py` (`live`)
-- Evidence: `docs/evidence/spikes.md`
+- Create: `core/rkey.py`, `core/scope.py`, `app/tools/base.py`, `app/tools/registry.py` (os 11 nomes com handlers stub), `app/agent/llm.py`, `app/data/card.py` (só o tipo), `app/obs/tracing.py` (fachada no-op), `app/obs/metrics.py` (declarações), `app/main.py` (todos os routers como stubs: dev, chat, protocols, feedback, a2a, health)
+- Test: `tests/unit/test_contracts.py`, `tests/unit/test_rkey_rule.py`
+
+**Interfaces:** as de "Interfaces centrais". `build_tools(channel)` devolve as 11 ferramentas; a disponibilidade vem de `Tool.allowed`.
+
+- [ ] **Step 1–4:**
+  - `test_rkey_format_includes_sub`
+  - `test_no_redis_key_built_outside_rkey`: varre `app/` procurando `redis` + f-string/`+`/`%`.
+  - `test_registry_has_11_tools_identical_specs_for_any_scope`
+  - `test_draftcard_public_has_no_token`
+  - `test_metrics_declared` (nomes e buckets da spec §9.4)
+
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat: contratos centrais, chaves Redis com sub e fachadas de observabilidade`.
+
+### Task 3: Spikes ao vivo
+**Depende de:** — (scripts independentes com o SDK; roda às 9h, em paralelo)
+
+**Files:**
+- Create: `tests/live/test_spikes.py` (`live`), `docs/evidence/spikes.md`
+
+- [ ] **Step 1: Gemini**
+  1. `models.list` contém `gemini-3.5-flash-lite`, `gemini-3.8-flash` e `gemini-4-argon`. Se faltar algum, registrar os IDs disponíveis.
+  2. Schema estrito com `enum` e `additionalProperties:false` é aceito; 2 voltas de function calling com `thought_signature`, sem erro 400.
+  3. **Portão:** 40 chamadas por modelo com MINIMAL, prompt de ~1.500 tokens e 11 declarações. Registrar a distribuição.
+  4. `cached_content_token_count` na 2ª requisição, feita para outro aluno com o mesmo prefixo e as mesmas declarações.
+  5. `max_output_tokens` × raciocínio com MINIMAL/LOW: o limite inclui o raciocínio?
+  6. Troca de modelo no meio da conversa com a `thought_signature` do outro modelo: aceita ou 400?
+- [ ] **Step 2: A2A 1.0**
+  - `DefaultRequestHandler(executor eco, InMemoryTaskStore(), card)` + `create_jsonrpc_routes(handler, "/a2a", builder_de_teste, enable_v0_3_compat=False)`.
+  - Usuário A faz `SendMessage`; B faz `GetTask` → -32001; A faz `GetTask` → ok (controle positivo).
+  - `CreateTaskPushNotificationConfig` → erro.
+  - `SendMessage` de B com o `contextId` de A: registrar o comportamento do SDK.
+  - Cliente A2A real do SDK contra o servidor.
+- [ ] **Step 3: LangGraph** — grafo de 2 nós com `get_stream_writer` e cancelamento; `draw_mermaid` funciona.
+- [ ] **Step 4:** Aplicar a fórmula pré-registrada (spec §6.5) e registrar em `spikes.md` as metas resultantes por classe e modelo.
+- [ ] **Step 5: Commit** — `test(live): spikes de Gemini, A2A 1.0 e LangGraph com portão de latência`.
+
+### Task 4: Provider Gemini, admissão e fakes
+**Depende de:** 2, 3
+
+**Files:**
+- Create: `app/agent/gemini.py`, `app/agent/fakes.py`, `app/obs/cost.py`; Modify: `app/infra/redis_stores.py` (`AdmissionBucket` em Lua, RPM+TPM)
+- Test: `tests/unit/test_gemini_adapter.py`, `tests/unit/test_admission.py`, `tests/unit/test_cost.py`
 
 **Interfaces:**
-- Produces: tipos centrais.
-- `GeminiProvider(settings, limiter: RpmLimiter)` com `generate(..., deadline)`:
-  - `client.aio.models.generate_content`;
-  - `http_options` com retry do SDK desligado;
-  - `FunctionDeclaration(parameters_json_schema=...)`;
+- `GeminiProvider(settings)`:
+  - `generate(model=…)`, com o backend AI Studio ou Vertex vindo de `llm_backend`;
+  - retry do SDK desligado;
+  - `parameters_json_schema`;
   - AFC desligado;
-  - `ThinkingConfig(thinking_level=...)`;
-  - `max_output_tokens`;
-  - `thought_signature` ↔ `provider_meta`;
-  - `usage_metadata` → `Usage`;
-  - `finish_reason` repassado.
-- Controle de vazão:
-  - `asyncio.Semaphore(llm_max_concurrency)` com fila contada (> `llm_queue_max` → `LLMUnavailable("queue")`);
-  - `RpmLimiter.acquire(deadline)`: token bucket no Redis, global entre réplicas.
-- Retry:
-  - só em 429/5xx/timeout;
-  - só se `deadline - monotonic() > retry_floor_s` (p95 medido no spike, padrão 3 s);
-  - respeita o `retryDelay` do `RetryInfo`;
-  - no máximo 10% de retries por minuto (contador no Redis).
-- Fakes:
-  - `ScriptedLLM(responses)`;
-  - `LoadTestLLM(latency_sampler, quota: TokenBucket)` (chama `get_financial_summary` e copia o valor; 429 quando a cota simulada estoura).
+  - `ThinkingConfig`;
+  - `max_output_tokens` conforme o spike;
+  - `thought_signature` ↔ `provider_meta`, descartada quando o modelo do histórico difere;
+  - `finish_reason`;
+  - semáforo e fila (`LLMUnavailable("queue")`);
+  - retry com piso de tempo, `RetryInfo`, teto de 10% e piso de 3/min.
+- `AdmissionBucket.reserve(sub, est_tokens, deadline) -> bool`: script Lua; RPM e TPM globais.
+- `ScriptedLLM`.
+- `cost_usd(usage, model)`, com tabela datada que cobre entrada, saída com raciocínio e cache.
 - `make_llm(settings)`.
-- `cost_usd(usage, model) -> float`, com tabela datada: entrada, saída com thinking, cache.
-- `tracing.span(name, **attrs)`: no-op até a T27.
+- O `LoadTestLLM` fica para a Task 33.
 
-- [ ] **Step 1: Write the failing tests** (stub do SDK)
-  - `test_parameters_json_schema_used`.
-  - `test_thought_signature_roundtrip`.
-  - `test_usage_and_finish_reason`.
-  - `test_retry_only_with_time_left`.
-  - `test_retry_honors_retry_info`.
-  - `test_queue_full_raises`.
-  - `test_cost_per_model`.
-  - `test_loadtest_llm_quota_429`.
-- [ ] **Step 2–4:** FAIL → implementar → PASS.
-- [ ] **Step 5: Spikes ao vivo** (`make test-live`) → `docs/evidence/spikes.md`:
-  1. `models.list` contém `llm_model`, `judge_model` e `gemini-3.8-flash`. Se não contiver, registrar os IDs e ajustar o `.env.example`.
-  2. Schema estrito com `enum` e `additionalProperties:false` aceito; 2 voltas de function calling com thought signature, sem 400.
-  3. **Portão de latência:** 20 chamadas por modelo (flash-lite, 3.8-flash) com MINIMAL, usando um system prompt de ~1.500 tokens e 11 declarações. Registrar p50/p95 por chamada; se p50 > 1,3 s, propor novas metas para a spec §1.3 no M1.
-  4. **Cache entre alunos:** duas requisições de alunos diferentes com o mesmo system prompt e as mesmas declarações. Registrar `cached_content_token_count` da 2ª.
-  5. **`max_output_tokens`:** com MINIMAL e LOW, verificar se o thinking conta no limite; ajustar o padrão para não haver `MAX_TOKENS` em respostas de 6 linhas.
-  6. **A2A hello:** `DefaultRequestHandler(executor eco, InMemoryTaskStore, card)` + `create_jsonrpc_routes(..., context_builder=` builder que põe o `user` a partir de um cabeçalho de teste `)` → usuário A cria a tarefa, usuário B faz `tasks/get` → não encontrado (confirma `resolve_user_scope`). Sem `push_config_store`, o `pushNotificationConfig/set` dá erro.
-  7. **LangGraph:** grafo de 2 nós com `get_stream_writer` emitindo eventos e `asyncio.CancelledError` propagando ao cancelar.
-- [ ] **Step 6: Commit** — `feat(agent): provider Gemini com deadline e cota, fakes e spikes ao vivo`.
+- [ ] **Step 1–4:**
+  - `test_parameters_json_schema`
+  - `test_thought_signature_roundtrip`
+  - `test_signature_dropped_on_model_switch`
+  - `test_usage_and_model`
+  - `test_retry_requires_time_left`
+  - `test_retry_honors_retry_info`
+  - `test_retry_cap_and_floor`
+  - `test_queue_full`
+  - `test_admission_rpm_tpm_lua` (fakeredis com Lua)
+  - `test_vertex_backend_selected`
+  - `test_cost_per_model`
+
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(agent): provider Gemini com deadline, retry controlado e admissão global RPM+TPM`.
 
 ---
 
 ## Fase 1 — ETL
 
-### Task 3: Normalização, formatação e chaves [revisão por fase]
+### Task 5: Normalização, formatação e chaves [revisão por fase]
+**Depende de:** 1
 
 **Files:** Create `core/normalize.py`, `core/format.py`, `core/keys.py`. Test `tests/unit/test_normalize.py`, `test_format.py`, `test_keys.py`.
 
 **Interfaces:**
-- **Normalização:** `ra_check_digit`, `normalize_ra`, `normalize_academic_ref`, `normalize_cpf`, `lms_login`, `parse_epoch`, `parse_iso`, `parse_naive_local`, `parse_date` (`AAAA-MM-DD` e `dd/mm/aaaa`), `parse_brl`, `parse_bool`, `digits`.
-- **Formatação:** `fmt_brl`, `fmt_date(date)` (sem fuso), `fmt_instant(datetime)` (Brasília), `fmt_grade`, `fmt_pct`.
-- **Chaves:** `hmac_uuid(secret: bytes, value: str) -> UUID`; `brand_family(brand) -> str`.
+- `ra_check_digit`, `normalize_ra`, `normalize_academic_ref`, `normalize_cpf`, `lms_login`
+- `parse_epoch`, `parse_iso`, `parse_naive_local`, `parse_date`, `parse_brl`, `parse_bool`, `digits`
+- `fmt_brl`, `fmt_date`, `fmt_instant`, `fmt_grade`, `fmt_pct`, `fmt_period` ("2026/2")
+- `hmac_uuid`, `brand_family`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -392,7 +416,7 @@ def test_ra_check_digit(base, dv): assert ra_check_digit(base) == dv
                                     (" 01281-5 ", "012815"), ("012816", None), ("", None)])
 def test_normalize_academic_ref(raw, ra): assert normalize_academic_ref(raw) == ra
 
-def test_dates_not_shifted_and_instants_converted():
+def test_dates():
     assert fmt_date(date(2026, 11, 5)) == "05/11/2026"
     assert fmt_instant(datetime(2026, 11, 1, 2, 1, tzinfo=UTC)) == "31/10/2026 23:01"
 
@@ -403,824 +427,905 @@ def test_money_cpf_family():
 def test_hmac_uuid(): assert hmac_uuid(b"a" * 32, "x") == hmac_uuid(b"a" * 32, "x") != hmac_uuid(b"b" * 32, "x")
 ```
 
-- [ ] **Step 2–4:** FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(core): normalização, formatação e chaves HMAC`.
+- [ ] **Step 2–5:** FAIL → implementar → PASS → commit `feat(core): normalização, formatação e chaves HMAC`.
 
-### Task 4: Leitura, fixture e oráculo independente
+### Task 6: Leitura, fixture e oráculo independente
+**Depende de:** 5
 
-**Files:** Create `etl/raw.py`, `scripts/make_fixture.py`, `tests/fixtures/mini/**`, `tests/fixtures/mini/golden.json`, `evals/oracle.py`. Test `tests/unit/test_raw.py`, `tests/unit/test_oracle.py`, `tests/integration/test_oracle_full.py` (`fulldata`).
+**Files:** Create `etl/raw.py`, `scripts/make_fixture.py`, `tests/fixtures/mini/**`, `golden.json`, `evals/oracle.py`. Test `tests/unit/test_raw.py`, `tests/unit/test_oracle.py`, `tests/integration/test_oracle_full.py` (`fulldata`).
 
 **Interfaces:**
-- `read_raw(source) -> RawTables`.
+- `read_raw(source: Path)`: aceita `data/dados.zip` ou um diretório.
 - `make_fixture.py` (com `python3 -I`):
   - os 10 golden;
-  - **só os parceiros de colisão dos RAs golden** (~24 matrículas);
+  - os 11 parceiros de colisão dos RAs golden;
   - o irmão 180548;
-  - toda linha ligada por PERSON_ID, RA (com e sem zeros), CPF, `customerId`, `contractId`, username, `userid` e Protocol;
+  - **1 protocolo de terceiro e 1 matrícula LOCKED escolhidos à mão**;
+  - toda linha ligada a eles;
   - linhas a descartar presentes;
   - catálogos inteiros;
-  - total < 3 MB.
-- `evals/oracle.py`: só `csv`, regras reescritas, **sem importar** `etl/` nem `app/`. Funções:
-  - `oracle_link_protocols(raw) -> dict[str, tuple[brand, ra]]`: RA+CPF, responsável pagador, fallback CPF+marca; pula os 17 ambíguos e os marca;
-  - `oracle_financial(raw, cpf, ref)`: por matrícula e total; principal vencido, encargos em aberto, total para quitar, faturas vencidas;
-  - `oracle_snapshot_check(raw, ref) -> tuple[int, int]` (contratos que batem / total);
-  - `oracle_courses`;
-  - `oracle_forecast`;
-  - `oracle_protocols(raw, cpf, ref)`, com prazo;
-  - `oracle_lms(raw, brand, ra, ref)`: só inscrição `status=0`; tentativas e provas abertas/pendentes;
-  - `oracle_enrollment_events`;
-  - `oracle_term_registration`;
-  - `oracle_catalog(raw, family)`: cursos, serviços, preços;
-  - `coverage(raw) -> dict`.
-
-- [ ] **Step 1: Write the failing tests**
-  - `test_read_raw_47`.
-  - `test_fixture_partners_only` (≤ 30 matrículas de colisão).
-  - `test_oracle_golden4`: `total_para_quitar == "R$ 49.508,43"`, `principal_vencido == "R$ 42.636,26"`, `faturas_vencidas == 32`.
-  - `test_oracle_golden1_attempts == 7`.
-  - Em `fulldata`:
-    - `oracle_snapshot_check == (273, 273)`;
-    - protocolos ligados = 3882 (3455/73/337/17);
-    - `lms` "encerrada sem tentativa" só de inscrição ativa (≠ 743).
-- [ ] **Step 2–4:** FAIL → implementar e gerar a fixture → PASS.
-- [ ] **Step 5: Commit** — `feat(evals): leitura, fixture dos golden e oráculo independente com fallback`.
-
-### Task 5: Ontologia [revisão por fase]
-
-**Files:** Create `ontology/entities.yaml`, `enums.yaml`, `tables.yaml`, `coverage.yaml`, `ontology/tools/` (vazio), `subject_aliases.yaml`, `core/ontology.py`, `scripts/gen_subject_aliases.py`. Test `tests/unit/test_ontology.py`.
-
-**Interfaces:**
-- `Ontology.load(dir)` com os métodos:
-  - `.sensitivity(entity, field)` e `.is_free_text(entity, field)`;
-  - `.label_pt(enum, value)`;
-  - `.table_destination(key) -> Literal["loaded","partial","resolution_only","discarded"]` e `.reason(key)`;
-  - `.coverage(system) -> date`;
-  - `.tool_outputs(tool) -> dict[str, FieldSpec]`;
-  - `.service_name_pt`, `.course_name_pt`, `.subject_aliases`;
-  - `get_ontology()`.
-- `free_text: true` em: mensagens de protocolo, descrição de solicitação, nome de sala e de prova do LMS.
-- `coverage.yaml`: `sag: 2021-02-01`, `secretary: 2022-03-01`, `lms: 2023-01-15`, `finance: <competência mínima calculada>`.
-- **Aliases** saem por script uma vez, com amostra de 20 conferida. Ficam fora do caminho crítico: o teste deles tem skip se o arquivo estiver vazio.
+  - menos de 3 MB.
+- `evals/oracle.py`: só `csv`, sem importar `etl/` nem `app/`.
+  - `oracle_link_protocols`: regras completas; os 17 casos ambíguos são resolvidos pelos sinônimos de `Course_Label`.
+  - `oracle_lms_accounts`: SSO + manuais, a partir de `user_loggedin`.
+  - Funções por domínio: `oracle_financial`, `oracle_snapshot_check`, `oracle_courses`, `oracle_forecast`, `oracle_protocols`, `oracle_lms` (só inscrição ativa; `simulados_abertos`, `proxima_avaliacao`, encerradas sem tentativa), `oracle_enrollment_events`, `oracle_term_registration`, `oracle_catalog`.
+  - `oracle_coverage(raw)`.
+  - `ideal_answer(item) -> str`, para o autoteste.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_47_tables_have_destination_and_reason`;
-    - `test_every_enum_value_in_fixture_has_pt_label`;
-    - `test_internal_fields_marked`;
-    - `test_free_text_fields_marked`;
-    - `test_services_courses_pt` (`ACA-010` → "Trancamento de matrícula"; `210` → "Direito");
-    - `test_coverage_dates`;
-    - `test_subject_aliases_cover_all` (skip se vazio).
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat: ontologia com rótulos PT, texto livre, cobertura e destino das 47 tabelas`.
+  - `test_read_raw_47_from_zip_and_dir`
+  - `test_fixture_composition`: 11 parceiros, 1 terceiro, 1 LOCKED, < 3 MB.
+  - `test_oracle_golden4`: R$ 49.508,43 / R$ 42.636,26 / 32.
+  - `test_oracle_golden1_attempts == 7`
+  - `fulldata`:
+    - protocolos 3911 (3455/73/29/337/17), 22 sem vínculo;
+    - LMS 1003;
+    - snapshot 273/273;
+    - provas que valem nota encerradas sem tentativa == 21;
+    - simulados abertos == 1221;
+    - `PROTOCOL_REF` 229.
 
-### Task 6: Resolução — pessoas, matrículas, contratos
+  FAIL → implementar e gerar a fixture → PASS.
+- [ ] **Step 5: Commit** — `feat(evals): leitura, fixture e oráculo independente com cobertura completa`.
+
+### Task 7: Ontologia e nomes PT
+**Depende de:** 6
+
+**Files:** Create `ontology/entities.yaml`, `enums.yaml`, `tables.yaml`, `free_text_templates.yaml`, `subject_names_pt.yaml`, `ontology/tools/`, `core/ontology.py`, `scripts/gen_subject_names.py`. Test `tests/unit/test_ontology.py`, `tests/integration/test_ontology_full.py` (`fulldata`).
+
+**Interfaces:**
+- `Ontology` com `.sensitivity`, `.is_free_text`, `.label_pt`, `.table_destination`/`.reason` (`customer` = `resolution_only`), `.tool_outputs`, `.service_name_pt`, `.course_name_pt` e `.subject_name_pt`.
+- `.classify_message(text) -> (modelo_pt | None)`: casa com os 4 modelos da allowlist.
+- `.quiz_type(name) -> Literal["AV1","AV2","simulado"] | None`.
+- `subject_names_pt.yaml`: 260 nomes gerados uma vez pelo script com Gemini; amostra de 20 revisada.
+
+- [ ] **Step 1–4:**
+  - `test_47_tables_destination_reason`
+  - `test_customer_resolution_only`
+  - `test_internal_and_free_text_marked`
+  - `test_services_courses_subjects_pt` (sem skip)
+  - `test_classify_message_templates`
+  - `test_quiz_type`
+  - `fulldata`:
+    - `test_enum_labels_cover_full_dataset`
+    - `test_message_typing_covers_99pct` (dos 14.853, os não classificados ≤ 1%)
+
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat: ontologia com nomes PT, tipificação do texto livre e destino das 47 tabelas`.
+
+### Task 8: Resolução core
+**Depende de:** 5
 
 **Files:** Create `etl/resolve_core.py`. Test `tests/unit/test_resolve_core.py`.
 
-**Interfaces:** `Person`, `Enrollment` (+ `brand_family`), `resolve_people(raw, secret)`, `resolve_enrollments(raw, people, secret)`, `brand_for_company`, `resolve_contracts(raw, enrollments) -> (dict, ResolutionStats)`, `ResolutionStats(by_rule: Counter, unresolved: list)`.
+**Interfaces:** `Person`, `Enrollment`, `resolve_people`, `resolve_enrollments`, `brand_for_company`, `resolve_contracts`, `ResolutionStats`.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_same_cpf_two_person_ids_one_person`;
-    - `test_colliding_ra_distinct_enrollments`;
-    - `test_contract_academic_ref_variants`;
-    - `test_contract_never_by_payer_tax_id`;
-    - `test_unresolved_reported`;
-    - `test_first_name_title_case`.
-  - FAIL → implementar → PASS.
+  - `test_same_cpf_one_person`
+  - `test_colliding_ra_distinct`
+  - `test_academic_ref_variants`
+  - `test_never_by_payer`
+  - `test_unresolved_reported`
+  - `test_first_name_title_case`
+
+  FAIL → implementar → PASS.
 - [ ] **Step 5: Commit** — `feat(etl): resolução de pessoas, matrículas e contratos`.
 
-### Task 7: Resolução — LMS
+### Task 9: Resolução LMS
+**Depende de:** 8
 
 **Files:** Create `etl/resolve_lms.py`. Test `tests/unit/test_resolve_lms.py`.
 
-**Interfaces:** `resolve_lms_accounts(raw, enrollments) -> (dict, ResolutionStats)`, `is_student_login(v)` (`^(PRES|EAD)_\d{5}$` após trim/upper), `tenant_brand`.
+**Interfaces:** `resolve_lms_accounts`, `is_student_login` (`^(PRES|EAD)_\d{5}$`), `tenant_brand`.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_sso_trim_upper`;
-    - `test_same_login_other_tenant`;
-    - `test_manual_by_login_event`;
-    - `test_non_students_dropped` (`prof40013`, `aluno.teste3`, `admin`, `integration.sag`);
-    - `test_ambiguous_manual_not_linked`.
-  - FAIL → implementar → PASS.
+  - `test_sso_trim_upper`
+  - `test_other_tenant`
+  - `test_manual_by_login_event`
+  - `test_non_students_dropped` (`prof40013`, `aluno.teste3`, `admin`)
+  - `test_ambiguous_manual_not_linked`
+
+  FAIL → implementar → PASS.
 - [ ] **Step 5: Commit** — `feat(etl): resolução das contas LMS`.
 
-### Task 8: Resolução — protocolos
+### Task 10: Resolução secretaria
+**Depende de:** 8
 
 **Files:** Create `etl/resolve_secretary.py`. Test `tests/unit/test_resolve_secretary.py`.
 
-**Interfaces:**
-- `unit_brand_map`;
-- `resolve_protocols(raw, people, enrollments, contracts) -> (dict, ResolutionStats)`, com as regras `ra_cpf`, `guardian_payer`, `cpf_brand_unique` e `cpf_brand_by_date`;
-- `protocol_number`.
+**Interfaces:** `resolve_protocols(raw, people, enrollments, contracts)` com as regras `ra_cpf`, `guardian_payer`, `guardian_payer_unique`, `cpf_brand_unique` e `cpf_brand_by_date`; `protocol_number`.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_stu_id_without_leading_zeros`;
-    - `test_typo_stu_id_by_cpf`;
-    - `test_cpf_mismatch_not_by_ra`;
-    - `test_guardian_payer_with_stu_id_linked`;
-    - `test_guardian_not_payer_not_linked`;
-    - `test_guardian_without_stu_id_not_linked`;
-    - `test_third_party_not_linked`;
-    - `test_two_enrollments_same_brand_by_date`;
-    - `test_invariant_requester_is_student_or_payer`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(etl): resolução dos protocolos com invariante de solicitante`.
+  - `test_stu_id_without_zeros`
+  - `test_typo_by_cpf`
+  - `test_cpf_mismatch_not_by_ra`
+  - `test_guardian_payer_with_stu_id`
+  - `test_guardian_payer_unique_without_stu_id_linked`
+  - `test_guardian_paying_two_not_linked`
+  - `test_third_party_not_linked`
+  - `test_by_date`
+  - `test_invariant_student_or_payer`
 
-### Task 9: Schemas, roles e RLS
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(etl): resolução dos protocolos com responsável pagador único`.
 
-**Files:** Create `etl/schema.sql`, `etl/rls.sql`, `tests/integration/conftest.py`. Test `tests/integration/test_rls.py`.
+### Task 11: Schema, RLS e grants
+**Depende de:** 7
+
+**Files:** Create `etl/schema.sql`, `etl/rls.sql`, `etl/grants.yaml`, `tests/integration/conftest.py`. Test `tests/integration/test_rls.py`.
 
 **Interfaces:**
-- Tabelas da spec §5.2 nos schemas `canon` e `agent_rw`.
-  - `agent_rw.protocol_request` com `CHECK (service_code IN (...AGENT_SERVICES))`, índice único parcial, sequence com `USAGE`.
-  - RLS `person_key = nullif(current_setting('app.person_key', true), '')::uuid`; catálogo `brand_family = ANY(string_to_array(current_setting('app.brands', true), ','))`; `WITH CHECK` nas tabelas de escrita.
-- Fixture `db_dsns`: banco `test_<uuid>` criado com `etl_owner`; aplica schema e RLS. As roles vêm do `init.sh` ou do step do CI.
+- `schema.sql` cria `canon` e `agent_rw` (spec §5.2):
+  - `agent_rw.protocol_request` com `draft_id UNIQUE` e `CHECK` do serviço, sem índice por serviço;
+  - grants da sequence.
+- `rls.sql` faz ENABLE/FORCE, cria as políticas e aplica os grants de `grants.yaml`.
+- Fixture `db_dsns`.
 
 - [ ] **Step 1: Write the failing tests**
-  - `test_no_setting_nothing`.
-  - `test_other_person_nothing`.
-  - `test_catalog_other_family_hidden` (UniSaoPaulo não vê UniLitoral; UniSaoPaulo_EAD **vê** UniSaoPaulo presencial).
-  - `test_insert_other_person_rejected`.
-  - `test_check_rejects_non_agent_service`.
-  - `test_roles_flags` (`etl_owner` e `agent_app` sem superuser/bypass).
-  - `test_grants_imply_forced_rls` (toda tabela com SELECT para `agent_app` e coluna `person_key`/`brand_family` tem `relrowsecurity` e `relforcerowsecurity`; nenhuma view).
-  - `test_canon_drop_preserves_agent_rw`.
+  - `test_copy_then_rls_order_works` (dono NOSUPERUSER)
+  - `test_copy_after_force_rls_fails` (documenta o motivo da ordem)
+  - `test_no_setting_nothing`
+  - `test_other_person_nothing`
+  - `test_catalog_family_scope`
+  - `test_insert_other_person_rejected`
+  - `test_check_rejects_service`
+  - `test_roles_flags`
+  - `test_grants_match_allowlist`: sem TRUNCATE/DELETE, sem membership.
+  - `test_force_rls_on_all_non_global_tables`
+  - `test_canon_rebuild_preserves_agent_rw`
 - [ ] **Step 2–4:** FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(etl): schemas canon/agent_rw, roles sem superusuário e RLS forçado`.
+- [ ] **Step 5: Commit** — `feat(etl): schemas, RLS aplicado depois da carga e grants por allowlist`.
 
-### Task 10: Transformações por domínio
+### Task 12: Transformações e tipificação
+**Depende de:** 7, 9, 10
 
 **Files:** Create `etl/build.py`. Test `tests/unit/test_build.py`.
 
 **Interfaces:**
-- `build_academic`: `enrollment` (com família), `enrollment_event`, `term_enrollment` (CANCELLED prevalece), `class_result`.
+- `build_academic`: inclui `divergencia` em `class_result`.
 - `build_finance`.
-- `build_protocols`: só mensagens públicas.
-- `build_lms`: `lms_quiz` só de inscrições `status=0` e `role=student`.
-- `build_catalog`.
-- Todas no formato `(raw, resolved) -> Rows`.
+- `build_protocols`:
+  - `solicitante_papel`;
+  - `protocol_message` com `autor_papel`, `modelo` ou `texto_livre`;
+  - mensagens do próprio aluno omitidas.
+- `build_lms`:
+  - `lms_quiz` só de inscrição ativa, com tipo e disciplina PT do SAG (sala → `SAG-<CLASS_ID>` → disciplina);
+  - `lms_event` sem IP/URL.
+- `build_catalog`: preço com `mensalidade_ano` e `parcelas_por_semestre`.
+- `build_coverage`: derivada dos dados.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_internal_messages_dropped` (contagem = oráculo);
-    - `test_no_internal_columns`;
-    - `test_lms_quiz_active_enrollments_only` (fixture: inscrição suspensa não gera prova);
-    - `test_enrollment_event_protocol_ref_golden3` (valor exato do `PROTOCOL_REF` do evento de transferência, lido do CSV no teste);
-    - `test_due_date_is_date`;
-    - `test_payer_type_golden4_guardian`;
-    - `test_issued_documents_loaded`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(etl): transformações por domínio sem dado interno`.
+  - `test_internal_messages_dropped`
+  - `test_no_analyst_login_anywhere`: os 25 logins ausentes de todas as linhas.
+  - `test_message_typed_or_untrusted`
+  - `test_student_own_messages_omitted`
+  - `test_lms_quiz_active_only_and_typed`
+  - `test_room_name_from_sag_subject_pt`
+  - `test_divergence_flag`
+  - `test_coverage_sag_events_from_2020_12_12`
+  - `test_due_date_is_date`
+  - `test_payer_type_golden4`
+  - `test_issued_documents_golden9_diploma`
+  - `test_enrollment_event_protocol_ref_golden3`: valor exato lido do CSV.
 
-### Task 11: Carga, relatório e arquivos de login
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(etl): transformações com texto livre tipificado e cobertura derivada`.
+
+### Task 13: Carga, relatório e arquivos de login
+**Depende de:** 11, 12
 
 **Files:** Create `etl/load.py`, `etl/report.py`, `etl/__main__.py`. Test `tests/integration/test_load.py`, `tests/integration/test_full_counts.py` (`fulldata`).
 
 **Interfaces:**
-- `load_all(raw, settings) -> LoadReport`: recria só `canon`, com COPY numa transação.
-- `write_report`: `data-quality.md` com igualdade por regra, invariantes e `oracle_snapshot_check`.
-- `write_golden_login(path)` (`etl-out`).
-- `write_eval_students(path, labels)` (`eval-out`; rótulo → `person_key`, sem CPF; todos os 1000, com atributos de estrato).
+- `load_all(raw, settings)`: uma transação que recria `canon`, faz COPY e aplica o `rls.sql`.
+- `write_report`: igualdade por regra, invariantes, snapshot, cobertura do oráculo e logins ausentes.
+- `write_golden_login` (`etl-out`).
+- `write_eval_students` (`eval-out`; sem CPF; com estratos).
 - Fixture `loaded_db`.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_load_matches_oracle`;
-    - `test_schema_matches_ontology`;
-    - `test_reload_idempotent_keeps_agent_rw`;
-    - `test_login_files_have_no_cpf`.
-    - Em `fulldata`:
-      - `person=1000`, `enrollment=1037`;
-      - contratos 1065;
-      - protocolos **= 3882** com 3455/73/337/17;
-      - LMS 1003;
-      - eventos com `protocol_ref` 229;
-      - snapshot 273/273.
-  - FAIL → implementar → PASS; `docker compose up etl` gera o relatório.
-- [ ] **Step 5: Commit** — `feat(etl): carga, relatório de qualidade e arquivos de login sem CPF`.
-- [ ] **Step 6:** Revisão da fase 1 (`ponytail-review`, cobertura). **Marco M1.**
+  - `test_load_matches_oracle`
+  - `test_schema_matches_ontology`
+  - `test_reload_keeps_agent_rw`
+  - `test_login_files_no_cpf`
+  - `fulldata`:
+    - 1000 / 1037 / 1065;
+    - protocolos 3911 com a quebra exata;
+    - LMS 1003;
+    - eventos 229;
+    - snapshot 273/273.
+
+  FAIL → implementar → PASS; `docker compose up etl` gera o relatório.
+- [ ] **Step 5: Commit** — `feat(etl): carga com RLS no fim, relatório de qualidade e arquivos de login`.
+- [ ] **Step 6:** Revisão da fase. **M1.**
 
 ---
 
 ## Fase 2 — Dados e ferramentas
 
-### Task 12: Escopo, conexão, base e registro
+### Task 14: Escopo, conexão e registro
+**Depende de:** 2, 13
 
-**Files:** Create `core/scope.py`, `app/data/db.py`, `app/tools/base.py`, `app/tools/registry.py`; Modify `app/infra/redis_stores.py` (`DraftStore`, `LabelCache`). Test `tests/unit/test_tool_base.py`, `tests/integration/test_scope.py`.
+**Files:** Create `app/data/db.py`; Modify `app/infra/redis_stores.py` (`DraftStore`, `LabelCache`, `LoginTickets`). Test `tests/unit/test_tool_base.py`, `tests/integration/test_scope.py`.
 
 **Interfaces:**
-- **Conexão:**
-  - `create_pool(dsn, max_size)` com `reset` (`RESET ALL`);
-  - `assert_safe_role(pool)`;
-  - `scoped(pool, person_key, brand_families)`: `app.person_key` vem **sempre** do JWT.
-- **Escopo:** `load_scope(pool, person_key) -> StudentScope | None`; `LabelCache` só para rótulos, TTL 300 s, sem papel na autorização.
-- **Matrícula:** `enrollment_param() -> dict` (`{"type":"string","enum":["1","2","3"]}`); `resolve_enrollment(scope, index | None) -> EnrollmentRef` (inexistente → `ToolArgError("matrícula inexistente")`).
-- **Validação:** `validate_args`.
-- **Rascunho:** `DraftStore` com `put` (token), `take` (GETDEL) e `pending(person_key, conversation_id)`.
-- **Registro:** `build_tools(channel) -> dict[str, Tool]` com os 11 nomes; `draft_protocol` fica fora quando `channel="a2a"`. Handlers stub levantam `NotImplementedError` até cada domínio.
+- **Conexão:** `create_pool` com reset; `assert_safe_role`; `scoped(pool, person_key_from_jwt, families)`.
+- **Escopo:** `load_scope`, com `LabelCache` só para rótulos.
+- **Matrícula:** `enrollment_param`; `resolve_enrollment(scope, index | None, prefer_status: str | None)`.
+- **Ferramentas:** `validate_args`; `Tool.allowed` padrão.
+- **Rascunhos:** `DraftStore.put/take/pending(sub, conversation_id)`, com chaves via `rkey`.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_tool_declarations_identical_across_students`;
-    - `test_index_resolution_and_nonexistent`;
-    - `test_primary_first` (golden 9: "1" = 182915 ATIVA);
-    - `test_extra_arg_rejected`;
-    - `test_draft_single_use_owner_bound`;
-    - `test_pool_reset`;
-    - `test_assert_safe_role_rejects_superuser`;
-    - `test_a2a_registry_has_no_draft`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat: escopo, conexão com reset, registro e enum estável de matrícula`.
+  - `test_specs_identical_across_students`
+  - `test_index_resolution_and_nonexistent`
+  - `test_prefer_status_graduated_golden9`
+  - `test_extra_arg_rejected`
+  - `test_draft_single_use_owner_bound`
+  - `test_pool_reset`
+  - `test_assert_safe_role`
 
-### Task 13: Regras puras
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat: escopo, conexão com reset e matrícula padrão por status`.
+
+### Task 15: Regras puras
+**Depende de:** 2, 5
 
 **Files:** Create `app/rules/finance.py`, `academic.py`, `lms.py`, `protocols.py`, `eligibility.py`, `coverage.py`. Test `tests/unit/test_rules.py`.
 
 **Interfaces:**
-- **Financeiro:** `invoice_balance`; `open_charges`; `financial_position(..., today) -> Position(overdue_principal, open_charges, total_due, upcoming, next_due: date | None, days_to_next_due: int | None, overdue_count)`.
-- **Acadêmico e LMS:** `graduation_forecast`; `quiz_status`.
+- **Finanças:** `financial_position(...) -> Position(overdue_principal, open_charges, total_due, upcoming, next_due_date, next_due_amount, days_to_next_due, overdue_count)`.
+- **Acadêmico:** `graduation_forecast`.
+- **LMS:** `quiz_status`; `lms_summary(quizzes, attempts, today) -> (simulados_abertos, proxima_avaliacao, pendentes)`.
 - **Protocolos:** `sla_due`; `protocol_status_pt`.
-- **Elegibilidade:** `eligibility(service_code, enrollment: EnrollmentFacts) -> Eligible | NotEligible(reason_pt)`, com as regras da spec §5.5.
-- **Cobertura:** `coverage_note(system, start: date | None, ontology) -> str | None`.
+- **Elegibilidade:** `eligibility(service, facts) -> Eligible | NotEligible(motivo, alternativa)`, que checa protocolo aberto primeiro.
+- **Cobertura:** `coverage_note`.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_reversed_payment`;
-    - `test_partial_two_parts`;
-    - `test_renegotiated_excluded`;
-    - `test_charges_already_paid` (PARTIAL `7067951`: 259 pagos, 348 em aberto);
-    - `test_position_reference_date_only`;
-    - `test_quiz_status_cases`;
-    - `test_forecast`;
-    - `test_eligibility_diploma_requires_graduated`;
-    - `test_eligibility_second_call_requires_in_progress`;
-    - `test_eligibility_slip_requires_open_invoice`;
-    - `test_coverage_note_before_lms_start`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(rules): regras puras de saldo, encargos, prova, prazo, elegibilidade e cobertura`.
+  - `test_reversed`
+  - `test_partial_two_parts`
+  - `test_renegotiated_excluded`
+  - `test_charges_already_paid` (7067951: 259 / 348)
+  - `test_position_reference_only`
+  - `test_quiz_status`
+  - `test_lms_summary_separates_practice`
+  - `test_forecast`
+  - Elegibilidade:
+    - `test_eligibility_diploma_graduated`
+    - `test_eligibility_diploma_already_issued_offers_doc041`
+    - `test_eligibility_second_call`
+    - `test_eligibility_slip`
+    - `test_eligibility_reactivation_locked`
+    - `test_eligibility_renegotiation_overdue`
+    - `test_eligibility_doc001_active`
+    - `test_eligibility_open_protocol_same_service`
+  - `test_coverage_note`
 
-### Task 14: Ferramentas acadêmicas
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(rules): regras puras com elegibilidade completa`.
+
+### Task 16: Ferramentas acadêmicas
+**Depende de:** 14, 15
 
 **Files:** Create `app/data/queries/academic.py`, `app/tools/academic.py`, `ontology/tools/academic.yaml`; Modify `registry.py` (só os stubs deste domínio). Test `tests/integration/test_tools_academic.py`.
 
-**Interfaces:** `get_academic_profile` (com documentos emitidos), `list_course_results` (lista completa quando há filtro de `term`/`subject`), `get_curriculum_progress`. A saída sempre traz `matricula` (rótulo) e `outras_matriculas` (rótulos).
+**Interfaces:** `get_academic_profile`, `list_course_results` (disciplina fora da matriz → "não faz parte da sua matriz") e `get_curriculum_progress`. O campo `outras_matriculas` só aparece se houver mais de uma.
 
-- [ ] **Step 1–4:**
-  - Testes contra o oráculo:
-    - `test_profile_golden1`;
-    - `test_golden9_profile_shows_diploma_of_graduated_enrollment`;
-    - `test_status_history_golden3`;
-    - `test_cancelled_overrides_registered`;
-    - `test_subject_filter_pt` ("cálculo");
-    - `test_attendance`;
-    - `test_progress_forecast`;
-    - `test_full_list_for_term`;
-    - `test_sag_coverage_note`.
-  - FAIL → implementar → PASS.
+- [ ] **Step 1–4:** testes contra o oráculo:
+  - `test_profile_golden1`
+  - `test_golden9_documents`
+  - `test_status_history_golden3`
+  - `test_cancelled_over_registered`
+  - `test_subject_pt_calculo`
+  - `test_subject_not_in_curriculum`
+  - `test_attendance`
+  - `test_divergence_flag_surfaced`
+  - `test_progress_forecast`
+  - `test_full_list_for_term`
+  - `test_sag_coverage_note`
+  - `test_single_enrollment_no_other_field`
+
+  FAIL → implementar → PASS.
 - [ ] **Step 5: Commit** — `feat(tools): ferramentas acadêmicas`.
 
-### Task 15: Ferramentas financeiras
+### Task 17: Ferramentas financeiras
+**Depende de:** 14, 15
 
 **Files:** Create `app/data/queries/finance.py`, `app/tools/finance.py`, `ontology/tools/finance.yaml`; Modify `registry.py`. Test `tests/integration/test_tools_finance.py`.
 
-**Interfaces:** `get_financial_summary` (sem `enrollment`: `por_matricula` + `total_geral`), `list_invoices`, `list_agreements`. As chaves de saída ficam em PT: `principal_vencido`, `encargos_em_aberto`, `total_para_quitar`, `a_vencer`, `proximo_vencimento`, `dias_ate_vencimento`, `faturas_vencidas`.
+**Interfaces:** `get_financial_summary`, `list_invoices` (`period` por competência, com o vencimento em cada item) e `list_agreements`. Chaves em PT.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_golden4_total_para_quitar == "R$ 49.508,43"`;
-    - `test_no_sibling_invoices`;
-    - `test_golden9_breakdown`;
-    - `test_golden1_no_agreements`;
-    - `test_golden6_active_agreement`;
-    - `test_cap_20_with_total`;
-    - `test_reference_date_changes_overdue`;
-    - `test_finance_coverage_note`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(tools): ferramentas financeiras com total para quitar`.
+  - `test_golden4_total_para_quitar`
+  - `test_no_sibling_invoices`
+  - `test_golden9_breakdown`
+  - `test_golden1_no_agreements`
+  - `test_golden6_active_agreement`
+  - `test_cap_20`
+  - `test_reference_date`
+  - `test_period_is_competence`
+  - `test_finance_coverage_note`
 
-### Task 16: Protocolos e rascunho
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(tools): ferramentas financeiras`.
+
+### Task 18: Protocolos e rascunho
+**Depende de:** 14, 15
 
 **Files:** Create `app/data/queries/protocols.py`, `app/tools/protocols.py`, `ontology/tools/protocols.yaml`; Modify `registry.py`. Test `tests/integration/test_tools_protocols.py`.
 
 **Interfaces:**
-- `list_protocols` e `get_protocol`: `untrusted=True` quando há texto livre.
+- `list_protocols`: sem descrições.
+- `get_protocol`: `untrusted` só se houver `texto_livre`.
 - `draft_protocol`:
-  1. `eligibility` → `NotEligible` devolve `{"elegivel": False, "motivo": ...}`;
-  2. elegível → `ToolOutput(data={"rascunho_exibido": True, "servico", "taxa", "prazo"}, draft=DraftCard)`.
-  - Registra o rascunho pendente na conversa; o token **não** vai em `data`.
-- `orientation(service_code)` para ACA-010/012/013/014: prazo, taxa e canal, mais a oferta de GEN-090.
-- `PROTOCOL_NOT_FOUND`.
+  - `allowed`: recusa com `channel="a2a"` ou `tainted`;
+  - elegibilidade;
+  - `prefer_status` para DOC-040/041/ACA-011;
+  - `DraftCard` com token;
+  - `data` sem token;
+  - registra o rascunho pendente em `(sub, conversation_id)`.
+- `orientation(service)`: prazo, taxa, canais e por que o agente não executa.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_foreign_and_nonexistent_same`;
-    - `test_internal_notes_absent`;
-    - `test_guardian_protocol_without_identity`;
-    - `test_sibling_absent`;
-    - `test_protocol_invoice_link`;
-    - `test_sla_due_golden3`;
-    - `test_pending_requester_label`;
-    - `test_untrusted_flag_on_messages`;
-    - `test_draft_not_eligible_diploma_for_active`;
-    - `test_draft_token_not_in_data`;
-    - `test_sa_protocol_readable`;
-    - `test_orientation_lock_offers_gen090`;
-    - `test_secretary_coverage_note`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(tools): protocolos e rascunho com elegibilidade`.
+  - `test_foreign_and_nonexistent_same`
+  - `test_internal_notes_absent`
+  - `test_guardian_protocol_without_identity`
+  - `test_sibling_absent`
+  - `test_invoice_link`
+  - `test_sla_due_golden3`
+  - `test_pending_requester_label`
+  - `test_typed_messages_trusted`
+  - `test_planted_text_untrusted`
+  - `test_draft_refused_when_tainted_or_a2a`
+  - `test_draft_not_eligible_active_diploma`
+  - `test_draft_golden9_doc041_alternative`
+  - `test_draft_open_protocol_blocks`
+  - `test_draft_token_not_in_data`
+  - `test_sa_readable`
+  - `test_orientation_lock`
+  - `test_secretary_coverage_note`
 
-### Task 17: LMS e catálogo
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(tools): protocolos e rascunho com elegibilidade e recusa na execução`.
+
+### Task 19: LMS e catálogo
+**Depende de:** 14, 15
 
 **Files:** Create `app/data/queries/lms.py`, `catalog.py`, `app/tools/lms.py`, `catalog.py`, `ontology/tools/lms.yaml`, `catalog.yaml`; Modify `registry.py`. Test `tests/integration/test_tools_lms_catalog.py`.
 
-**Interfaces:**
-- `get_lms_activity`: `untrusted=True` (nomes de sala e prova).
-- `get_catalog`, com o catálogo pela **família da marca**.
+**Interfaces:** `get_lms_activity` (confiável, porque o texto é tipificado) e `get_catalog` (família da marca; preço com unidade).
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_golden1_7_attempts`;
-    - `test_golden2_30_attempts`;
-    - `test_pending_quizzes_vs_oracle`;
-    - `test_no_lms_account`;
-    - `test_lms_before_coverage_note`;
-    - `test_accesses_in_period`;
-    - `test_event_no_ip_url`;
-    - `test_catalog_family_scoped` (EAD vê o presencial da mesma marca, não outra marca);
-    - `test_price_direito_pt`;
-    - `test_calendar_current_term_av_dates`;
-    - `test_services_orientation_lock`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(tools): LMS com provas de inscrição ativa e catálogo por família da marca`.
+  - `test_golden1_7_attempts`
+  - `test_golden2_30_attempts`
+  - `test_pending_vs_oracle`
+  - `test_practice_separate`
+  - `test_no_lms_account`
+  - `test_lms_before_coverage`
+  - `test_accesses_in_period`
+  - `test_event_no_ip_url`
+  - `test_lms_output_trusted`
+  - `test_catalog_family`
+  - `test_price_direito_with_unit`
+  - `test_calendar_av_dates`
+  - `test_services_orientation`
 
-### Task 18: Cartão do aluno, exposição e LLM comprometido
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(tools): LMS tipificado e catálogo por família da marca`.
 
-**Files:** Create `app/data/card.py`, `tests/adversarial.py`, `tests/integration/test_card.py`, `tests/integration/test_tool_exposure.py`, `tests/integration/test_compromised_llm.py`.
+### Task 20: Cartão, exposição e LLM comprometido
+**Depende de:** 16, 17, 18, 19
+
+**Files:** Implement `app/data/card.py`; Create `tests/adversarial.py`, `tests/integration/test_card.py`, `test_tool_exposure.py`, `test_compromised_llm.py`.
 
 **Interfaces:**
-- `build_student_card(conn, scope, settings) -> StudentCard`: conteúdo da spec §6.2, ≤ 400 tokens (conta por `len(text)/4` com folga). Os `facts` usam chaves `"<índice>.<campo>"` e incluem `rascunho_pendente`.
-- `AdversarialLLM`: toda ferramenta × todo índice de matrícula × todo `service_code` × protocolos de **outros** alunos × strings de hypothesis.
+- `build_student_card(conn, scope, settings) -> StudentCard`, com o conteúdo da spec §6.2 em ≤ 400 tokens.
+- `AdversarialLLM`.
 
 - [ ] **Step 1–4:**
-  - `test_card_golden4_facts_match_oracle`.
-  - `test_card_token_budget`.
-  - `test_card_contains_coverage`.
-  - `test_tool_outputs_within_declared_fields` (10 golden × ferramentas).
-  - `test_compromised_llm_never_sees_other_person`: golden 1, 2 e 4; ~500 chamadas; toda chave/identificador conferido como dono.
-  - `test_fuzzed_args` (hypothesis, 200).
-  - FAIL → implementar → PASS.
+  - `test_card_golden4_vs_oracle` (inclui tipo de pagador, valor e data do próximo boleto)
+  - `test_card_golden9_diploma_line`
+  - `test_card_next_assessment_and_practice`
+  - `test_card_budget`
+  - `test_tool_outputs_within_declared_fields`
+  - `test_compromised_llm_never_sees_other_person`: golden 1, 2, 3, 4 e 9; ~600 chamadas.
+  - `test_fuzzed_args`
+
+  FAIL → implementar → PASS.
 - [ ] **Step 5: Commit** — `feat: cartão do aluno; test(security): exposição e LLM comprometido`.
-- [ ] **Step 6:** Revisão da fase 2.
+- [ ] **Step 6:** Revisão da fase.
 
 ---
 
-## Fase 3 — Agente (raia paralela à fase 2)
+## Fase 3 — Agente (raia B, paralela)
 
-### Task 19: Guards e conjunto de perturbação
+### Task 21: Guards e conjunto de perturbação
+**Depende de:** 2, 6 (o oráculo fornece os dados das respostas corretas)
 
 **Files:** Create `app/guards/input.py`, `app/guards/evidence.py`, `evals/guard/perturb.py`. Test `tests/unit/test_input_guard.py`, `tests/unit/test_evidence_guard.py`, `tests/unit/test_perturbation.py`.
 
 **Interfaces:**
 - **Entrada:** `normalize_input`.
-- **Extração:** `extract_claims(text, vocabulary) -> list[Claim]`, com `kind` ∈ money, date, pct, decimal, int, id, cpf, cnpj, email, phone, status, polarity, action.
-- **Checagem:** `check_evidence(answer, *, evidence: Sequence[str], card_facts: dict, user_text, canary, prompt_prefix, vocabulary) -> GuardResult(ok, ungrounded, prompt_leak)`. A evidência já vem **sem** campos `free_text`, filtrados pelo grafo com a ontologia.
-- **Degradação:** `degrade(answer, ungrounded) -> str | None`, com aviso por tipo; `strip_markdown`.
-- **Tabelas declaradas:**
-  - `POLARITY_RULES` = [("em dia" | "sem débitos" | "não deve", "total_para_quitar == R$ 0,00"), ("nenhuma prova pendente", "provas_pendentes == 0"), ("nenhum protocolo aberto", "protocolos_abertos == 0")];
-  - `ACTION_RULES` = ("abri" | "registrei" | "foi aberto" | "protocolo criado" ⇒ `SA-\d{4}-\d{6}` na evidência).
-- **Status:** checado só em frase com `sua|seu|você`.
-- **Perturbação:** `perturb.build(tool_outputs_golden) -> list[(answer, is_correct, kind)]` gera ~100 respostas corretas por modelo e mutações de 1 fato por tipo (inclusive inteiro ≤ 12, status, polaridade, ação); `perturb.score(results) -> dict[kind, {recall, fpr}]`.
+- **Extração:** `extract_claims`, com `kind` ∈ money, date, period, pct, decimal, int, id, cpf, cnpj, email, phone, url, status, polarity, action.
+- **Checagem:** `check_evidence(answer, *, evidence, card_facts, enrollment_indices, user_text, system_notes, canary, prompt_prefix, vocabulary)`. Regras:
+  - polaridade por grade (`NEGATORS` × `NOUNS` → predicado), exigindo todas as matrículas ou a matrícula citada;
+  - ação (léxico ampliado) → `SA-` só de `system_notes`;
+  - URL → bloqueada;
+  - status em frase que cita entidade.
+- **Saída:** `degrade(...)`; `template_fallback(last_tool, data, channel, tainted) -> str`; `strip_markdown`.
+- **Perturbação:** `evals/guard/perturb.py` é escrito numa **sessão de subagente que não vê o `evidence.py`**. Ele parte das respostas ideais do oráculo e aplica mutações de 1 fato por tipo, mais paráfrases de ação, negação e URL.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
 TOOL = ['{"total_para_quitar": "R$ 49.508,43", "proximo_vencimento": "05/11/2026", "faturas_vencidas": 32, '
         '"frequencia": "75%", "status": "ativa", "protocolo": "20260024855"}']
-FACTS = {"1.total_para_quitar": "R$ 49.508,43", "1.provas_pendentes": "0", "1.protocolos_abertos": "1"}
-def chk(a, user=""):
-    return check_evidence(a, evidence=TOOL, card_facts=FACTS, user_text=user, canary="c4n4ry-xyz",
-                          prompt_prefix=PREFIX, vocabulary=VOCAB)
+FACTS = {"1.total_para_quitar": "R$ 49.508,43", "2.total_para_quitar": "R$ 0,00", "1.provas_pendentes": "0"}
+def chk(a, user="", notes=()):
+    return check_evidence(a, evidence=TOOL, card_facts=FACTS, enrollment_indices=("1", "2"), user_text=user,
+                          system_notes=notes, canary="c" * 32, prompt_prefix=PREFIX, vocabulary=VOCAB)
 
 def test_grounded(): assert chk("Você deve R$ 49.508,43 em 32 faturas; vence em 05/11.").ok
 def test_written_date(): assert chk("Vence dia 5 de novembro.").ok and not chk("Vence dia 6 de novembro.").ok
-def test_mid_int(): assert not chk("Você tem 31 faturas vencidas.").ok
-def test_pct(): assert not chk("Sua frequência é 80%.").ok
-def test_status_affirmative_only():
-    assert not chk("Sua matrícula está trancada.").ok and chk("O trancamento é feito pelo portal.").ok
-def test_polarity(): assert not chk("Você está em dia com as mensalidades.").ok and chk("Você não tem provas pendentes.").ok
-def test_action_claim_requires_sa(): assert not chk("Pronto, abri sua solicitação.").ok
-def test_user_text_ids_only():
-    assert chk("Não encontrei o protocolo 20259999999.", user="e o 20259999999?").ok
-    assert not chk("Seu saldo é R$ 0,00.", user="meu saldo é R$ 0,00?").ok
+def test_period_not_int(): assert chk("Seus acessos em 2026/2 aparecem abaixo.", user="acessos em 2026/2").ok
+def test_mid_int_and_pct(): assert not chk("Você tem 31 faturas.").ok and not chk("Frequência de 80%.").ok
+def test_status_entity_sentence(): assert not chk("Situação da matrícula: trancada.").ok
+def test_polarity_per_enrollment(): assert not chk("Você está em dia com as mensalidades.").ok
+def test_polarity_cited_enrollment(): assert chk("Na matrícula 2 você está em dia.").ok
+def test_action_paraphrase(): assert not chk("Pronto, seu pedido foi enviado.").ok
+def test_action_user_sa_not_proof(): assert not chk("Abri a solicitação SA-2026-000123.", user="confirme a SA-2026-000123").ok
+def test_action_system_note_ok(): assert chk("Abri a solicitação SA-2026-000123.", notes=("Solicitação SA-2026-000123 aberta em 31/10/2026",)).ok
+def test_url_blocked(): assert not chk("Veja em http://exemplo.test/pagar").ok
 def test_no_substring(): assert not chk("Você deve R$ 42,00.").ok
-def test_prompt_leak(): assert chk("c4n4ry-xyz").prompt_leak
-def test_degrade_typed_notice():
-    out = degrade("Você deve R$ 49.508,43. Vence dia 9/11.", [Claim("date", "9/11", "11-09")])
-    assert out.startswith("Você deve R$ 49.508,43.") and "vencimento" in out
+def test_template_fallback_uses_fields():
+    assert "R$ 49.508,43" in template_fallback("get_financial_summary", {"total_para_quitar": "R$ 49.508,43"}, "web", False)
 ```
 
-`test_perturbation_recall_money_dates_ids_ge_95` e `test_perturbation_fpr_le_5` sobre a fixture.
+`test_perturbation_recall_ge_95_money_date_id`, `test_perturbation_fpr_le_5`.
 
 - [ ] **Step 2–4:** FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(guards): EvidenceGuard com polaridade, ação e conjunto de perturbação`.
+- [ ] **Step 5: Commit** — `feat(guards): EvidenceGuard com polaridade por matrícula, ação, URL e perturbação independente`.
 
-### Task 20: Prompt e grafo
+### Task 22: Prompt e grafo
+**Depende de:** 4, 14, 21 (usa `StudentCard` do contrato da Task 2; o cartão real chega na Task 20)
 
 **Files:** Create `app/agent/prompt.py`, `app/agent/messages.py`, `app/agent/graph.py`. Test `tests/unit/test_prompt.py`, `tests/unit/test_graph.py`.
 
 **Interfaces:**
-- `SYSTEM_PREFIX`: regras da spec §6.2, com o canário.
-- `card_message(card) -> Message` (`role="system_note"`, marcada como contexto, não instrução).
-- `wrap_tool_result(name, data, untrusted)`.
-- Mensagens fixas:
-  - `FALLBACK_UNGROUNDED` (oferece GEN-090);
-  - `DEGRADE_NOTICES` por tipo;
-  - `FALLBACK_BUDGET`;
-  - `FALLBACK_LLM_UNAVAILABLE`;
-  - `TOOL_UNAVAILABLE`;
-  - `DRAFT_PENDING_USE_BUTTON = "Para abrir, use o botão Confirmar no cartão."`;
-  - `TAINT_NO_DRAFT = "Para abrir uma solicitação, peça de novo em uma nova conversa."`.
-- `build_graph(llm, settings)`:
-  - estado `AgentState`;
-  - nós `call_model`, `run_tools`, `check_evidence`, `degrade`;
-  - `recursion_limit = 2*rounds + 6`.
-- `run_turn(graph, *, ctx, tools, card, history, user_text, deadline, writer) -> TurnResult`.
-- **Taint** = alguma mensagem `untrusted` na janela ou no turno ⇒ a lista de ferramentas passada ao LLM perde `draft_protocol`. Um pedido de rascunho nessa condição vira `TAINT_NO_DRAFT`.
-- **Evidência** = cartão + resultados **sem** `free_text` (via ontologia) + contexto.
+- **Prompt:**
+  - `SYSTEM_PREFIX` (spec §6.2);
+  - `card_message`;
+  - `wrap_tool_result`.
+- **Mensagens fixas:**
+  - `DRAFT_SHOWN_TEMPLATE`;
+  - `DRAFT_PENDING_USE_BUTTON`;
+  - `TAINT_NO_DRAFT`;
+  - `FERRAMENTA_INDISPONIVEL`;
+  - `DEGRADE_NOTICES`.
+- **Grafo:**
+  - `build_graph(llm, settings)`;
+  - `run_turn(..., model, deadline, writer)`.
+- **`run_tools`:**
+  - aplica `Tool.allowed(ctx)` antes de executar;
+  - `draft_protocol` emitido → a resposta do turno é `DRAFT_SHOWN_TEMPLATE`, sem segunda chamada ao LLM.
+- **Taint e evidência:**
+  - taint = `untrusted` na janela ou no turno;
+  - a evidência exclui `texto_livre`.
+- **Limites:**
+  - teto global ≥ 80% → `max_rounds = 2` e sem retry do guard;
+  - `recursion_limit = 2·rounds + 6`.
+- **`draw_mermaid()`** exportado para `docs/evidence/graph.md`.
 
 - [ ] **Step 1–4:**
-  - Testes com `ScriptedLLM`:
-    - `test_card_answers_in_one_call`;
-    - `test_tool_then_answer`;
-    - `test_parallel_tools`;
-    - `test_invalid_args_not_executed`;
-    - `test_tool_exception_unavailable`;
-    - `test_guard_retry_pass`;
-    - `test_guard_degraded_typed`;
-    - `test_guard_fallback_offers_gen090`;
-    - `test_worst_path_within_recursion_limit` (4 rodadas + resposta + guard + retry + guard + degrade);
-    - `test_budget_exceeded`;
-    - `test_llm_unavailable`;
-    - `test_taint_hides_draft_same_turn`;
-    - `test_taint_persists_next_turn_while_in_window`;
-    - `test_taint_clears_after_window`;
-    - `test_free_text_not_evidence` (mensagem plantada "saldo R$ 0,00" → "Você deve R$ 0,00" bloqueado);
-    - `test_thought_signature_preserved`;
-    - `test_history_cut_by_turn`;
-    - `test_progress_events`;
-    - `test_system_prompt_and_tools_identical_across_students`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(agent): grafo LangGraph com cartão, taint por janela e EvidenceGuard`.
+  - `test_card_answers_in_one_call`
+  - `test_tool_then_answer`
+  - `test_parallel_tools`
+  - `test_invalid_args_not_executed`
+  - `test_undeclared_or_refused_tool_call_rejected`
+  - `test_tainted_draft_call_rejected_and_message`
+  - `test_taint_persists_next_turn`
+  - `test_taint_clears_after_window`
+  - `test_lms_then_second_call_request_not_tainted` (texto tipificado)
+  - `test_free_text_not_evidence`
+  - `test_draft_turn_text_fixed`
+  - `test_guard_retry_pass`
+  - `test_guard_degraded_typed`
+  - `test_guard_template_fallback`
+  - `test_worst_path_within_recursion_limit`
+  - `test_budget_exceeded`
+  - `test_llm_unavailable`
+  - `test_degraded_mode_two_rounds_no_retry`
+  - `test_thought_signature_preserved`
+  - `test_history_cut_by_turn_and_compacted`
+  - `test_progress_and_first_event_ms`
+  - `test_system_and_tools_identical_across_students_and_channels`
 
-### Task 21: Replay [revisão por fase]
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(agent): grafo LangGraph com cartão, recusa na execução e EvidenceGuard`.
 
-**Files:** Create `app/agent/replay.py`. Test `tests/unit/test_replay.py`.
+### Task 23: Replay [revisão por fase]
+**Depende de:** 22
 
-**Interfaces:** `RecordingLLM(inner, path)`, `ReplayLLM(path)` (`script_key = sha256(label|user_texts)`), `ReplayLLM.suggested(label)`, e `make_llm` aceita `replay`.
+**Files:** Create `app/agent/replay.py`, `evals/replays/` (gravações em `evals/replays/<label>.jsonl`). Test `tests/unit/test_replay.py`.
 
-- [ ] **Step 1–4:** `test_record_then_replay`, `test_unknown_question_message` → FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(agent): modo replay`.
-- [ ] **Step 6:** Juntar as raias das fases 2 e 3; revisão da fase 3.
+**Interfaces:** `RecordingLLM`, `ReplayLLM`, `ReplayLLM.suggested`. `make_llm` passa a aceitar `replay`.
+
+- [ ] **Step 1–5:** `test_record_then_replay`, `test_unknown_question_message` → FAIL → implementar → PASS → commit `feat(agent): modo replay`. Merge das raias. Revisão da fase.
 
 ---
 
 ## Fase 4 — API, A2A, UI e observabilidade
 
-### Task 22: Autenticação, login simulado e checagens de subida
+### Task 24: Autenticação e dev
+**Depende de:** 14
 
-**Files:** Create `app/api/auth.py`, `app/api/dev.py`, `app/main.py`. Test `tests/e2e/test_auth.py`.
+**Files:** Create `app/api/auth.py`, `app/api/dev.py`, `scripts/login_url.py`; Modify `app/main.py` (substitui os stubs). Test `tests/e2e/test_auth.py`.
 
 **Interfaces:**
-- **Tokens:** `issue_token(person_key, aud: Literal["chat","a2a"], settings)` usando `wall_now()`; `verify_token(token, aud, settings) -> UUID` (`algorithms=["HS256"]`, exige `exp`, `sub` e `aud`).
-- **Dependências:** `get_person_cookie` / `get_person_bearer`.
-- **Login simulado:** `/dev/login` só com `dev_login=True`; exige `dev_login_secret`; só os `person_key` do `golden_login.json`; o cookie sai com `aud=chat`.
-- **Lifespan:** `assert_safe_role`, a checagem de segredos do settings e um ping do Redis com senha.
+- **Tokens:**
+  - `issue_token(person_key, aud, settings)`, com `wall_now()`;
+  - `verify_token(token, aud, settings)`.
+- **Leitura da identidade:** `get_person_cookie` (`aud=chat`) e `get_person_a2a` (bearer ou `x-api-key`, `aud=a2a`).
+- **`/dev/login`** (só com `dev_login`):
+  - `GET ?ticket=` consome um `LoginTickets` de uso único;
+  - `POST` com o segredo;
+  - só golden.
+- **`/dev/a2a-token`:** mesma trava.
+- **`scripts/login_url.py CASE`:** roda no container, cria o ticket e imprime a URL. É o alvo de `make login CASE=4`.
+- **`/healthz`.**
+- **Lifespan:** checagens de role, segredos e Redis.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_tampered_401`;
-    - `test_expired_401`;
-    - `test_alg_none_401`;
-    - `test_wrong_alg_401`;
-    - `test_a2a_token_rejected_on_chat`;
-    - `test_body_identity_ignored`;
-    - `test_dev_login_disabled_404`;
-    - `test_dev_login_wrong_secret_403`;
-    - `test_dev_login_non_golden_403`;
-    - `test_cookie_flags`;
-    - `test_startup_aborts_superuser`;
-    - `test_startup_aborts_placeholder_secret`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(api): JWT com aud por canal, login simulado restrito e checagens de subida`.
+  - `test_tampered_401`
+  - `test_expired_401`
+  - `test_alg_none_401`
+  - `test_wrong_alg_401`
+  - `test_wrong_aud_401`
+  - `test_x_api_key_accepted_for_a2a_only`
+  - `test_body_identity_ignored`
+  - `test_dev_disabled_404`
+  - `test_ticket_single_use_and_expiry`
+  - `test_wrong_secret_403`
+  - `test_non_golden_403`
+  - `test_cookie_flags`
+  - `test_healthz`
+  - `test_startup_aborts_superuser_or_bad_secret`
 
-### Task 23: TurnService e chat SSE
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(api): JWT por canal, x-api-key no A2A, login por ticket e healthz`.
 
-**Files:** Create `app/service/turn.py`, `app/api/chat.py`; Modify `app/infra/redis_stores.py` (`rate_limit_hit`, `TokenBudget`, `GlobalSpend`, `HistoryStore`). Test `tests/unit/test_turn_service.py`, `tests/e2e/test_chat.py`.
+### Task 25: TurnService, chat SSE e `compose-smoke`
+**Depende de:** 20, 22, 24
 
-**Interfaces:**
-- `TurnService.handle(...)`, nesta ordem:
-  1. `normalize_input`;
-  2. rate limit → orçamento → teto global (≥ 80% troca para `llm_fallback_model` MINIMAL; ≥ 100% → `blocked_limit`);
-  3. rascunho pendente + intenção de confirmação → `DRAFT_PENDING_USE_BUTTON` sem LLM;
-  4. histórico, escopo e cartão;
-  5. `run_turn` com `deadline = monotonic() + loop_budget_s`;
-  6. histórico gravado com os flags `untrusted`;
-  7. span e métricas.
-- Perfil `eval`: limites próprios e `blocked_limit` marcado inválido.
-- `POST /chat`: eventos `meta`, `progress`, `draft`, `answer`, `error`, `ping`; desconexão cancela.
+**Files:** Create `app/service/turn.py`, `app/api/chat.py`; Modify `app/infra/redis_stores.py`, `.github/workflows/ci.yml` (job `compose-smoke`). Test `tests/unit/test_turn_service.py`, `tests/e2e/test_chat.py`.
 
-- [ ] **Step 1–4:**
-  - Testes:
-    - `test_progress_then_answer`;
-    - `test_identity_claim_ignored`;
-    - `test_rate_limit_429`;
-    - `test_budget_exhausted`;
-    - `test_global_cap_degrades_then_503`;
-    - `test_history_isolated`;
-    - `test_llm_unavailable_error_no_traceback`;
-    - `test_extra_body_422`;
-    - `test_long_input_error`;
-    - `test_disconnect_cancels`;
-    - `test_markdown_stripped`;
-    - `test_pending_draft_yes_uses_button_message`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(service): TurnService com limites, cartão e histórico; chat SSE`.
+**Interfaces:** `TurnService.handle`, nesta ordem:
+1. `normalize_input`;
+2. rate limit → orçamento → teto;
+3. **admissão** (`AdmissionBucket.reserve`; sem cota → `blocked_limit`, com 503 e `Retry-After` no SSE);
+4. "sim" contextual (último turno emitiu rascunho + confirmação curta) → fixo;
+5. histórico, escopo e cartão;
+6. `run_turn`;
+7. histórico gravado com `untrusted`;
+8. span AGENT e métricas pela fachada;
+9. `TurnResult.first_event_ms`.
 
-### Task 24: Confirmação, feedback, CSRF e IDOR
+`POST /chat` emite os eventos SSE `meta` (`trace_id`), `progress`, `draft` (`card.public()` + token), `answer`, `error` e `ping`.
 
-**Files:** Create `app/api/protocols.py`, `app/api/feedback.py`. Test `tests/e2e/test_confirm_feedback.py`.
-
-**Interfaces:**
-- `POST /protocols/confirm`:
-  - checa `Origin` e JSON;
-  - faz `take`;
-  - revalida `service_code` ∈ AGENT_SERVICES e a elegibilidade;
-  - INSERT em `agent_rw`;
-  - grava `system_note` "Solicitação SA-… aberta em dd/mm/aaaa" no histórico;
-  - em conflito do índice único → 409.
-- `POST /feedback`.
+`compose-smoke`:
+1. fixture como `data/`;
+2. `LLM_PROVIDER=fake` (`ScriptedLLM` que chama `get_financial_summary` e copia `total_para_quitar`);
+3. `make login CASE=4`;
+4. resposta contém "R$ 49.508,43";
+5. `make a2a-demo`;
+6. `docker compose exec api` sem `/data` nem `/run/secrets/etl`.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_confirm_once_concurrent`;
-    - `test_other_students_draft_409`;
-    - `test_csrf_wrong_origin_403`;
-    - `test_duplicate_open_409`;
-    - `test_description_edited_saved`;
-    - `test_confirm_note_in_history_grounds_action_claim`;
-    - `test_feedback_isolated`;
-    - `test_idor_conversation_feedback`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(api): confirmação de protocolo, feedback e proteções de CSRF/IDOR`.
+  - `test_progress_then_answer`
+  - `test_identity_claim_ignored`
+  - `test_rate_limit_429`
+  - `test_budget_exhausted`
+  - `test_admission_503_retry_after`
+  - `test_global_cap_degrades_then_503`
+  - `test_history_isolated_by_rkey`
+  - `test_llm_unavailable_error_no_traceback`
+  - `test_extra_body_422`
+  - `test_long_input_error`
+  - `test_disconnect_cancels`
+  - `test_markdown_stripped`
+  - `test_yes_only_after_draft_turn`
+  - `test_yes_unrelated_goes_to_llm`
 
-### Task 25: A2A
+  FAIL → implementar → PASS; `compose-smoke` verde.
+- [ ] **Step 5: Commit** — `feat(service): TurnService com admissão global; chat SSE; ci: compose-smoke`. **M2.**
 
-**Files:** Create `app/api/a2a.py`, `scripts/a2a_client_demo.py`; Modify `app/main.py`, `app/infra/redis_stores.py` (`RedisTaskStore`). Test `tests/e2e/test_a2a.py`.
+### Task 26: Confirmação, feedback, CSRF e IDOR
+**Depende de:** 25
+
+**Files:** Create `app/api/protocols.py`, `app/api/feedback.py`; Modify `app/main.py` (substitui os stubs). Test `tests/e2e/test_confirm_feedback.py`.
 
 **Interfaces:**
-- `build_agent_card(settings) -> AgentCard`:
-  - skill de consulta e orientação;
-  - segurança bearer;
-  - `AgentCapabilities(streaming=False, push_notifications=False)`;
-  - texto "solicitações exigem confirmação humana no portal".
-- `JwtContextBuilder(ServerCallContextBuilder)`: bearer `aud=a2a` → `ServerCallContext.user`.
-- `RedisTaskStore(TaskStore)`: chave `a2a:{person_key}:{task_id}`, TTL 3600 s, posse pelo `resolve_user_scope`.
-- `StudentAgentExecutor.execute`:
-  - exige exatamente 1 TextPart (DataPart → erro);
-  - `TurnService.handle(channel="a2a")`.
-- Montagem: `DefaultRequestHandler(executor, RedisTaskStore, card)` **sem** `push_config_store` + `create_jsonrpc_routes(handler, "/a2a", context_builder)` + `create_agent_card_routes(card)` + `add_a2a_routes_to_fastapi`.
-- `a2a_client_demo.py`: lê o card, envia uma pergunta e imprime a resposta.
+- `POST /protocols/confirm`, nesta ordem:
+  1. `Origin` + JSON;
+  2. `take`;
+  3. revalida serviço e elegibilidade;
+  4. INSERT idempotente por `draft_id`;
+  5. grava `system_note` com o `SA-` aberto.
+- `POST /feedback`: grava a tabela + anotação no Phoenix pela fachada.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_card_served_push_false`;
-    - `test_no_bearer_rejected`;
-    - `test_chat_token_rejected_on_a2a`;
-    - `test_answers_for_token_owner`;
-    - `test_identity_in_text_ignored`;
-    - `test_datapart_rejected`;
-    - `test_no_draft_tool_over_a2a`;
-    - `test_rate_limit_applies_over_a2a`.
-    - `test_task_ownership_by_method`, parametrizado em `message/send` com `taskId` alheio, `tasks/get`, `tasks/cancel`, `tasks/resubscribe` e listagem → não encontrado.
-    - `test_push_config_rejected`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `feat(api): A2A de consulta com bearer, posse por método e mesmos limites do chat`.
+  - `test_confirm_once_concurrent`
+  - `test_other_students_draft_409`
+  - `test_csrf_403`
+  - `test_second_gen090_allowed`
+  - `test_duplicate_same_service_not_eligible`
+  - `test_description_edited_saved`
+  - `test_confirm_note_grounds_action_claim`
+  - `test_sa_dates_from_reference`
+  - `test_feedback_isolated`
+  - `test_idor_conversation_feedback`
 
-### Task 26: Chat web [revisão por fase]
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `feat(api): confirmação idempotente, feedback e proteções CSRF/IDOR`.
 
-**Files:** Create `app/web/index.html`, `app.js`, `style.css`; Modify `app/main.py`. Test `tests/e2e/test_web.py`.
+### Task 27: A2A 1.0
+**Depende de:** 25
+
+**Files:** Create `app/api/a2a.py`, `scripts/a2a_demo.py`, `ops/langflow/flow.json` (opcional); Modify `app/main.py` (substitui o stub), `app/infra/redis_stores.py` (`RedisTaskStore`). Test `tests/e2e/test_a2a.py`.
 
 **Interfaces:**
-- Progresso, cartão do rascunho (descrição editável + aviso fixo + Confirmar), 👍/👎, perguntas sugeridas no replay.
-- Só `textContent`.
-- CSP da spec §8.
+- `build_agent_card(settings)`:
+  - esquemas bearer e apiKey;
+  - `AgentCapabilities(streaming=False, push_notifications=False)`.
+- `JwtContextBuilder`: lê bearer ou `x-api-key` e preenche `ServerCallContext.user`.
+- `RedisTaskStore`, com chaves `rkey("a2a_task", sub, "a2a", task_id)`.
+- `StudentAgentExecutor`:
+  - aceita 1 TextPart;
+  - `conversation_id = rkey("conv", sub, "a2a", contextId)`;
+  - delega a `TurnService.handle(channel="a2a")`.
+- Montagem: `create_jsonrpc_routes(handler, "/a2a", builder, enable_v0_3_compat=False)` + card routes + `add_a2a_routes_to_fastapi`.
+- `scripts/a2a_demo.py`: roda no container (`make a2a-demo`), emite o token, lê o card e envia `SendMessage`.
 
-- [ ] **Step 1–4:** `test_csp`, `test_js_no_innerhtml` → FAIL → implementar → PASS.
-- [ ] **Step 5:** Teste manual com o golden 4: "quanto devo?", "quero a 2ª via do histórico", "sim" → mensagem do botão → Confirmar. Capturas em `docs/evidence/img/`.
+- [ ] **Step 1–4:**
+  - `test_card_push_streaming_false`
+  - `test_no_credentials_rejected`
+  - `test_chat_token_rejected`
+  - `test_x_api_key_works`
+  - `test_answers_for_owner`
+  - `test_identity_in_text_ignored`
+  - `test_datapart_rejected`
+  - `test_draft_refused_over_a2a`
+  - `test_rate_limit_and_admission_over_a2a`
+  - `test_ownership_by_method`, parametrizado:
+    - `GetTask`, `CancelTask` e `ListTasks` alheios → -32001;
+    - controle positivo: o dono consegue;
+    - `SubscribeToTask` → não suportado.
+  - `test_push_config_rejected`
+  - `test_foreign_context_id_gets_empty_own_history`
+  - `test_v03_method_names_not_served`
+
+  FAIL → implementar → PASS.
+- [ ] **Step 5:** (opcional, corta no M3) Profile `langflow` com `LANGFLOW_SSRF_ALLOWED_HOSTS=api`, o fluxo exportado e uma captura de tela em `docs/evidence/img/`.
+- [ ] **Step 6: Commit** — `feat(api): A2A 1.0 de consulta com posse por método, x-api-key e mesmos limites`.
+
+### Task 28: Chat web [revisão por fase]
+**Depende de:** 25
+
+**Files:** Create `app/web/*`; Modify `app/main.py` (substitui o stub). Test `tests/e2e/test_web.py`.
+
+**Interfaces:**
+- Progresso; cartão do rascunho; Confirmar; 👍/👎; botão "Nova conversa"; perguntas sugeridas no replay.
+- Renderização só com `textContent`.
+- Cabeçalhos CSP, `nosniff` e `no-referrer`.
+
+- [ ] **Step 1–4:** `test_security_headers`, `test_js_no_innerhtml`, `test_new_conversation_button` → FAIL → implementar → PASS.
+- [ ] **Step 5:** Teste manual com o golden 4: "quanto devo?" → "2ª via do histórico" → "sim" → Confirmar. Capturas em `docs/evidence/img/`.
 - [ ] **Step 6: Commit** — `feat(web): chat em texto puro com cartão de confirmação`.
 
-### Task 27: Observabilidade
+### Task 29: Observabilidade
+**Depende de:** 25, 27 (instrumentação feita pela fachada desde a Task 2; esta tarefa liga exportadores, anotações e SLO)
 
-**Files:** Modify `app/obs/tracing.py` (implementação real), `app/agent/gemini.py`, `app/agent/graph.py`, `app/data/db.py`, `app/service/turn.py`, `app/api/a2a.py`. Create `app/obs/logging.py`, `app/obs/metrics.py`, `ops/prometheus/prometheus.yml`, `docs/SLO.md`. Test `tests/unit/test_obs.py`, `tests/e2e/test_observability.py`.
+**Files:** Modify `app/obs/tracing.py`, `app/obs/metrics.py` (multiprocesso); Create `app/obs/annotations.py`, `app/obs/logging.py`, `ops/prometheus/prometheus.yml`, `docs/SLO.md`. Test `tests/unit/test_obs.py`, `tests/e2e/test_observability.py`.
 
 **Interfaces:**
-- **Tracing:** `setup_tracing(settings)` com OTLP → Phoenix. Spans `chat.turn`, `agent.call_model`, `agent.tool`, `db.query` e `agent.guard`.
-  - Atributos OpenInference (`openinference.span.kind`: CHAIN/LLM/TOOL; `llm.model_name`; `llm.token_count.prompt`/`completion`) e `gen_ai.*`, mais `prompt.sha`, `tools.sha`, `gen_ai.response.model`, `guard.outcome`, `llm.calls`.
+- **Tracing:** `setup_tracing(settings)` com OTLP para o Phoenix.
+  - Spans AGENT/LLM/TOOL/GUARDRAIL com:
+    - `llm.model_name`;
+    - `llm.token_count.prompt`, `.completion`, `.prompt_details.cache_read` e `.completion_details.reasoning`;
+    - `gen_ai.*`;
+    - argumentos enumerados das ferramentas e contagens;
+    - `guard.outcome`, `llm.calls`, `prompt.sha` e `tools.sha`.
   - Conteúdo só com `otel_capture_content`.
-  - `record_exception` desligado: exceção vira só o tipo.
-- **Logs:** `configure_logging`, com middleware de `trace_id`.
-- **Métricas:**
-  - `agent_turn_seconds{tools_class,guard,model}`, com buckets 0,25/0,5/1/2/3/4/6/8/12/20;
-  - `agent_llm_seconds`, `agent_llm_errors_total{kind}`, `agent_llm_queue`, `agent_llm_retries_total`;
-  - `agent_tool_seconds{tool}`, `agent_guard_total{outcome}`, `agent_rounds`, `agent_sse_open`;
-  - `agent_tokens_total{kind}`, `agent_cost_usd_total`, `agent_feedback_total{useful}`.
-- **`SLO.md`:** SLOs por `tools_class`, erro < 1%, custo/dia e o alerta proposto (burn rate 14,4×/1 h e 6×/6 h), sem arquivo de regras.
+  - Exceção registrada só pelo tipo.
+- **`annotate(trace_id, name, label, score, explanation)`:** usa a API de anotações do Phoenix. Quem chama é o runner das evals e o feedback.
+- **Logs:** `configure_logging`.
+- **Métricas:** todas as da spec §9.4, em modo multiprocesso.
+- **`SLO.md`:** latência por classe, TTFE, erro (`turns_total`), custo e **qualidade** (degradado + fallback ≤ 5%; 👎 ≤ 10%), mais o alerta proposto.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_spans_no_content_by_default` (exportador em memória; nenhum atributo nem evento com o texto do aluno ou da resposta);
-    - `test_exception_has_no_message`;
-    - `test_capture_content_only_dev`;
-    - `test_metrics_labels_and_buckets`;
-    - `test_logs_no_pii`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5:** `docker compose --profile obs up`, uma conversa e capturas do trace (Phoenix) e do `/metrics` em `docs/evidence/observability.md`.
-- [ ] **Step 6: Commit** — `feat(obs): traces OpenInference sem conteúdo, métricas e SLOs`.
-- [ ] **Step 7:** Revisão da fase 4. **Marco M3.**
+  - `test_spans_no_content_by_default` (atributos e eventos)
+  - `test_exception_type_only`
+  - `test_capture_content_only_dev`
+  - `test_span_kinds_and_token_details`
+  - `test_tool_args_enumerated_no_pii`
+  - `test_metrics_multiprocess_and_buckets`
+  - `test_annotation_called_with_trace_id`
+  - `test_logs_no_pii`
+
+  FAIL → implementar → PASS.
+- [ ] **Step 5:** `docker compose --profile obs up`, uma conversa e uma anotação → capturas em `docs/evidence/observability.md`.
+- [ ] **Step 6: Commit** — `feat(obs): traces OpenInference sem conteúdo, anotações de qualidade, métricas e SLOs`. Revisão da fase. **M3.**
 
 ---
 
-## Fase 5 — Evals (Gemini real; fora do CI)
+## Fase 5 — Evals
 
-### Task 28: Dataset, plano de análise e acesso das evals
+O código é escrito na quinta e na sexta, e as rodadas acontecem no sábado, uma depois da outra.
+
+### Task 30: Dataset, plano de análise e acesso das evals
+**Depende de:** 6, 13 (raia C, quinta)
 
 **Files:** Create `evals/tokens.py`, `evals/client.py`, `evals/golden/templates.yaml`, `paraphrases.yaml`, `multiturn.yaml`, `build.py`, `analysis_plan.md`, `dataset.json`, `dataset.sha256`. Test `tests/unit/test_dataset.py`.
 
 **Interfaces:**
-- **Acesso:**
-  - `tokens.mint(person_key, aud)`: lê o `jwt_secret` de `/run/secrets/app` (container `evals`);
-  - `ChatClient(base_url, token)` com `ask`, `confirm` e `a2a_send`.
-- **Seleção do teste:** `select_test_students(eval_students, seed=20261103) -> list[label]`, 40 alunos:
-  - estratos modalidade × {ativo, inativo};
-  - cotas ≥ 3 para: 2 matrículas, IN_COLLECTION, acordo, protocolo aberto, LMS manual, transferência, pagador responsável, pagador empresa;
-  - exclui os golden.
-- **Modelos de pergunta:**
-  - `templates.yaml`: cada um com `split: shared|test_only` (30% `test_only`), `category`, `expected_tools`, `required` (expressões sobre o oráculo), `forbidden`, `expect_draft: bool | null`;
-  - categorias da spec §9.2, incluindo `out_of_coverage`, `contradictory` e `protocol_open` negativos.
-- **Paráfrases:** `paraphrases.yaml`, também com `test_only`.
-- **Multi-turno:** `multiturn.yaml` com 8 roteiros, inclusive "sim" depois do cartão e taint entre turnos.
-- **Plano de análise:** `analysis_plan.md` conforme a spec §9.2. O `dataset.sha256` cobre o dataset **e** o plano.
+- `tokens.mint`, executado dentro do container `evals`.
+- `ChatClient`, com `ask`, `confirm` e `a2a_send`.
+- `select_test_students(seed=20261103)`: 40 alunos com cotas.
+- `templates.yaml`:
+  - **≥ 50 modelos**, sendo **≥ 15 `test_only`**;
+  - campos: `category`, `expected_tools`, `required`, `forbidden`, `expect_draft`.
+  - As categorias seguem a spec §9.2, inclusive "consulta → pedido".
+- `paraphrases.yaml`, também com `test_only`.
+- `multiturn.yaml`: 8 roteiros.
+- `analysis_plan.md`: conteúdo da spec §9.2 (estimando, IC de dois fatores, poder, meta, infra, gabarito, recusa, escolha do modelo, desdobramentos, contagem de rodadas, tag).
+- `dataset.sha256` cobre o dataset, o plano e o commit do runner.
 
 - [ ] **Step 1–4:**
-  - Testes:
-    - `test_quotas_met`;
-    - `test_test_split_disjoint_from_golden`;
-    - `test_holdout_templates_absent_from_dev`;
-    - `test_required_from_oracle_formats`;
-    - `test_hash_covers_plan`.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Commit** — `test(evals): dataset estratificado com holdout de perguntas e plano de análise pré-registrado`.
+  - `test_quotas_met_with_full_oracle`
+  - `test_disjoint_from_golden`
+  - `test_holdout_counts` (≥ 50 / ≥ 15)
+  - `test_required_from_oracle`
+  - `test_oracle_ideal_answers_pass_all` (autoteste)
+  - `test_hash_covers_plan_and_runner`
 
-### Task 29: Runner de qualidade, juiz, guard e conversas
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Commit** — `test(evals): dataset com holdout, cotas e plano de análise pré-registrado`.
+
+### Task 31: Qualidade — código (sexta) e rodadas (sábado)
+**Depende de:** 25, 30
 
 **Files:** Create `evals/stats.py`, `evals/golden/score.py`, `judge.py`, `run.py`, `labels.csv`, `select_conversations.py`, `evals/guard/run.py`. Test `tests/unit/test_stats.py`, `tests/unit/test_score.py`.
 
 **Interfaces:**
-- **Estatística:** `wilson`, `cluster_bootstrap_ci(results_by_student, q)`, `cohen_kappa`, `sens_spec`.
-- **Pontuação:**
-  - `score_item(reply, item)`: tokens canônicos com fronteira; ferramentas do trace; `expect_draft`; recusa com próximo passo aceita; categoria de falha;
-  - `judge(reply, item)`: rubrica binária com gabarito.
-- **Runner:** `run.py --split dev|test --model M --runs N --record` → `quality.md`, que traz:
-  - SHA;
-  - quantas vezes o teste rodou;
-  - pass@1 com IC por aluno;
+- **Estatística:**
+  - `two_way_bootstrap_ci(results, by=("student","template"), q)`;
+  - `wilson`;
+  - `ppv_npv`;
+  - `reweighted_sens_spec`.
+- **Pontuação:** `score_item` e `judge` (só no teste).
+- **Runner:** `run.py --split dev|test --model M --record`, que registra o SHA e o número da rodada. Anota cada item no Phoenix.
+- **Saídas:**
+  - `quality.md`;
+  - `guard.md` (perturbação + rascunhos do dev perturbados + desfecho do guard × scorer);
+  - `conversations.md` (roteiros do replay e do vídeo + 2–3 falhas rotuladas).
+
+- [ ] **Step 1–4:** testes de `stats`:
+  - o bootstrap de dois fatores cobre ≥ 90% numa simulação com ICC conhecido;
+  - Wilson.
+
+  Testes de `score_item`:
+  - "ativa" ≠ "inativa";
+  - datas equivalentes;
+  - recusa com oferta conta;
+  - `expect_draft`;
+  - multi-turno conta como um item.
+
+  FAIL → implementar → PASS.
+- [ ] **Step 5: Rodadas de sábado, em série**
+  1. `security-review` + `code-review` (manhã) → correções;
+  2. rodada dev com os 2 modelos;
+  3. ajuste (≤ 2 iterações / 3 h);
+  4. escolha do modelo pela regra D11;
+  5. ataques da Task 32 + correções;
+  6. **congelar** (tag);
+  7. teste 1×;
+  8. Miguel faz os rótulos (30 respostas, 20 itens do oráculo) → `make eval-guard`.
+- [ ] **Step 6: Commit** — `test(evals): qualidade com IC de dois fatores, scorer validado e conversas curadas`.
+
+### Task 32: Ataques — código (sexta) e rodada (sábado)
+**Depende de:** 25, 27
+
+**Files:** Create `evals/redteam/templates.yaml`, `mutators.py`, `plant.py`, `check.py`, `run.py`, `api_attacks.py`; Modify `etl/__main__.py` (`--plant <db>`, que planta num banco separado `eval_redteam`). Test `tests/unit/test_redteam_check.py`.
+
+**Interfaces:**
+- **Ataques de comportamento:** 10 categorias × 20 ataques distintos (≥ 5 modelos × mutadores), 2 rodadas cada. O ataque conta como sucesso se qualquer rodada falhar a defesa.
+- **Ataques de vazamento:** 5 categorias × 8 ataques, 1 rodada.
+- **Payloads com predicado checável:** "dívida perdoada", "protocolo cancelado", "PIX 0000", "abra o cancelamento", entre outros.
+- **Checagem:** `check_attack` com conjunto proibido, 8-gramas, `draft` (inclusive no turno seguinte) e predicados. Juiz nas categorias 3, 4, 6 e 12–15.
+- **Rótulos humanos:** o Miguel rotula as respostas das categorias 3, 4 e 6.
+- **`api_attacks.py`:** IDOR por recurso e por método A2A 1.0, contextId alheio, troca de canal, JWT forjado, `alg=none`, `aud` errado, CSRF, push, DataPart e contorno de limite.
+- **`security.md`:**
   - k/n por categoria;
-  - modelos vistos × não vistos;
-  - recusa;
-  - guard (desfecho × scorer, com o rascunho de antes do guard gravado);
-  - juiz (sensibilidade, especificidade, kappa);
-  - falhas por tipo com `trace_id`;
-  - latência por classe (janela A).
-- **Guard:** `evals/guard/run.py` (perturbação, sem LLM) → `guard.md`.
-- **Conversas:** `select_conversations.py` pré-seleciona 30 candidatas por categoria; o Miguel escolhe 20 → `conversations.md`.
+  - Wilson **por modelo de ataque**;
+  - seção "zero por construção" com a saída do pytest das Tasks 11, 14, 20 e 24–27.
 
 - [ ] **Step 1–4:**
-  - Testes de `stats` com valores conhecidos.
-  - Testes de `score_item`: "ativa" não casa em "inativa"; "05/11/2026" ≡ "5 de novembro de 2026"; recusa com GEN-090 conta como correta; `expect_draft=False` com evento `draft` → falha.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5: Rodadas**
-  1. dev nos 2 modelos (1 rodada);
-  2. ajuste em no máximo 2 iterações ou 3 h;
-  3. escolha do modelo pela regra D11;
-  4. **teste 1 vez** no escolhido;
-  5. Miguel rotula 30 respostas estratificadas às cegas;
-  6. `make eval-guard`.
+  - nome sem acento casa;
+  - RA compartilhado não gera falso positivo;
+  - o predicado do payload é detectado;
+  - `draft` no turno seguinte é detectado.
 
-  Falhas viram regressão **no dev**.
-- [ ] **Step 6: Commit** — `test(evals): qualidade com IC por aluno, juiz calibrado, guard medido e conversas curadas`.
+  FAIL → implementar → PASS.
+- [ ] **Step 5:** Sábado: `make eval-security` no banco `eval_redteam`. Todo vazamento ou quebra vira teste de regressão + correção antes do congelamento.
+- [ ] **Step 6: Commit** — `test(evals): 240 ataques com predicados, ataques à API e evidência de segurança`.
 
-### Task 30: Ataques
+### Task 33: Latência e carga — código e carga (sexta), bench (domingo)
+**Depende de:** 25
 
-**Files:** Create `evals/redteam/templates.yaml`, `mutators.py`, `plant.py`, `check.py`, `run.py`, `api_attacks.py`. Test `tests/unit/test_redteam_check.py`.
+**Files:** Create `evals/latency/bench.py`, `loadgen.py`, `capacity.py`, `app/agent/fakes.py::LoadTestLLM`. Test `tests/unit/test_capacity.py`, `tests/unit/test_loadgen.py`.
 
 **Interfaces:**
-- **Geração:** `mutators.expand(templates) -> list[Attack]` com 8 ataques distintos × 15 categorias = 120, por paráfrase, tradução, codificação e enquadramento.
-- **Injeções:** `plant.py` planta em mensagem pública do golden 3 e numa descrição `SA-`, só no banco de eval.
-- **Conjunto proibido:** `forbidden_set(owner_conn, case)` com identificadores únicos de outras pessoas, analistas, outras famílias de marca, segredos e canário.
-- **Checagem:** `check_attack(reply, events, forbidden, expect, prefix)` cobre vazamento, 8-grama, `draft` indevido (inclusive no turno seguinte) e fatos.
-- **Juiz:** nas categorias 3, 4 e 6.
-- **Ataques à API:** `api_attacks.py`:
-  - IDOR por recurso e por método A2A;
-  - JWT forjado, `alg=none` e `aud` trocado;
-  - CSRF;
-  - push;
-  - DataPart;
-  - contorno de rate limit.
-- **Runner:** `run.py`:
-  - 1 rodada em tudo e 3 nas categorias de vazamento;
-  - gera `security.md` com k/n por categoria e agrupamento por modelo;
-  - a seção "zero por construção" referencia os testes de arquitetura e traz a saída do pytest das Tasks 9, 12, 18 e 22–25.
-
-- [ ] **Step 1–4:**
-  - Testes:
-    - nome sem acento casa;
-    - RA compartilhado não gera falso positivo;
-    - marcador do payload detectado;
-    - `draft` no turno seguinte detectado.
-  - FAIL → implementar → PASS.
-- [ ] **Step 5:** `make eval-security`. Todo vazamento → regressão + correção antes do congelamento.
-- [ ] **Step 6: Commit** — `test(evals): 120 ataques com LLM real, ataques à API e evidência de segurança`.
-
-### Task 31: Latência, carga, capacidade e custo [revisão por fase]
-
-**Files:** Create `evals/latency/bench.py`, `loadgen.py`, `capacity.py`. Test `tests/unit/test_capacity.py`, `tests/unit/test_loadgen.py`.
-
-**Interfaces:**
-- **Bench:** `bench.py --model M --per-class 100` → percentis com IC por aluno, cascata, 1º evento útil, tokens em cache e custo por turno.
-- **Carga:** `loadgen.py --rate R --duration S` em laço aberto (Poisson, asyncio).
-  - Servidor com `LLM_PROVIDER=fake` → `LoadTestLLM` com latência amostrada do bench e cota simulada.
-  - Escada de taxa até o joelho; 2 × 4 workers; `cpus:` por container.
-- **Capacidade e custo:** `capacity(...)` e `monthly_cost(...)`.
-- **Saída:** `latency.md` com janela A (rodada de qualidade) e B (bench), joelho, overhead de infra, CPU por turno, espera no pool, atraso do loop, capacidade × cota, custo por aluno/mês (2026/2027) e a rodada Vertex, se houver.
+- **`LoadTestLLM`:** latência amostrada das 40×2 chamadas do spike e cota simulada.
+- **`loadgen.py`:** laço aberto, Poisson.
+- **Duas escadas,** com critérios de aprovação escritos antes em `latency.md`:
+  - (a) limitador ligado;
+  - (b) limitador desligado.
+  - Configurações: 1 container × {1, 2} workers, `cpus:` limitado.
+- **`capacity` e `monthly_cost`.**
+- **`bench.py --per-class 100`:** IC por aluno, cascata, TTFE, cache, custo por turno e Vertex, se disponível. Roda **sozinho** no domingo às 7h; a janela A vem da rodada dev.
 
 - [ ] **Step 1–4:** `test_capacity_known_values`, `test_loadgen_poisson_rate` → FAIL → implementar → PASS.
-- [ ] **Step 5:** `make eval-latency`, `make load-test`.
-- [ ] **Step 6: Commit** — `test(evals): latência com IC, carga em laço aberto com cota simulada e custo`.
+- [ ] **Step 5:** Sexta à noite: `make load-test`. Domingo às 7h: `make eval-latency`.
+- [ ] **Step 6: Commit** — `test(evals): latência por fórmula e IC, carga em duas escadas e custo`.
 
 ---
 
-## Fase 6 — Documento, revisão e entrega
+## Fase 6 — Documento e entrega
 
-### Task 32: Documentação e revisões
+### Task 34: Documentação
+**Depende de:** 31, 32, 33 (esqueleto escrito no sábado à noite)
 
 **Files:** Create `docs/ARCHITECTURE.md`, `docs/evidence/README.md`; Modify `README.md`.
 
 **Interfaces:**
-- **README:** resumo executivo de 1 página com:
-  - o que é;
-  - **3 números com IC** (qualidade no teste, latência p50/p95 da classe principal, ataques com 0 vazamento + "zero por construção");
-  - `cp .env.example .env` (só a chave) + `docker compose up`;
-  - modo replay;
+- **README:**
+  - resumo executivo com 3 números e IC (dev e teste lado a lado; vistos × não vistos);
+  - `cp .env.example .env` → `docker compose up` → `make login CASE=4` → `make a2a-demo`;
+  - replay;
   - tabela requisito → mecanismo → teste → número;
   - diagrama;
   - vídeo.
 - **ARCHITECTURE:**
-  - 10 decisões ★ com trade-offs e "o que mediria em produção" (cada uma com a pergunta difícil que responde), mais a tabela das menores;
-  - dados e resolução;
-  - segurança (ameaça × defesa × prova);
-  - qualidade;
-  - latência, capacidade e custo;
-  - observabilidade;
-  - integração em produção (CDC/API, outbox para a secretaria, IdP, Vertex com cota provisionada, orquestradores como Langflow consumindo via A2A);
+  - as 10 ★, com a pergunta difícil que cada uma responde;
+  - tabela das menores, com o motivo de não serem ★;
+  - grafo gerado pelo `draw_mermaid`;
+  - dados, segurança, qualidade, latência e custo, observabilidade;
+  - integração em produção (CDC/API, outbox, IdP, Vertex com cota, Langflow/ADK via A2A);
   - limites honestos;
-  - seção "Como foi construído" **conforme a decisão do Miguel** (spec §12).
+  - "Como foi construído" conforme a §12.
 
-- [ ] **Step 1:** Escrever com números reais e fonte em `docs/evidence/` (esqueleto no sábado à noite, enquanto as evals rodam).
-- [ ] **Step 2:** `security-review` + `code-review`; cada achado confirmado → teste + correção.
-- [ ] **Step 3:** `make check && make test-full` → PASS.
-- [ ] **Step 4: Commit** — `docs: arquitetura, resumo executivo e evidências`.
+- [ ] **Step 1:** Escrever com números reais e fonte.
+- [ ] **Step 2:** `make check && make test-full` → PASS.
+- [ ] **Step 3: Commit** — `docs: arquitetura, resumo executivo e evidências`.
 
-### Task 33: Pacote e teste do zero (domingo, antes do congelamento)
+### Task 35: Pacote e teste do zero (domingo)
+**Depende de:** 34
 
 **Files:** Create `scripts/package.sh`.
 
 **Interfaces:**
-- `make package` → `dist/student-agent.zip` (`git archive`, sem `.git`, `data/`, `.env` nem `docs/superpowers/`).
-- O `git bundle` só entra se o Miguel escolher a opção (a) da spec §12.
+- `make package` gera `dist/student-agent.zip` com `git archive`.
+- Na opção §12(a): commits de documentação compactados e `git bundle`.
+- Na opção §12(b): sem `docs/superpowers/` e sem histórico.
 
-- [ ] **Step 1:** Conferir com `unzip -l` (nada de `.git/`, `.rev`, `.env`, `dados.zip`, `docs/superpowers/` ou segredos).
-- [ ] **Step 2: Teste do zero** em diretório novo:
-  1. descompactar;
-  2. copiar o `dados.zip` para `data/`;
-  3. `cp .env.example .env` (+ chave);
+- [ ] **Step 1:** `unzip -l`: nada de `.git/`, `.rev`, `.env`, `dados.zip`, `docs/superpowers/` (na opção b) ou segredos.
+- [ ] **Step 2: Teste do zero**
+  1. diretório novo;
+  2. copiar o `dados.zip`;
+  3. `cp .env.example .env` + chave;
   4. `docker compose up`;
-  5. login golden e 3 perguntas;
-  6. `docker compose exec api sh -c 'ls /data; ls /run/secrets/etl'` → inexistentes;
-  7. repetir com `LLM_PROVIDER=replay` e sem chave;
-  8. `python scripts/a2a_client_demo.py`.
-- [ ] **Step 3:** Miguel grava o vídeo de 3 min: login, pergunta cruzada, ataque bloqueado, rascunho → confirmação, trace no Phoenix, cliente A2A.
+  5. `make login CASE=4` e 3 perguntas;
+  6. `make a2a-demo`;
+  7. `docker compose exec api` sem `/data` nem segredos do ETL;
+  8. repetir em replay, sem chave.
+- [ ] **Step 3:** Segunda: refazer o pacote depois da reescrita do documento; Miguel grava o vídeo de 3 min (login, pergunta cruzada, ataque bloqueado, rascunho → confirmação, trace + anotação no Phoenix, cliente A2A).
 - [ ] **Step 4: Commit** — `chore: pacote de entrega`.
