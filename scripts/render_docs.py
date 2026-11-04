@@ -38,23 +38,32 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
     """Chaves estáveis → texto. Arquivo ausente = chaves ausentes (render_docs reclama)."""
     out: dict[str, str] = {}
     if (dq := _load(evidence_dir / "data-quality.json")) is not None:
-        checks = {c["name"]: c["memory"] for c in dq["checks"]}
+        checks = {c["name"]: c["legs"] for c in dq["checks"]}
+
+        def agreed(name: str) -> Any:
+            """Valor em que todas as pernas do número concordam; divergência é erro."""
+            legs = checks[name]
+            first = next(iter(legs.values()))
+            if any(v != first for v in legs.values()):
+                raise ValueError(f"pernas divergem em '{name}': {legs}")
+            return first
+
         out |= {
-            "data.persons": str(checks["pessoas"]),
-            "data.enrollments": str(checks["matrículas"]),
-            "data.contracts": str(checks["contratos resolvidos"]),
-            "data.protocols_linked": str(checks["protocolos ligados"]),
-            "data.protocols_unlinked": str(dq["protocols_unlinked"]),
-            "data.lms_accounts": str(checks["contas LMS ligadas"]),
-            "data.protocol_ref": str(dq["protocol_ref"][0]),
-            "data.snapshot": str(dq["snapshot"][0]),
-            "data.logins_absent": str(dq["logins_absent"]),
-            "data.lms_attempts": str(dq["lms"]["tentativas"]),
-            "data.simulados_abertos": str(dq["lms"]["simulados_abertos"]),
-            "data.simulados_restantes": str(dq["lms"]["simulados_com_tentativa_restante"]),
-            "data.provas_sem_tentativa": str(dq["lms"]["encerradas_sem_tentativa"]),
+            "data.persons": str(agreed("pessoas")),
+            "data.enrollments": str(agreed("matrículas")),
+            "data.contracts": str(agreed("contratos resolvidos")),
+            "data.protocols_linked": str(agreed("protocolos ligados")),
+            "data.protocols_unlinked": str(agreed("protocolos sem vínculo")),
+            "data.lms_accounts": str(agreed("contas LMS ligadas")),
+            "data.protocol_ref": str(agreed("PROTOCOL_REF")[0]),
+            "data.snapshot": str(agreed("snapshot do último mês")[0]),
+            "data.logins_absent": str(agreed("logins de analista ausentes")),
+            "data.lms_attempts": str(agreed("tentativas do LMS")),
+            "data.simulados_abertos": str(agreed("simulados abertos sem tentativa")),
+            "data.simulados_restantes": str(agreed("simulados abertos com tentativa restante")),
+            "data.provas_sem_tentativa": str(agreed("provas com nota encerradas sem tentativa")),
         }
-        out |= {f"data.rule.{k}": str(v) for k, v in dq["protocols_by_rule"].items()}
+        out |= {f"data.rule.{k}": str(v) for k, v in agreed("protocolos por regra").items()}
     if (sp := _load(evidence_dir / "spikes.json")) is not None:
         for name, code in sp["a2a"]["codes"].items():
             out[f"a2a.{re.sub(r'[^\w]+', '_', name).strip('_')}"] = str(code)

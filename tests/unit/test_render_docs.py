@@ -73,3 +73,41 @@ def test_architecture_page_budget() -> None:
 @pytest.mark.parametrize("doc", DOCS, ids=lambda p: p.name)
 def test_docs_have_no_em_dash(doc: Path) -> None:
     assert "—" not in doc.read_text()
+
+
+def _fixture_checks(**legs_by_name: dict[str, object]) -> dict[str, object]:
+    names = {
+        "pessoas": 5,
+        "matrículas": 6,
+        "contratos resolvidos": 7,
+        "protocolos ligados": 80,
+        "protocolos sem vínculo": 2,
+        "contas LMS ligadas": 9,
+        "tentativas do LMS": 10,
+        "simulados abertos sem tentativa": 11,
+        "simulados abertos com tentativa restante": 12,
+        "provas com nota encerradas sem tentativa": 0,
+        "logins de analista ausentes": 13,
+    }
+    checks = [{"name": n, "legs": {"sql": v, "oraculo": v}, "ok": True} for n, v in names.items()]
+    pair = [4, 4]
+    checks += [
+        {"name": "PROTOCOL_REF", "legs": {"memoria": pair, "sql": pair}, "ok": True},
+        {"name": "snapshot do último mês", "legs": {"sql": pair, "oraculo": pair}, "ok": True},
+        {"name": "protocolos por regra", "legs": {"memoria": {"ra_cpf": 3}}, "ok": True},
+    ]
+    for c in checks:
+        if c["name"] in legs_by_name:
+            c["legs"] = legs_by_name[c["name"]]  # type: ignore[index]
+    return {"checks": checks}
+
+
+def test_build_numbers_reads_leg_schema_and_rejects_disagreement(tmp_path: Path) -> None:
+    (tmp_path / "data-quality.json").write_text(json.dumps(_fixture_checks()))
+    n = build_numbers(tmp_path)
+    assert n["data.persons"] == "5" and n["data.snapshot"] == "4" and n["data.rule.ra_cpf"] == "3"
+    (tmp_path / "data-quality.json").write_text(
+        json.dumps(_fixture_checks(pessoas={"sql": 5, "oraculo": 6}))
+    )
+    with pytest.raises(ValueError, match="pessoas"):
+        build_numbers(tmp_path)
