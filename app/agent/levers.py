@@ -29,6 +29,7 @@ def first_call_delay_s(components: Mapping[str, Lognormal], cfg: Hedge) -> float
 
 
 class HedgeBudget:
+    # shortcut: orçamento por processo (N workers × fração), mover para o Redis se workers > 2
     """Orçamento de hedges numa janela de 60 s: no máximo `max_fraction` das chamadas, e nunca
     menos que `floor_per_min` (mesma regra do retry do guard)."""
 
@@ -66,7 +67,9 @@ class Hedger:
     ) -> None:
         self.delay_s, self.budget, self._saturated = delay_s, budget, saturated
 
-    async def run(self, call: Callable[[], Awaitable[LLMResponse]]) -> tuple[LLMResponse, bool]:
+    async def run(
+        self, call: Callable[[], Awaitable[LLMResponse]], on_fire: Callable[[], None] | None = None
+    ) -> tuple[LLMResponse, bool]:
         self.budget.note_call()
         first = asyncio.ensure_future(call())
         tasks = {first}
@@ -76,6 +79,8 @@ class Hedger:
                 if not self.budget.allow() or await self._saturated():
                     return await first, False
                 tasks.add(asyncio.ensure_future(call()))
+                if on_fire is not None:
+                    on_fire()  # a 2ª requisição já está em voo: quem chama a contabiliza já
             pending = tasks - done
             last: BaseException | None = None
             while done or pending:

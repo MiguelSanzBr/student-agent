@@ -98,6 +98,9 @@ class _Meter:
         self.usage = Usage()
         self.extra_calls, self.extra_usage = 0, Usage()  # 2ª requisição do hedge (cobrada)
 
+    def _count_extra(self) -> None:  # no disparo: o turno pode ser cancelado antes de voltar
+        self.extra_calls += 1
+
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
@@ -108,10 +111,9 @@ class _Meter:
             )
 
         if self.hedger is not None and self.calls == 0:
-            r, hedged = await self.hedger.run(call)  # só a 1ª chamada do turno
+            r, hedged = await self.hedger.run(call, self._count_extra)  # só a 1ª chamada do turno
             if hedged:  # a perdedora cancelada não devolve uso: cobra-se a estimativa (= vencedora)
                 e = self.extra_usage
-                self.extra_calls += 1
                 self.extra_usage = Usage(
                     e.input_tokens + r.usage.input_tokens, e.output_tokens + r.usage.output_tokens,
                     e.thinking_tokens + r.usage.thinking_tokens,

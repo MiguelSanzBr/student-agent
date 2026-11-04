@@ -88,8 +88,9 @@ class SloTargets(BaseModel):
 
 
 def load_slo_targets(path: Path | None = None) -> SloTargets:
-    """`SLO_TARGETS_PATH` só serve às escadas de carga (ops/compose.load.yml)."""
-    path = path or Path(os.environ.get("SLO_TARGETS_PATH") or SLO_PATH)
+    """`SLO_TARGETS_PATH` só serve às escadas de carga (ops/compose.load.yml); ignorada em prod."""
+    override = None if os.environ.get("APP_ENV") == "prod" else os.environ.get("SLO_TARGETS_PATH")
+    path = path or Path(override or SLO_PATH)
     return SloTargets.model_validate(yaml.safe_load(path.read_text()))
 
 
@@ -199,6 +200,8 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
             raise ValueError("dev_login não pode ficar ligado com app_env=prod")
         if self.app_env == "prod" and not self.cookie_secure:
             raise ValueError("app_env=prod exige cookie_secure=true")
+        if self.app_env == "prod" and self.llm_provider in ("fake", "loadtest"):
+            raise ValueError("llm_provider fake/loadtest não pode ser usado com app_env=prod")
         return self
 
     @model_validator(mode="after")
