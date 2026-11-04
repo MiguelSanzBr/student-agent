@@ -42,4 +42,10 @@ async def test_roundtrip_with_card_and_thinking_resend(app_secrets: object) -> N
     r2 = await p.generate(model=MODEL, system="Atendente. Use as ferramentas.", messages=history,
                           tools=[SPEC], deadline=monotonic() + 60)  # fmt: skip
     assert r2.text and r2.finish_reason == "STOP"
+    # caminho de feedback do grafo: sem ferramentas, mas com tool_use/tool_result no histórico
+    history.append(Message("assistant", r2.text, provider_meta=r2.provider_meta, model=MODEL))
+    history.append(Message("user", "Obrigado, resuma em uma frase."))
+    r3 = await p.generate(model=MODEL, system="Atendente.", messages=history, tools=[],
+                          deadline=monotonic() + 60)  # fmt: skip
+    assert r3.text and not r3.tool_calls
     assert isinstance(call, ToolCall)

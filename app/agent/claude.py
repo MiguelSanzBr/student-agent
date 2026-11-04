@@ -53,10 +53,12 @@ def _messages(messages: Sequence[Message], model: str) -> list[dict[str, Any]]:
                 "type": "tool_result", "tool_use_id": m.tool_call_id,
                 "content": json.dumps(dict(m.tool_result or {}), ensure_ascii=False, default=str),
             }  # fmt: skip
-        elif m.role == "system_note":
+        elif m.role == "system_note" and m.text:
             block = _text(f"[nota do sistema] {m.text}")
+        elif m.role == "user" and m.text:  # texto vazio dá 400 na API
+            block = _text(m.text)
         else:
-            block = _text(m.text or "")
+            continue
         if out and out[-1]["role"] == "user":  # resultados em paralelo precisam estar juntos
             out[-1]["content"].append(block)
         else:
@@ -64,6 +66,10 @@ def _messages(messages: Sequence[Message], model: str) -> list[dict[str, Any]]:
     if out and out[0]["role"] == "assistant":
         out.insert(0, {"role": "user", "content": [_text(START_TEXT)]})
     return out
+
+
+def _tool_names(msgs: list[dict[str, Any]]) -> set[str]:
+    return {b["name"] for m in msgs for b in m["content"] if b["type"] == "tool_use"}
 
 
 def _parse(resp: Any, model: str) -> LLMResponse:
@@ -100,6 +106,18 @@ def _retry_after_s(e: anthropic.APIStatusError) -> float | None:
         return None
 
 
+def _classify(
+    e: anthropic.APIStatusError | anthropic.APIConnectionError,
+) -> tuple[Literal["quota", "server"], float]:
+    """Motivo e espera da nova tentativa; outros 4xx propagam."""
+    if isinstance(e, anthropic.APIStatusError):
+        if e.status_code == 429:
+            return "quota", _retry_after_s(e) or BACKOFF_S
+        if e.status_code < 500:
+            raise e
+    return "server", BACKOFF_S
+
+
 class AnthropicProvider:
     """Sem semáforo nem fila por chamada: a admissão é do balde global e da vaga por turno."""
 
@@ -127,6 +145,14 @@ class AnthropicProvider:
                 {"name": t.name, "description": t.description, "input_schema": dict(t.parameters)}
                 for t in tools
             ]
+        elif names := sorted(_tool_names(msgs)):
+            # A API recusa tool_use/tool_result sem `tools`: declara só os nomes do histórico
+            # e proíbe chamar (rodada de feedback da guarda / última rodada).
+            req["tools"] = [
+                {"name": n, "description": "(só histórico)", "input_schema": {"type": "object"}}
+                for n in names
+            ]
+            req["tool_choice"] = {"type": "none"}
         retried = False
         while True:
             remaining = deadline - monotonic()
@@ -140,13 +166,7 @@ class AnthropicProvider:
             except anthropic.APITimeoutError as e:  # subclasse de APIConnectionError: vem antes
                 raise LLMUnavailable("timeout") from e
             except (anthropic.APIStatusError, anthropic.APIConnectionError) as e:
-                code = e.status_code if isinstance(e, anthropic.APIStatusError) else 0
-                if isinstance(e, anthropic.APIStatusError) and code != 429 and code < 500:
-                    raise
-                reason: Literal["quota", "server"] = "quota" if code == 429 else "server"
-                delay = BACKOFF_S
-                if isinstance(e, anthropic.APIStatusError) and code == 429:
-                    delay = _retry_after_s(e) or BACKOFF_S
+                reason, delay = _classify(e)
                 now = monotonic()
                 if retried or not self._budget.worth_retry(now, deadline, delay):
                     raise LLMUnavailable(reason) from e

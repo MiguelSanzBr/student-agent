@@ -290,3 +290,102 @@ async def test_budget_exhausted_no_retry(
     with pytest.raises(LLMUnavailable):
         await gen(p)
     assert len(fm.calls) == n + 1  # sem nova tentativa
+
+
+async def test_no_tools_with_history_declares_stubs_and_forbids_calls(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    msgs = [
+        *card_messages(NS(text="C")),  # type: ignore[arg-type]
+        Message("assistant", None, (ToolCall("a", "zeta", {}), ToolCall("b", "alfa", {}))),
+        Message("tool", tool_call_id="a", tool_name="zeta", tool_result={}),
+        Message("user", "oi"),
+    ]
+    fm = FakeMessages()
+    await provider(fm).generate(
+        model=M1, system="s", messages=msgs, tools=[], deadline=monotonic() + 5
+    )
+    kw = fm.calls[0]
+    stub = {"description": "(só histórico)", "input_schema": {"type": "object"}}
+    assert kw["tools"] == [{"name": n, **stub} for n in ("alfa", "get_student_card", "zeta")]
+    assert kw["tool_choice"] == {"type": "none"}
+
+
+async def test_with_tools_no_tool_choice(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    fm = FakeMessages()
+    await gen(provider(fm), messages=[*card_messages(NS(text="C")), Message("user", "x")])  # type: ignore[arg-type]
+    assert "tool_choice" not in fm.calls[0] and len(fm.calls[0]["tools"]) == 1
+
+
+async def test_no_empty_text_blocks(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    msgs = [
+        Message("user", ""),
+        Message("user", "a"),
+        Message("assistant", ""),
+        Message("system_note", ""),
+        Message("assistant", "", (ToolCall("a", "f", {}),)),
+        Message("tool", tool_call_id="a", tool_name="f", tool_result={}),
+    ]
+    fm = FakeMessages()
+    await gen(provider(fm), messages=msgs)
+    out = fm.calls[0]["messages"]
+    assert out[0] == {"role": "user", "content": [{"type": "text", "text": "a"}]}
+    assert out[1]["content"] == [{"type": "tool_use", "id": "a", "name": "f", "input": {}}]
+    assert all(b.get("text") != "" for m in out for b in m["content"])
+
+
+async def test_empty_user_then_assistant_first_still_starts_with_user(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    fm = FakeMessages()
+    await gen(provider(fm), messages=[Message("user", ""), Message("assistant", "oi")])
+    out = fm.calls[0]["messages"]
+    assert out[0] == {"role": "user", "content": [{"type": "text", "text": START_TEXT}]}
+
+
+async def test_real_client_wire_format(app_secrets: object) -> None:
+    seen: list[httpx2.Request] = []
+    body = {
+        "id": "msg_1", "type": "message", "role": "assistant", "model": M1,
+        "content": [
+            {"type": "thinking", "thinking": "hm", "signature": "sig"},
+            {"type": "text", "text": "ola"},
+            {"type": "tool_use", "id": "toolu_1", "name": "get_x", "input": {"q": 1}},
+        ],
+        "stop_reason": "tool_use", "stop_sequence": None,
+        "usage": {"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 4,
+                  "cache_creation_input_tokens": 2},
+    }  # fmt: skip
+
+    def handler(req: httpx2.Request) -> httpx2.Response:
+        seen.append(req)
+        return httpx2.Response(200, json=body)
+
+    client = anthropic.AsyncAnthropic(
+        api_key="k",
+        max_retries=0,
+        http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)),
+    )
+    p = AnthropicProvider(AppSettings(), client_factory=lambda: client)
+    r = await gen(p, messages=[*card_messages(NS(text="C")), Message("user", "oi")])  # type: ignore[arg-type]
+    req = seen[0]
+    assert req.headers["anthropic-beta"] == "thinking-binding-controls-2026-08-01"
+    j = json.loads(req.content)
+    assert j["thinking"] == {
+        "type": "adaptive",
+        "block_binding": {"prefix_mismatch_behavior": "drop_block"},
+    }
+    assert j["output_config"] == {"effort": "low"} and j["cache_control"] == {"type": "ephemeral"}
+    assert j["max_tokens"] == MAX_OUTPUT_TOKENS and j["system"] == "s" and j["model"] == M1
+    assert j["tools"] == [{"name": "get_x", "description": "d", "input_schema": SPEC.parameters}]
+    assert "tool_choice" not in j
+    assert [m["role"] for m in j["messages"]] == ["user", "assistant", "user"]
+    assert j["messages"][1]["content"][0]["type"] == "tool_use"
+    assert j["messages"][2]["content"][0]["type"] == "tool_result"
+    assert r.text == "ola" and r.tool_calls == (ToolCall("toolu_1", "get_x", {"q": 1}),)
+    assert json.loads(r.provider_meta or b"") == [THINK]
+    assert (r.usage.input_tokens, r.usage.cached_tokens, r.usage.output_tokens) == (16, 4, 5)
