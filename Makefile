@@ -52,19 +52,27 @@ lint:
 check: lint test
 
 # Runner da qualidade (Task 31): no container `evals` (segredos em /run/secrets, dados e ETL por
-# volume). Antes: o ETL precisa ter rodado (eval_students.json, golden_login.json). No teste, passe
-# ARGS="--dev-json ... --spend-today X --rpd-left N --holdout-yaml ..." (ver o docstring do runner).
-#   make eval-dev  MODEL=gemini-3.8-flash ROUND=1 [ARGS=...]
-#   make eval-test MODEL=gemini-3.8-flash ROUND=1 ARGS="..."
-EVALS = $(EVAL_DC) run --rm evals python -m
+# volume; só dados.zip é montado). Antes: o ETL precisa ter rodado (eval_students.json,
+# golden_login.json). O container não tem git: GIT_SHA/GIT_DIRTY/FROZEN_SHA vêm daqui.
+#   make eval-dev  MODEL=gemini-3.8-flash ROUND=1 [ARGS=...]    (dev: ARGS=--rehearsal = ensaio)
+#   make eval-test MODEL=gemini-3.8-flash ROUND=1 HOLDOUT=/caminho/templates_test_only.yaml \
+#                  ARGS="--dev-json /eval-out/quality/dev-r2/quality.json --spend-today X --rpd-left N"
+# HOLDOUT (opt-in, nunca padrão): o YAML decifrado pelo autor, montado só nesta execução.
+# O comando que apaga volumes do compose (down -v) apaga o eval-out (transcripts, marcador do
+# cego): o ledger docs/evidence/quality/rounds.jsonl (git) guarda as rodadas e a medição cega,
+# então um reset aparece.
+GIT_ENV = GIT_SHA=$$(git rev-parse HEAD) GIT_DIRTY=$$(test -n "$$(git status --porcelain)" && echo 1 || echo 0) \
+          FROZEN_SHA=$$(git rev-list -n 1 eval-frozen 2>/dev/null || true)
+EVALS = $(GIT_ENV) $(EVAL_DC) run --rm $(if $(HOLDOUT),-v $(abspath $(HOLDOUT)):/holdout/templates.yaml:ro) \
+        evals python -m
 eval-dev eval-test:
 	@test -n "$(MODEL)" -a -n "$(ROUND)" || { echo "use MODEL=... ROUND=N" >&2; exit 1; }
 	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
-	$(EVAL_DC) up -d --build --wait api-eval
+	$(GIT_ENV) $(EVAL_DC) up -d --build --wait api-eval
 	$(EVALS) evals.golden.run --split $(patsubst eval-%,%,$@) --model $(MODEL) --round $(ROUND) \
-	  --record $(ARGS)
+	  --record $(if $(HOLDOUT),--holdout-yaml /holdout/templates.yaml) $(ARGS)
 
-eval-guard:  # conjunto cego medido 1x (semente pré-registrada); ARGS="--dev-transcripts /eval-out/quality/dev-rN/transcripts.jsonl"
+eval-guard:  # cego medido 1x (semente pré-registrada); ARGS="--dev-transcripts /eval-out/quality/dev-rN/transcripts.jsonl"
 	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
 	$(EVALS) evals.guard.run $(ARGS)
 

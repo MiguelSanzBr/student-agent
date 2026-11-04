@@ -150,8 +150,11 @@ async def _item(
             served = str(meta.get("model") or "")
             if served:
                 rr.served_models[served] = rr.served_models.get(served, 0) + 1
-                if expect_model and not rr.outcomes and not turns and served != expect_model:
-                    raise _Abort(f"modelo servido {served!r} != --model {expect_model!r}")
+            if expect_model and not rr.outcomes and not turns and served != expect_model:
+                raise _Abort(
+                    f"modelo servido {served!r} != --model {expect_model!r}" if served
+                    else "modelo servido ausente (done.model): não dá para conferir --model"
+                )  # fmt: skip
             turns.append(rec)
             metas.append(meta)
         if bad:
@@ -229,8 +232,31 @@ def close_round(path: Path, rec: Mapping[str, Any]) -> None:
     _append(path, {**rec, "status": "aborted" if rec.get("aborted") else "done"})
 
 
-def frozen_sha(root: Path = ROOT) -> str | None:
-    """SHA congelado do código: arquivo `evals/golden/FROZEN_SHA` ou tag git `eval-frozen`."""
+class StateError(Exception):
+    pass
+
+
+def _git(*a: str) -> str:
+    return subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True,
+                          check=True).stdout.strip()  # fmt: skip
+
+
+def code_state(env: Mapping[str, str] = os.environ, *, use_git: bool = True) -> tuple[str, bool]:
+    """(SHA, árvore suja). No container não há git: o Makefile passa GIT_SHA e GIT_DIRTY."""
+    if env.get("GIT_SHA"):
+        return env["GIT_SHA"], env.get("GIT_DIRTY", "") not in ("", "0")
+    if use_git:
+        try:
+            return _git("rev-parse", "HEAD"), bool(_git("status", "--porcelain"))
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    raise StateError("GIT_SHA ausente (e sem git): rode pelo make, que passa GIT_SHA/GIT_DIRTY")
+
+
+def frozen_sha() -> str | None:
+    """SHA congelado: env FROZEN_SHA, arquivo `evals/golden/FROZEN_SHA` ou tag `eval-frozen`."""
+    if os.environ.get("FROZEN_SHA"):
+        return os.environ["FROZEN_SHA"].strip()
     f = GOLD / "FROZEN_SHA"
     if f.exists():
         return f.read_text().strip() or None
@@ -238,6 +264,18 @@ def frozen_sha(root: Path = ROOT) -> str | None:
         return _git("rev-list", "-n", "1", "eval-frozen")
     except (subprocess.CalledProcessError, FileNotFoundError):
         return None
+
+
+def round_states(rows: Sequence[Mapping[str, Any]], split: str) -> list[dict[str, Any]]:
+    """Uma entrada por rodada; só `started` (processo morto) conta como abortada."""
+    last: dict[int, Mapping[str, Any]] = {}
+    for r in rows:
+        if r["split"] == split and (r["round"] not in last or r["status"] != "started"):
+            last[r["round"]] = r
+    return [
+        {"round": n, "sha": r["sha"], "aborted": r["status"] == "started" or bool(r.get("aborted"))}
+        for n, r in sorted(last.items())
+    ]
 
 
 def is_primary(frozen: str | None, sha: str, *, prior: Sequence[Mapping[str, Any]]) -> bool:
@@ -705,6 +743,13 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
+def _inside_repo(out: Path) -> bool:
+    """Repositório (ROOT), diretório de evidência e /evidence (montagem do repo no container)."""
+    roots = [ROOT, Path("/evidence"), Path(os.environ.get("EVIDENCE_DIR", "/evidence"))]
+    p = out.resolve()
+    return any(p.is_relative_to(r.resolve()) for r in roots)
+
+
 def validate_args(a: argparse.Namespace) -> str | None:
     """Sem liberdade de ajuste no teste (§4, §15): o que muda o resultado exige --rehearsal."""
     if a.resummarize:
@@ -713,27 +758,21 @@ def validate_args(a: argparse.Namespace) -> str | None:
         return "--split, --model e --round são obrigatórios"
     if a.split != "test":
         return None
-    if a.out is not None and a.out.resolve().is_relative_to(ROOT):
-        return "teste: --out dentro do repositório vazaria o texto dos itens test_only"
-    if a.rehearsal:
-        return None
+    if a.out is not None and _inside_repo(a.out):
+        return "teste: --out dentro do repositório/evidência vazaria o texto dos itens test_only"
     for ok, msg in (
+        (not a.rehearsal, "--rehearsal é só do dev: no teste não há ensaio sem contagem"),
         (a.record, "teste exige --record (a rodada é contada)"),
         (a.dev_json, "teste exige --dev-json (P(meta) é gravada antes da rodada)"),
         (a.spend_today is not None, "teste exige --spend-today (gasto real do dia)"),
         (a.rpd_left is not None, "teste exige --rpd-left (RPD restante real)"),
-        (not a.allow_dirty, "--allow-dirty só com --rehearsal"),
-        (not a.paraphrase, "--paraphrase só com --rehearsal (não é o primário)"),
-        (a.n_boot == N_BOOT, f"--n-boot fixo em {N_BOOT} no teste (só com --rehearsal)"),
+        (not a.allow_dirty, "teste: sem --allow-dirty (SHA congelado)"),
+        (not a.paraphrase, "teste: sem --paraphrase (rodada secundária, não é o primário)"),
+        (a.n_boot == N_BOOT, f"teste: --n-boot fixo em {N_BOOT}"),
     ):
         if not ok:
             return msg
     return None
-
-
-def _git(*a: str) -> str:
-    return subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True,
-                          check=True).stdout.strip()  # fmt: skip
 
 
 async def amain(a: argparse.Namespace) -> int:
@@ -747,13 +786,17 @@ async def amain(a: argparse.Namespace) -> int:
         publish(a.resummarize, evidence, f"{s['split']}-r{s['round']}")
         print(render_md(s))
         return 0
+    try:
+        sha, dirty = code_state()
+    except StateError as e:
+        print(e, file=sys.stderr)
+        return 2
     from app.config import AppSettings, load_slo_targets
     from evals import oracle as o
     from evals.preflight import project_round
     from evals.tokens import mint
 
     slo, settings = load_slo_targets(), AppSettings()
-    sha, dirty = _git("rev-parse", "HEAD"), bool(_git("status", "--porcelain"))
     if a.split == "test" and dirty and not a.allow_dirty:
         print("teste exige árvore limpa (SHA congelado)", file=sys.stderr)
         return 2
@@ -818,10 +861,7 @@ async def amain(a: argparse.Namespace) -> int:
     write_private(out, rr, by_id, strata)  # parcial também fica gravado
     meta["served_models"] = rr.served_models
     if a.split == "test":
-        meta["test_rounds"] = [
-            {"round": r["round"], "sha": r["sha"], "aborted": r.get("aborted", False)}
-            for r in read_rounds(ledger) if r["split"] == "test" and r["status"] != "started"
-        ]  # fmt: skip
+        meta["test_rounds"] = round_states(read_rounds(ledger), "test")
         if rr.valid and not rr.aborted and a.round == 1:
             valid = _results([x for x in rr.valid if x.category != "multiturno"])
             _validation_csv(out / "scorer_validation.csv", sample_scorer_validation(valid), rr,

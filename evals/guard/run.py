@@ -168,9 +168,20 @@ def blind_marker() -> Path:
     return Path(os.environ.get("EVAL_OUT_DIR", "/eval-out")) / "guard" / ".blind_measured"
 
 
+def _ledger(status: str) -> None:
+    """Linha no rounds.jsonl (git): um `down -v` que apaga o marcador do eval-out fica visível."""
+    d = Path(os.environ.get("EVIDENCE_DIR", ROOT / "docs/evidence/quality"))
+    if d.exists():
+        with (d / "rounds.jsonl").open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"split": "guard", "round": 1, "status": status,
+                                 "seed": BLIND_SEED}) + "\n")  # fmt: skip
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--data", type=Path, default=ROOT / "data/dados.zip")
+    ap.add_argument(
+        "--data", type=Path, default=Path(os.environ.get("EVAL_DATA", ROOT / "data/dados.zip"))
+    )  # noqa: E501
     ap.add_argument("--dev-transcripts", type=Path)
     ap.add_argument(
         "--out",
@@ -179,25 +190,42 @@ def main(argv: Sequence[str] | None = None) -> int:
     )  # noqa: E501
     ap.add_argument("--n-boot", type=int, default=10_000)
     a = ap.parse_args(argv)
+    # 1) valida TODAS as entradas: um erro aqui não queima a medição única
+    for what, path in (("dados", a.data), ("ontologia", ROOT / "ontology"),
+                       ("transcripts do dev", a.dev_transcripts)):  # fmt: skip
+        if path is not None and not path.exists():
+            print(f"{what} não encontrado: {path}", file=sys.stderr)
+            return 2
     marker = blind_marker()
     if marker.exists():
         print(f"conjunto cego já medido ({marker} existe): 1x só", file=sys.stderr)
         return 2
-    marker.parent.mkdir(parents=True, exist_ok=True)
-    marker.write_text(f"semente {BLIND_SEED}\n")  # antes de medir: uma medição que morre conta
     raw, onto = o.load_csv(a.data), Ontology.load(ROOT / "ontology")
-    g: dict[str, Any] = {"blind": blind_report(raw, onto, seed=BLIND_SEED, n_boot=a.n_boot)}
+    rows: list[dict[str, Any]] = []
+    items: dict[str, Any] = {}
     if a.dev_transcripts:
         from evals.golden.build import build_items, load_shared
 
         golden = json.loads((ROOT / "tests/fixtures/golden.json").read_text())["cases"]
         enr = {f"caso{c['case']}": (c["brand"], c["ra"]) for c in golden}
         items = {i.id: i for i in build_items(load_shared(), [], enr, raw)}
-        rows = [json.loads(x) for x in a.dev_transcripts.read_text().splitlines()]
-        g["dev"] = dev_report(rows, items, raw, onto, seed=BLIND_SEED)
+        rows = [json.loads(x) for x in a.dev_transcripts.read_text().splitlines() if x.strip()]
     a.out.mkdir(parents=True, exist_ok=True)
-    (a.out / "guard.json").write_text(json.dumps(g, indent=2, ensure_ascii=False))
-    (a.out / "guard.md").write_text(render_md(g), encoding="utf-8")
+    # 2) o marcador vai imediatamente antes de medir
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(f"semente {BLIND_SEED}\n")
+    _ledger("started")
+    g: dict[str, Any] = {"blind": blind_report(raw, onto, seed=BLIND_SEED, n_boot=a.n_boot)}
+    _ledger("done")
+
+    def write() -> None:
+        (a.out / "guard.json").write_text(json.dumps(g, indent=2, ensure_ascii=False))
+        (a.out / "guard.md").write_text(render_md(g), encoding="utf-8")
+
+    write()  # a parte cega já fica gravada antes da parte do dev
+    if a.dev_transcripts:
+        g["dev"] = dev_report(rows, items, raw, onto, seed=BLIND_SEED)
+        write()
     print(render_md(g))
     return 0
 

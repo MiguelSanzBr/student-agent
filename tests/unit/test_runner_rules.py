@@ -10,12 +10,16 @@ from evals.golden.run import (
     Outcome,
     RoundExists,
     RoundResult,
+    StateError,
     _ci,
     claim_round,
     close_round,
+    code_state,
+    frozen_sha,
     is_primary,
     parse,
     resummarize,
+    round_states,
     run_round,
     sample_scorer_validation,
     sample_utility,
@@ -219,6 +223,8 @@ async def test_first_turn_model_mismatch_aborts():
     assert not r.aborted and r.served_models == {"m1": 1}
     r, _ = await go(FakeClient((GOOD, {"model": "m2"})), expect_model="m1")
     assert r.aborted and "m2" in r.abort_reason
+    r, _ = await go(FakeClient(GOOD), expect_model="m1")  # done.model ausente também reprova
+    assert r.aborted and "ausente" in r.abort_reason
 
 
 async def test_tokens_minted_lazily_per_student():
@@ -268,14 +274,51 @@ def test_test_split_policy(tmp_path):
     i = no_dev.index("--dev-json")
     del no_dev[i : i + 2]
     assert "--dev-json" in check(no_dev, tmp_path)
-    for extra in (["--allow-dirty"], ["--paraphrase"], ["--n-boot", "100"]):
-        assert check([*OK_TEST, *extra], tmp_path), extra
-    assert check([*OK_TEST, "--allow-dirty", "--paraphrase", "--rehearsal"], tmp_path) is None
+    for extra in (["--allow-dirty"], ["--paraphrase"], ["--n-boot", "100"], ["--rehearsal"]):
+        assert check([*OK_TEST, *extra], tmp_path), extra  # no teste não há ensaio nem ajuste
     i = OK_TEST.index("--spend-today")
     assert "--spend-today" in check(OK_TEST[:i] + OK_TEST[i + 2 :], tmp_path)
     assert "repositório" in check([*OK_TEST[:-1], str(Path("docs/evidence/x").resolve())], tmp_path)
-    # o dev é livre
-    assert validate_args(parse(["--split", "dev", "--model", "m", "--round", "1"])) is None
+    # o ensaio e o ajuste são do dev
+    dev = ["--split", "dev", "--model", "m", "--round", "1"]
+    assert validate_args(parse(dev)) is None
+    assert validate_args(parse([*dev, "--rehearsal", "--paraphrase", "--allow-dirty"])) is None
+
+
+def test_out_refused_under_evidence_dirs(tmp_path, monkeypatch):
+    ev = tmp_path / "evid"
+    monkeypatch.setenv("EVIDENCE_DIR", str(ev))
+    assert "repositório" in check([*OK_TEST[:-1], str(ev / "q")], tmp_path)
+    assert "repositório" in check([*OK_TEST[:-1], "/evidence/q"], tmp_path)
+
+
+def test_code_state_from_env_or_clear_error(monkeypatch):
+    assert code_state({"GIT_SHA": "abc", "GIT_DIRTY": "0"}, use_git=False) == ("abc", False)
+    assert code_state({"GIT_SHA": "abc", "GIT_DIRTY": "1"}, use_git=False) == ("abc", True)
+    with pytest.raises(StateError, match="GIT_SHA"):
+        code_state({}, use_git=False)
+    monkeypatch.delenv("FROZEN_SHA", raising=False)
+    monkeypatch.setenv("FROZEN_SHA", "fff")
+    assert frozen_sha() == "fff"
+
+
+async def test_amain_test_without_git_state_gives_clean_error(tmp_path, monkeypatch, capsys):
+    import evals.golden.run as gr
+
+    monkeypatch.delenv("GIT_SHA", raising=False)
+    monkeypatch.setattr(gr, "_git", lambda *a: (_ for _ in ()).throw(FileNotFoundError("git")))
+    argv = [str(tmp_path) if x == "OUT" else x for x in OK_TEST]
+    assert await gr.amain(parse(argv)) == 2
+    assert "GIT_SHA" in capsys.readouterr().err
+
+
+def test_round_states_counts_killed_rounds_as_aborted():
+    rows = [{"split": "test", "round": 1, "sha": "a", "status": "started"},
+            {"split": "test", "round": 2, "sha": "a", "status": "started"},
+            {"split": "test", "round": 2, "sha": "a", "status": "done", "aborted": False},
+            {"split": "dev", "round": 1, "sha": "a", "status": "started"}]  # fmt: skip
+    st = round_states(rows, "test")
+    assert [(r["round"], r["aborted"]) for r in st] == [(1, True), (2, False)]
 
 
 def test_is_primary_only_first_run_on_frozen_sha():
