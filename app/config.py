@@ -139,6 +139,8 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
             "agent_app_password",
             "redis_password",
             "gemini_api_key",
+            "anthropic_api_key",
+            "openai_api_key",
         }  # fmt: skip
     )
 
@@ -149,7 +151,9 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     prompt_canary: str
     agent_app_password: str
     redis_password: str
-    gemini_api_key: str | None = None  # opcional: sem ela, modo replay
+    gemini_api_key: str | None = None  # opcional: sem chave de LLM, modo replay
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
 
     app_env: Literal["dev", "prod"] = "dev"
     limits_profile: Literal["default", "eval", "load"] = "default"
@@ -188,7 +192,10 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     def _secret_ok(cls, v: str) -> str:
         return check_secret(v)
 
-    @field_validator("gemini_api_key", "otel_exporter_otlp_endpoint", "dataset_sha")
+    @field_validator(
+        "gemini_api_key", "anthropic_api_key", "openai_api_key",
+        "otel_exporter_otlp_endpoint", "dataset_sha",
+    )  # fmt: skip
     @classmethod
     def _blank_is_none(cls, v: str | None) -> str | None:
         return (v or "").strip() or None
