@@ -40,7 +40,7 @@ from app.tools.base import (
     ToolContext,
     ToolError,
     ToolOutput,
-    _default_ontology,
+    default_ontology,
     validate_args,
 )
 from app.tools.registry import build_tools
@@ -461,7 +461,7 @@ async def run_turn(
     user = Message("user", text, turn=turn)
     env = _Env(
         text, scope, card, channel, ctx_factory, deadline, model, turn, rounds, not degraded,
-        ontology or _default_ontology(),
+        ontology or default_ontology(),
         tuple(m.text for t in conversation.turns for m in t if m.role == "system_note" and m.text),
     )  # fmt: skip
     init: _S = {
