@@ -24,6 +24,7 @@ docker compose up -d --wait
 docker compose run --rm etl   # carga única: cria o banco e grava os logins dos casos golden
 make login CASE=4       # imprime uma URL de login de uso único
 make a2a-demo           # cliente A2A: lê o card e faz uma pergunta
+make langflow-demo      # Langflow (imagem fixada) chama o agente por A2A; KEEP=1 deixa a UI em http://127.0.0.1:7860
 ```
 Sem chave, a interface mostra a faixa "modo demonstração" e sugestões de pergunta. A resposta vem de um roteiro (`app/agent/replay.py`) que chama as ferramentas de verdade e monta o texto com a saída delas; pergunta fora do roteiro recebe uma resposta honesta de que não está no roteiro.
 

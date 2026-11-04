@@ -1,4 +1,4 @@
-.PHONY: stamp up down lane-up lane-down smoke login a2a-demo phoenix-import test test-full \
+.PHONY: stamp up down lane-up lane-down smoke login a2a-demo langflow-demo langflow-down phoenix-import test test-full \
         test-live lint check eval-dev eval-test eval-guard eval-security eval-security-blind eval-latency load-test publish-evidence package
 
 LANE ?=
@@ -162,6 +162,25 @@ smoke:  # make smoke LANE=x, em série; sobe a raia e a derruba ao fim
 
 a2a-demo:  # com a pilha no ar (make up); CASE=4 por padrão
 	@docker compose exec -T api python -m scripts.a2a_demo $(or $(CASE),4)
+
+# Sobe api + Langflow num projeto próprio (portas fora das raias), roda o golden 4 pelo fluxo
+# Chat Input -> A2A Agent -> Chat Output e derruba o que subiu. Sem chave de LLM (replay).
+LF_PORT ?= 7860
+LF_DC = COMPOSE_PROJECT_NAME=sa-langflow API_PORT=8014 DB_PORT=55436 REDIS_PORT=56383 \
+        LANGFLOW_PORT=$(LF_PORT) LLM_PROVIDER=auto DEV_LOGIN=true A2A_PUBLIC_URL=http://api:8000 \
+        docker compose -f docker-compose.yml -f ops/compose.lane.yml --profile langflow
+langflow-demo:  # KEEP=1 deixa no ar para a captura de tela (derrube com make langflow-down)
+	@trap '[ -n "$(KEEP)" ] || $(LF_DC) down --volumes >/dev/null 2>&1' EXIT; set -e; \
+	$(LF_DC) up -d --build --wait init-secrets db redis; \
+	$(LF_DC) run --rm etl; \
+	$(LF_DC) up -d --build --wait api; \
+	$(LF_DC) up -d langflow; \
+	for i in $$(seq 60); do curl -fs http://127.0.0.1:$(LF_PORT)/health >/dev/null && break; sleep 5; done; \
+	$(LF_DC) exec -T api python -m scripts.langflow_demo < ops/langflow/flow.json > docs/evidence/langflow-a2a.json; \
+	cat docs/evidence/langflow-a2a.json
+
+langflow-down:
+	@$(LF_DC) down --volumes
 
 login:
 	@test -n "$(CASE)" || { echo "use CASE=4" >&2; exit 1; }

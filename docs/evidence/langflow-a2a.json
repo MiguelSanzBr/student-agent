@@ -1,0 +1,5 @@
+{
+ "question": "quanto falta para quitar?",
+ "answer": "O total para quitar é R$ 49.508,43. Há 32 faturas vencidas, com principal vencido de R$ 42.636,26.",
+ "via": "Langflow A2A Agent -> /a2a (x-api-key)"
+}

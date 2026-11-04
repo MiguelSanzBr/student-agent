@@ -130,7 +130,7 @@ O spike com o cliente real do SDK mostrou três fatos que moldaram o desenho:
 
 **Alternativa.** Só HTTP próprio.
 
-**Trade-off.** O A2A é mais protocolo do que um endpoint simples, e o SDK tem arestas (o `GetExtendedAgentCard` com o card declarado devolve <!-- num:a2a.GetExtendedAgentCard_com_extended_agent_card_False -->-32004<!-- /num -->, e não o <!-- num:a2a.EXTENDED_CARD_NOT_CONFIGURED -->-32007<!-- /num --> que a leitura da especificação sugeria). Em troca, os 11 métodos têm teste de posse (`tests/e2e/test_a2a.py`). A demonstração é `make a2a-demo`; o consumo por Langflow ou ADK é desenho, não demonstrado.
+**Trade-off.** O A2A é mais protocolo do que um endpoint simples, e o SDK tem arestas (o `GetExtendedAgentCard` com o card declarado devolve <!-- num:a2a.GetExtendedAgentCard_com_extended_agent_card_False -->-32004<!-- /num -->, e não o <!-- num:a2a.EXTENDED_CARD_NOT_CONFIGURED -->-32007<!-- /num --> que a leitura da especificação sugeria). Em troca, os 11 métodos têm teste de posse (`tests/e2e/test_a2a.py`). A demonstração é `make a2a-demo`; o Langflow consome o agente por `make langflow-demo`; o ADK é desenho, não demonstrado.
 
 ### D16. Observabilidade que liga qualidade e operação
 
@@ -355,7 +355,7 @@ Esta seção descreve o caminho, não algo já feito. Fora do escopo: deploy em 
 - **Dados:** hoje o ETL carrega CSV numa carga única. Em produção, a entrada seria CDC dos bancos de origem ou APIs dos sistemas, com o mesmo contrato por coluna e as mesmas verificações de contagem. A escrita do rascunho confirmado sairia por **outbox**, na mesma transação do INSERT, para um worker que abre o protocolo no sistema da secretaria com retry idempotente por `draft_id`.
 - **Identidade:** o JWT de desenvolvimento dá lugar a um provedor de identidade da instituição. O A2A usaria **token exchange (RFC 8693)**: o agente chamador troca o token do aluno por um token de audiência `a2a` com claim `act`, de modo que o `sub` continua sendo o aluno e o chamador fica registrado.
 - **Modelo:** Vertex AI com cota provisionada, com o mesmo código (`llm_backend`, projeto e região) e a conta de serviço montada somente leitura. O balde de admissão passa a ser dimensionado pela cota contratada.
-- **Orquestradores:** é desenho, não está demonstrado: Langflow e ADK consumiriam o agente pelo A2A. O componente de A2A do Langflow envia a chave em `x-api-key`, e por isso o servidor aceita os dois esquemas (`test_x_api_key_works`). A integração entregue é o cliente de `make a2a-demo`; a raia do Langflow não foi entregue.
+- **Orquestradores:** o Langflow 1.13.1 consome o agente pelo A2A (`make langflow-demo`: Chat Input, A2A Agent, Chat Output; resposta em `docs/evidence/langflow-a2a.json`). O componente envia a chave em `x-api-key`, e por isso o servidor aceita os dois esquemas, exigindo o mesmo token se vierem juntos. O ADK é desenho, não demonstrado.
 - **Escala:** réplicas sem estado atrás de um balanceador; o estado é Redis (histórico, admissão, tarefas A2A) e Postgres. A CPU por turno medida na escada de carga define quantas réplicas por RPM.
 
 ## 11. Limites honestos

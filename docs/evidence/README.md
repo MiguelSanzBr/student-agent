@@ -16,6 +16,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 | `observability` | Spans, anotações e métricas | `observability.md` traz o smoke contra um Phoenix real; a rodada de teste fica a gerar |
 | `graph.md` | Grafo gerado por `draw_mermaid` | Gerado |
 | `phoenix/` | Export dos spans e anotações da rodada de teste (`make phoenix-import` reimporta) | A gerar |
+| `langflow-a2a.json` | Pergunta do golden 4 respondida pelo agente através do fluxo do Langflow (`make langflow-demo`) | Gerado |
 | `img/chat-golden4-fake.jpg` | Captura do chat web (aluno do caso 4) | Gerado |
 
 ## Requisito, mecanismo, teste e número

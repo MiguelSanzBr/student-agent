@@ -13,6 +13,7 @@ x-api: &api
     LLM_BACKEND: ${LLM_BACKEND:-aistudio}
     GCP_PROJECT: ${GCP_PROJECT:-}
     GCP_LOCATION: ${GCP_LOCATION:-global}
+    A2A_PUBLIC_URL: ${A2A_PUBLIC_URL:-http://localhost:8000}  # URL do card; make langflow-demo: http://api:8000
     DEV_LOGIN: ${DEV_LOGIN:-true}  # demo local; AppSettings recusa dev_login com APP_ENV=prod
     OTEL_INSTRUMENTATION_A2A_SDK_ENABLED: "false"
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}  # obs: http://phoenix:6006/v1/traces
@@ -160,9 +161,13 @@ services:
       - ${GCP_SA_FILE:-/dev/null}:/run/gcp/sa.json:ro
     ports: ["127.0.0.1:${VERTEX_PORT:-8200}:8000"]
 
-  langflow:  # exige Langflow >= 1.11 (A2A Agent)
-    image: ${LANGFLOW_IMAGE:-langflowai/langflow:latest}
+  langflow:  # Langflow >= 1.11 (A2A Agent); sem volumes: não vê data/ nem segredos do projeto
+    image: ${LANGFLOW_IMAGE:-langflowai/langflow:1.13.1}
     profiles: [langflow]
+    environment:
+      LANGFLOW_SSRF_ALLOWED_HOSTS: api  # o agente na rede do compose (host privado)
+      LANGFLOW_AUTO_LOGIN: "true"
+      LANGFLOW_DO_NOT_TRACK: "true"
     ports: ["127.0.0.1:${LANGFLOW_PORT:-7860}:7860"]
 
 volumes:
