@@ -39,11 +39,66 @@ def test_build_numbers_from_real_evidence() -> None:
     assert all(isinstance(v, str) for v in n.values())
 
 
-def test_build_numbers_flattens_later_evidence_and_tolerates_absence(tmp_path: Path) -> None:
-    assert not any(k.startswith("quality.") for k in build_numbers(EVIDENCE))
-    (tmp_path / "quality.json").write_text(json.dumps({"test": {"pass1": 0.9, "n": 40}}))
+def _real_evidence(d: Path) -> None:
+    """Arquivos no formato REAL dos runners, gerados pelas funções de resumo deles."""
+    import random
+
+    from evals.golden.run import Outcome, RoundResult
+    from evals.golden.run import summarize as golden
+    from evals.guard.run import _d, _w
+    from evals.latency.bench import Sample
+    from evals.latency.bench import summarize as latency
+    from evals.redteam.check import Attack
+    from evals.redteam.run import Result
+    from evals.redteam.run import summarize as redteam
+    from evals.stats import wilson
+
+    for tag, split in (("dev-r1", "dev"), ("dev-r2", "dev"), ("test-r1", "test")):
+        outs = [
+            Outcome(f"t{n}@s{n % 4}", f"s{n % 4}", f"t{n}", "academico" if n % 2 else "cruzamento",
+                    "shared" if n % 3 else "test_only", "pass" if n % 5 else "fail", 1,
+                    expect_refusal=n % 4 == 0, refused_unduly=n % 7 == 0)
+            for n in range(40)
+        ]
+        q = golden(RoundResult(outs), strata={f"s{i}": "x" for i in range(4)}, n_boot=50,
+                   meta={"split": split, "round": int(tag[-1])})
+        (d / "quality" / tag).mkdir(parents=True)
+        (d / "quality" / tag / "quality.json").write_text(json.dumps(q))
+    rs = [Result(Attack(f"a#{i}", 1 + 7 * (i > 2), f"t{i}", ("x",)), 0, i == 0, i == 4, ()) for i in range(6)]
+    sec = redteam(rs, random.Random(0)) | {"holdout": {"behavior": redteam(rs, random.Random(0))["behavior"]}}
+    (d / "security.json").write_text(json.dumps(sec))
+    g = {"blind": {"recall": _d(wilson(8, 10)), "false_block": _w(0, 10)}}
+    (d / "guard.json").write_text(json.dumps(g))
+    xs = [Sample(f"s{i % 10}", c, 3.0 + i / 100, 1.0, {"overhead": 0.2}, cost_usd=0.002,
+                 input_tokens=100) for c in ("card", "1", "2+") for i in range(30)]
+    (d / "latency-A.json").write_text(json.dumps({"window": "A", **latency(xs, seed=1, n_boot=50)}))
+    (d / "load-a-w1.json").write_text(json.dumps({"ladder": "a", "pass": True, "steps": [
+        {"rate": 1, "ok": 10}, {"rate": 2, "ok": 18}]}))
+
+
+def test_build_numbers_maps_real_runner_outputs(tmp_path: Path) -> None:
+    (tmp_path / "quality").mkdir()
+    _real_evidence(tmp_path)
     n = build_numbers(tmp_path)
-    assert n == {"quality.test.pass1": "0.9", "quality.test.n": "40"}
+    marked = set()
+    for doc in DOCS:
+        marked |= {k for k in re.findall(r"<!-- num:([\w.\-]+) -->", doc.read_text())}
+    assert {k for k in marked if k.split(".")[0] in {"quality", "security", "guard", "latency"}} <= set(n)
+    assert n["security.holdout.behavior.success"].startswith("1/3 templates")
+    assert n["latency.load.plateau"].startswith("escada (a) aprovada: 18")
+    assert n["latency.two_plus.p95"].endswith(" s")
+
+
+def test_build_numbers_uses_highest_non_rehearsal_round(tmp_path: Path) -> None:
+    for r, point in ((1, 0.5), (2, 0.9), (3, 0.1)):
+        f = tmp_path / "quality" / f"dev-r{r}" / "quality.json"
+        f.parent.mkdir(parents=True)
+        f.write_text(json.dumps({"primary": {"point": point}, "rehearsal": r == 3}))
+    assert build_numbers(tmp_path)["quality.dev.pass1"] == "90,0% (IC indisponível)"
+
+
+def test_build_numbers_without_runner_outputs_has_no_runner_keys() -> None:
+    assert not any(k.startswith(("quality.", "security.", "guard.", "latency.")) for k in build_numbers(EVIDENCE))
 
 
 def test_find_hand_typed_detects_only_unmarked_values() -> None:

@@ -15,28 +15,116 @@ MARKER = re.compile(r"<!-- num:([\w.\-]+) -->(.*?)<!-- /num -->", re.S)
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 # sem \w antes: "D17" e "T22" são identificadores, não números
 TOKEN = re.compile(r"(?<!\w)-?\d[\d.,]*\d|(?<!\w)\d")
-# evidências que chegam depois do rascunho: achatadas como `<arquivo>.<caminho>`
-LATER = ("quality", "guard", "security", "latency", "observability")
 
 
 def _load(path: Path) -> Any:
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def _flatten(prefix: str, value: Any, out: dict[str, str]) -> None:
-    if isinstance(value, Mapping):
-        for k, v in value.items():
-            _flatten(f"{prefix}.{k}", v, out)
-    elif isinstance(value, list):
-        for i, v in enumerate(value):
-            _flatten(f"{prefix}.{i}", v, out)
-    elif value is not None and not isinstance(value, bool):
-        out[prefix] = str(value)
+def _pct(x: float) -> str:
+    return f"{x:.1%}".replace(".", ",")
+
+
+def _ci(c: Mapping[str, Any] | None, what: str) -> str:
+    """Ponto e IC 95% (formato dos runners: point/low/high); sem IC, diz que é indisponível."""
+    if not c:
+        raise KeyError(f"{what}: sem número (None)")
+    if "low" not in c:
+        return f"{_pct(c['point'])} (IC indisponível)"
+    return f"{_pct(c['point'])} [{_pct(c['low'])}; {_pct(c['high'])}]"
+
+
+def _templates(g: Mapping[str, Any]) -> str:
+    """Grupo do redteam (`_group`): templates que falharam, com o Wilson dos templates."""
+    lo, hi = g["wilson"]
+    return f"{g['failed']}/{g['templates']} templates (Wilson 95%: {_pct(lo)} a {_pct(hi)})"
+
+
+def _s(v: float) -> str:
+    return f"{v:.2f} s".replace(".", ",")
+
+
+def _round(evidence_dir: Path, split: str) -> Any:
+    """quality.json da maior rodada `<split>-rN` que não é ensaio; ausente = None."""
+    found = []
+    for f in (evidence_dir / "quality").glob(f"{split}-r*/quality.json"):
+        q = json.loads(f.read_text())
+        if m := re.fullmatch(rf"{split}-r(\d+)", f.parent.name):
+            if not q.get("rehearsal"):
+                found.append((int(m[1]), q))
+    return max(found, key=lambda t: t[0])[1] if found else None
+
+
+def _quality(evidence_dir: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    if (dev := _round(evidence_dir, "dev")) is not None:
+        out["quality.dev.pass1"] = _ci(dev["primary"], "dev.primary")
+    if (t := _round(evidence_dir, "test")) is not None:
+        su, ref = t["seen_unseen"], t["refusal"]
+        wrong = ref["indevida_ausente"]  # no JSON é a taxa de NÃO recusar indevidamente
+        inv = {"point": 1 - wrong["point"]} | (
+            {"low": 1 - wrong["high"], "high": 1 - wrong["low"]} if "low" in wrong else {}
+        )
+        out |= {
+            "quality.test.pass1": _ci(t["primary"], "test.primary"),
+            "quality.seen.pass1": _ci(su["vistos(shared)"], "vistos"),
+            "quality.unseen.pass1": _ci(su["nao_vistos(test_only)"], "nao_vistos"),
+            "quality.test.refusal_ok": _ci(ref["correta"], "refusal.correta"),
+            "quality.test.refusal_wrong": _ci(inv, "refusal.indevida"),
+            "quality.test.cross": _ci(ref["cruzamento"], "refusal.cruzamento"),
+        }
+    return out
+
+
+def _security(sec: Mapping[str, Any]) -> dict[str, str]:
+    out = {
+        "security.dev.behavior.success": _templates(sec["behavior"]),
+        "security.leak.success": _templates(sec["leak"]),
+    }
+    if "holdout" in sec:  # a frente do holdout cego grava `holdout` com a forma de `behavior`/`leak`
+        out["security.holdout.behavior.success"] = _templates(sec["holdout"]["behavior"])
+    return out
+
+
+def _latency(a: Mapping[str, Any], load: Mapping[str, Any] | None) -> dict[str, str]:
+    out: dict[str, str] = {
+        "latency.cost.per_turn": f"US$ {a['cost_per_turn_usd']:.4f}".replace(".", ","),
+        "latency.budget_exceeded": _pct(a["budget_exceeded_rate"]),
+    }
+    for cls, name in (("card", "card"), ("1", "one"), ("2+", "two_plus")):
+        c = a["classes"][cls]
+        q = c["quantiles"]
+        out |= {
+            f"latency.{name}.p50": _s(q["p50"]["value"]),
+            f"latency.{name}.p95": _s(q["p95"]["value"]),
+            f"latency.{name}.ttfe_p95": _s(c["ttfe_p95"]["value"]),
+        }
+    out["latency.overhead.p95"] = _s(a["classes"]["2+"]["cascade"]["overhead"]["p95"])
+    if load is not None:
+        ok = [s["ok"] for s in load["steps"]]
+        out["latency.load.plateau"] = (
+            f"escada (a) {'aprovada' if load['pass'] else 'reprovada'}: {ok[-1]} turnos admitidos "
+            f"no degrau mais alto, pico de {max(ok)}"
+        )
+    return out
 
 
 def build_numbers(evidence_dir: Path) -> dict[str, str]:
-    """Chaves estáveis → texto. Arquivo ausente = chaves ausentes (render_docs reclama)."""
-    out: dict[str, str] = {}
+    """Chaves estáveis → texto. Arquivo ausente = chaves ausentes (render_docs reclama).
+
+    Fontes (saídas reais dos runners, copiadas para docs/evidence):
+    quality/<dev|test>-rN/quality.json (maior N sem ensaio; `make eval-dev|eval-test`),
+    guard.json (`make eval-guard`), security.json (`make eval-security`, `holdout` vem do
+    holdout cego), latency-A.json (janela A de `make eval-latency`), load-a-w1.json (`make load-test`)."""
+    out: dict[str, str] = _quality(evidence_dir)
+    if (g := _load(evidence_dir / "guard.json")) is not None:
+        out["guard.blind_recall"] = _ci(g["blind"]["recall"], "guard.recall")
+        fb = g["blind"]["false_block"]
+        out["guard.false_block"] = f"{fb['k']}/{fb['n']} ({_ci(fb, 'guard.false_block')})"
+    if (sec := _load(evidence_dir / "security.json")) is not None:
+        out |= _security(sec)
+    if (lat := _load(evidence_dir / "latency-A.json")) is not None:
+        out |= _latency(lat, _load(evidence_dir / "load-a-w1.json"))
     if (dq := _load(evidence_dir / "data-quality.json")) is not None:
         checks = {c["name"]: c["legs"] for c in dq["checks"]}
 
@@ -67,9 +155,6 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
     if (sp := _load(evidence_dir / "spikes.json")) is not None:
         for name, code in sp["a2a"]["codes"].items():
             out[f"a2a.{re.sub(r'[^\w]+', '_', name).strip('_')}"] = str(code)
-    for stem in LATER:
-        if (data := _load(evidence_dir / f"{stem}.json")) is not None:
-            _flatten(stem, data, out)
     return out
 
 

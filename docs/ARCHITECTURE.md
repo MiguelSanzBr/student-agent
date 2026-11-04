@@ -397,4 +397,4 @@ guard.false_block, guard.blind_recall
 security.dev.behavior.success, security.holdout.behavior.success, security.leak.success
 latency.card.p50, latency.card.p95, latency.card.ttfe_p95, latency.one.*, latency.two_plus.* (mesmos três),
 latency.overhead.p95, latency.budget_exceeded, latency.load.plateau, latency.cost.per_turn
-Os JSONs de evidência (quality.json etc.) devem expor exatamente essas chaves achatadas, ou build_numbers deve mapeá-las. -->
+Origem de cada chave: docstring de `build_numbers` em scripts/render_docs.py. -->
