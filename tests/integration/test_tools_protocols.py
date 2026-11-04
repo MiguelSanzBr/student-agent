@@ -99,7 +99,7 @@ async def test_guardian_protocol_without_identity(pool, loaded_db) -> None:  # t
     out = await _run("get_protocol", ctx, numero="20230003896")
     assert out.data["solicitante"] == "responsável"
     blob = json.dumps(out.data, ensure_ascii=False)
-    assert "63791289560" not in blob and "cpf" not in blob.lower()
+    assert "63844422137" not in blob and "cpf" not in blob.lower()
 
 
 async def test_sibling_absent(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]

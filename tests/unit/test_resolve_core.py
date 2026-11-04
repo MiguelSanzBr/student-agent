@@ -46,9 +46,9 @@ def contract(cid: str, customer: str, code: str, area: str, ref: str) -> dict[st
 
 
 def test_same_cpf_one_person() -> None:
-    people = resolve_people([person("1", "102.854.950-46"), person("2", "10285495046")], KEY)
+    people = resolve_people([person("1", "593.556.115-87"), person("2", "59355611587")], KEY)
     assert len(people) == 1
-    assert people["10285495046"].person_ids == ("1", "2")
+    assert people["59355611587"].person_ids == ("1", "2")
 
 
 def test_colliding_ra_distinct() -> None:
@@ -146,10 +146,10 @@ def test_brand_for_company_csv() -> None:
 
 
 def test_duplicate_brand_ra_from_two_cpfs_counted_not_overwritten() -> None:
-    people = resolve_people([person("1", "10285495046"), person("2", "39053344705")], KEY)
+    people = resolve_people([person("1", "59355611587"), person("2", "39053344705")], KEY)
     stats = ResolutionStats()
     out = resolve_enrollments(
         [enr("UniSaoPaulo", "181722", "1"), enr("UniSaoPaulo", "181722", "2")], people, stats
     )
-    assert out[("UniSaoPaulo", "181722")].person_key == people["10285495046"].person_key
+    assert out[("UniSaoPaulo", "181722")].person_key == people["59355611587"].person_key
     assert stats.duplicates == 1

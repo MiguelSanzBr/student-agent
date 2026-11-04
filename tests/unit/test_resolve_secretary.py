@@ -78,7 +78,7 @@ def run(w, rows):  # type: ignore[no-untyped-def]
     return resolve_protocols(rows, ppl, enr, krow, payers, customers=crow)
 
 
-CPF = "10285495046"
+CPF = "59355611587"
 
 
 def test_stu_id_without_zeros() -> None:

@@ -16,8 +16,8 @@ def test_rule_helpers() -> None:
     assert o.normalize_academic_ref("18015") == "180157"
     assert o.normalize_academic_ref("012815") == "012815"
     assert o.lpad("11924", 6) == "011924"
-    assert o.cpf11("4145328485") == "04145328485"
-    assert o.cpf11("081.405.226-60") == "08140522660"
+    assert o.cpf11("1234567890") == "01234567890"
+    assert o.cpf11("373.473.622-61") == "37347362261"
     assert o.protocol_ref_digits("PRT-2022/0003006") == "20220003006"
 
 

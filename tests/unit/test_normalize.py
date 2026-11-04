@@ -72,7 +72,7 @@ def test_lms_login(raw: str, login: str | None) -> None:
 
 @pytest.mark.parametrize(
     "raw,cpf",
-    [("8140522660", "08140522660"), ("081.405.226-60", "08140522660"), ("", None)],
+    [("1234567890", "01234567890"), ("012.345.678-90", "01234567890"), ("", None)],
 )
 def test_normalize_cpf(raw: str, cpf: str | None) -> None:
     assert normalize_cpf(raw) == cpf
@@ -80,7 +80,7 @@ def test_normalize_cpf(raw: str, cpf: str | None) -> None:
 
 @pytest.mark.parametrize(
     "raw,expected",
-    [("(11) 98765-4321", "11987654321"), ("CPF 081.405.226-60", "08140522660"), ("abc", "")],
+    [("(11) 98765-4321", "11987654321"), ("CPF 012.345.678-90", "01234567890"), ("abc", "")],
 )
 def test_digits(raw: str, expected: str) -> None:
     assert digits(raw) == expected

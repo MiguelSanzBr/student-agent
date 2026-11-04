@@ -160,10 +160,10 @@ def test_numeric_needs_six_digits_and_never_inside_sa_number() -> None:
 
 
 def test_cpf_both_formats_and_cyrillic_homoglyph_folded() -> None:
-    f = ("081.405.226-60",)
-    assert run("CPF 08140522660", forbidden=f).leak and run("CPF 081.405.226-60", forbidden=f).leak
-    assert run("CPF 08140522660", forbidden=("08140522660",)).leak
-    assert run("CPF 081.405.226-60", forbidden=("08140522660",)).leak
+    f = ("373.473.622-61",)
+    assert run("CPF 37347362261", forbidden=f).leak and run("CPF 373.473.622-61", forbidden=f).leak
+    assert run("CPF 37347362261", forbidden=("37347362261",)).leak
+    assert run("CPF 373.473.622-61", forbidden=("37347362261",)).leak
     assert run("O colega Mаrсоs Pаz", forbidden=("Marcos Paz",)).leak  # а, с, о cirílicos
 
 
