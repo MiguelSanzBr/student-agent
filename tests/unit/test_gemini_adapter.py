@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace as NS
 from typing import Any
 
+import httpx
 import pytest
 from google.genai import errors, types
 
@@ -9,7 +10,7 @@ import app.agent.gemini as gm
 from app.agent import make_llm
 from app.agent.fakes import ScriptedLLM
 from app.agent.gemini import GeminiProvider
-from app.agent.llm import LLMResponse, LLMUnavailable, Message, Usage
+from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
 from app.config import AppSettings
 from app.tools.base import ToolSpec
 from core.clock import monotonic
@@ -164,7 +165,7 @@ async def test_retry_cap_floor(app_secrets: object) -> None:
     for _ in range(100):
         with pytest.raises(LLMUnavailable):
             await gen(p)
-    assert len(m.calls) - 100 <= 10
+    assert 3 <= len(m.calls) - 100 <= 10
 
 
 async def test_provider_has_no_per_call_queue(app_secrets: object) -> None:
@@ -194,3 +195,51 @@ async def test_scripted_llm_records_calls_and_make_llm(app_secrets: object) -> N
     assert isinstance(make_llm(AppSettings(llm_provider="fake")), ScriptedLLM)
     with pytest.raises(NotImplementedError):
         make_llm(AppSettings(llm_provider="auto"))
+
+
+async def test_multi_tool_call_turn_rebuilt_in_single_contents(app_secrets: object) -> None:
+    m = FakeModels()
+    calls = (ToolCall("c0", "a", {"x": 1}, b"s0"), ToolCall("c1", "b", {}, None))
+    hist = [
+        Message("user", "oi"),
+        Message("assistant", text="vou ver", tool_calls=calls, provider_meta=b"st", model=M1),
+        Message("tool", tool_call_id="c0", tool_name="a", tool_result={"r": 1}, model=M1),
+        Message("tool", tool_call_id="c1", tool_name="b", tool_result={"r": 2}, model=M1),
+    ]
+    await gen(provider(m, app_secrets), messages=hist)
+    cs = m.calls[0]["contents"]
+    assert [c.role for c in cs] == ["user", "model", "user"]
+    mp, up = cs[1].parts, cs[2].parts
+    assert [(p.text, p.thought_signature) for p in mp[:1]] == [("vou ver", b"st")]
+    assert [(p.function_call.name, p.thought_signature) for p in mp[1:]] == [
+        ("a", b"s0"),
+        ("b", None),
+    ]
+    assert [(p.function_response.name, p.function_response.response) for p in up] == [
+        ("a", {"r": 1}),
+        ("b", {"r": 2}),
+    ]
+
+
+@pytest.mark.parametrize(
+    "details", [[{"x": 1}], "texto", None, {"error": "x"}, {"error": {"details": "x"}}]
+)
+async def test_retry_info_odd_shapes_do_not_raise(app_secrets: object, details: Any) -> None:
+    e = errors.APIError(429, details)
+    m = FakeModels([e])
+    with pytest.raises(LLMUnavailable):  # sem RetryInfo: backoff padrão; sem sobra: quota
+        await gen(provider(m, app_secrets), deadline=monotonic() + 0.2)
+
+
+async def test_httpx_timeout_is_llm_timeout(app_secrets: object) -> None:
+    m = FakeModels([httpx.ReadTimeout("t")])
+    with pytest.raises(LLMUnavailable) as ei:
+        await gen(provider(m, app_secrets))
+    assert ei.value.reason == "timeout"
+
+
+async def test_empty_candidates_is_blocked(app_secrets: object) -> None:
+    resp = NS(candidates=[], usage_metadata=None,
+              prompt_feedback=NS(block_reason=types.BlockedReason.SAFETY))  # fmt: skip
+    r = await gen(provider(FakeModels([resp]), app_secrets))
+    assert r.finish_reason == "BLOCKED" and r.text is None and r.tool_calls == ()

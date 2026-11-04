@@ -1,9 +1,11 @@
 import asyncio
+import logging
 import re
 from collections import deque
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
 
+import httpx
 from google import genai
 from google.genai import errors, types
 
@@ -12,6 +14,7 @@ from app.config import AppSettings
 from app.tools.base import ToolSpec
 from core.clock import monotonic
 
+log = logging.getLogger(__name__)
 THINKING_LEVEL = "MINIMAL"  # nível do portão (spec §6.5); medição real pendente: sem GEMINI_API_KEY
 MAX_OUTPUT_TOKENS = 2048  # resposta ≤ 2000 caracteres + raciocínio mínimo; a confirmar no spike
 RETRY_FRACTION, RETRY_FLOOR_PER_MIN = 0.10, 3
@@ -35,8 +38,10 @@ def _default_client(settings: AppSettings) -> genai.Client:
 
 def _retry_info_s(e: errors.APIError) -> float | None:
     body = e.details if isinstance(e.details, dict) else {}
-    for d in (body.get("error") or body).get("details", []):
-        if str(d.get("@type", "")).endswith("RetryInfo"):
+    err = body.get("error")
+    details = (err if isinstance(err, dict) else body).get("details")
+    for d in details if isinstance(details, list) else []:
+        if isinstance(d, dict) and str(d.get("@type", "")).endswith("RetryInfo"):
             m = re.fullmatch(r"([\d.]+)s", str(d.get("retryDelay", "")))
             return float(m.group(1)) if m else None
     return None
@@ -62,26 +67,31 @@ def _contents(messages: Sequence[Message], model: str) -> list[types.Content]:
             add("user", types.Part.from_function_response(
                 name=m.tool_name or "", response=dict(m.tool_result or {})))  # fmt: skip
         else:
-            if m.text:
-                out.append(
-                    types.Content(
-                        role="model",
-                        parts=[
-                            types.Part(
-                                text=m.text, thought_signature=m.provider_meta if keep else None
-                            )
-                        ],
-                    )
-                )
-            for c in m.tool_calls:
-                out.append(types.Content(role="model", parts=[types.Part(
+            parts = (
+                [types.Part(text=m.text, thought_signature=m.provider_meta if keep else None)]
+                if m.text
+                else []
+            )
+            parts += [
+                types.Part(
                     function_call=types.FunctionCall(name=c.name, args=dict(c.args)),
-                    thought_signature=c.provider_meta if keep else None)]))  # fmt: skip
+                    thought_signature=c.provider_meta if keep else None,
+                )
+                for c in m.tool_calls
+            ]
+            if parts:
+                out.append(types.Content(role="model", parts=parts))
     return out
 
 
 def _parse(resp: Any, model: str) -> LLMResponse:
     cand = resp.candidates[0] if resp.candidates else None
+    if cand is None:  # prompt barrado: sem candidatos
+        reason = getattr(getattr(resp, "prompt_feedback", None), "block_reason", None)
+        log.warning("gemini sem candidatos: block_reason=%s", getattr(reason, "name", reason))
+        u = resp.usage_metadata
+        usage = Usage(input_tokens=(u.prompt_token_count or 0) if u else 0)
+        return LLMResponse(None, (), usage, model, "BLOCKED")
     text: list[str] = []
     calls: list[ToolCall] = []
     meta: bytes | None = None
@@ -167,9 +177,5 @@ class GeminiProvider:
                 retried = True
                 self._retries.append(now)
                 await _sleep(delay)
-            except TimeoutError as e:
+            except (TimeoutError, httpx.TimeoutException) as e:
                 raise LLMUnavailable("timeout") from e
-            except Exception as e:  # httpx.TimeoutException e afins
-                if "Timeout" in type(e).__name__:
-                    raise LLMUnavailable("timeout") from e
-                raise
