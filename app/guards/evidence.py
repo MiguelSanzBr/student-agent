@@ -245,6 +245,11 @@ _NOUN_SOURCES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )  # noqa: E501
 
 
+_EXIST_NEG = {"nenhum", "nenhuma"}
+_EXISTENCE = {"ha", "existe", "existem", "tem", "possui", "possuem", "temos", "resta", "restam"}
+_NOT_A_NOUN = {"como", "que", "se", "ainda", "nada", "porque", "de"}
+# conversa, não afirmação sobre dados; lista mínima
+_ALLOWED_ABSENCE = re.compile(r"\bnao (?:ha|tem) (?:problema|de que)\b")
 _NEUTRAL_ARGS = {"enrollment", "enrollment_index", "matricula", "limit", "page", "offset"}
 
 
@@ -340,11 +345,22 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
             continue
         if w in neg or w in zero:
             span = words[i + 1 : i + 4] if w in neg else []
+            exist = w in _EXIST_NEG
             for x in span:
                 if stem(x) in nouns or x in debt:
                     claims.append(stem(x))
                     break
+                if x in _EXISTENCE:
+                    exist = True
                 if x not in _LIGHT:
+                    # ausência de substantivo fora do léxico: afirmação sem apoio (negada em _empty_backed)  # noqa: E501
+                    if (
+                        exist
+                        and x not in _NOT_A_NOUN
+                        and not x.endswith(("ar", "er", "ir"))  # infinitivo, não substantivo
+                        and not _ALLOWED_ABSENCE.search(f)
+                    ):
+                        claims.append(stem(x))
                     break
             if w in zero:
                 for x in reversed(words[max(0, i - 3) : i]):

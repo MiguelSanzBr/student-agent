@@ -484,3 +484,56 @@ def test_zero_like_rejects_empty():
 
     assert not _zero_like("") and not _zero_like("  ")
     assert _zero_like("R$ 0,00") and _zero_like("0") and _zero_like("nenhum")
+
+
+# --- fix round 3 ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Não há ofertas de estágio.",
+        "Não existem vagas de estágio.",
+        "Não há eventos no calendário.",
+        "Nenhum evento está marcado para você.",
+        "Você não possui bolsas de estudo externas.",
+    ],
+)
+def test_absence_of_noun_outside_lexicon_is_denied(answer):
+    r = chk_with(answer, card={}, calls=(ToolCallTrace("whatever", {}, 0),))
+    assert r.kinds() == {"polarity"}
+
+
+def test_absence_allowlist_is_minimal():
+    for ok in ("Não há problema.", "Não há de quê.", "Não tem problema, posso explicar de novo."):
+        assert chk_with(ok, card={}).ok, ok
+
+
+def test_absence_zero_card_for_noun_still_sustains():
+    assert chk_with("Não há vagas de estágio.", card={"1.vagas": "0"}).ok
+
+
+def test_ordinary_answers_still_pass():
+    from app.tools.base import EntityRecord
+
+    sla = EntityRecord("servico", "DOC-010", ("Declaração de matrícula",), {"sla": "48 horas"})
+    assert chk_with("Você pode emitir a 2ª via pelo Portal.", card={}).ok
+    assert chk_with("O prazo é de 48 horas.", card={}, records=index_records((sla,))).ok
+    assert chk_with("Sua matrícula está ativa.", card={}).ok
+    assert chk_with("Você não tem dívidas.", card={"1.total_para_quitar": "R$ 0,00"}).ok
+    assert chk_with(
+        "Seu acordo tem 10 parcelas.", card={}, records=index_records((ACTIVE_DEAL,))
+    ).ok
+    assert chk_with("Não tem como pagar no cartão.", card={}).ok
+
+
+@pytest.mark.parametrize("answer", ["Dá para pagar em 6 vezes.", "Pode pagar em até 6 vezes."])
+def test_times_installments_need_a_source(answer):
+    assert "commitment" in chk(answer).kinds()
+    assert chk(answer, records=with_(FIN031_ORIENTATION)).kinds() == {"commitment"}  # 12x != 6x
+    six = FIN031_ORIENTATION.__class__(
+        "servico", "FIN-031", ("Renegociação de dívida",), {"orientacao": "parcelamento em até 6x"}
+    )
+    assert chk(answer, records=with_(six)).ok
+
+
+def test_short_yes_times_installments():
+    assert chk("Pode sim, em 6 vezes.", q="posso pagar de outro jeito?").kinds() == {"commitment"}
