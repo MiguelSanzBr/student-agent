@@ -87,9 +87,11 @@ def _with_details(row: Mapping[str, str], data: Mapping[str, Any]) -> EntityReco
         f[f"mensagem_{n}"] = f"{m['autor']}; {m['em']}"
     for n, x in enumerate(data.get("documentos", ()), 1):
         f[f"documento_{n}"] = f"{x['tipo']}; {x['emitido_em']}; {x['entrega']}"
-    if v := data.get("fatura_vinculada"):
-        f["fatura_vinculada"] = "; ".join(v.values())
-    return EntityRecord(rec.kind, rec.id, rec.aliases, f)
+    aliases = rec.aliases
+    if v := data.get("fatura_vinculada"):  # o valor vai como alias: não ancora "deve/saldo"
+        f["fatura_vinculada"] = "; ".join(x for k, x in v.items() if k != "valor")
+        aliases = (*aliases, f"valor {v['valor']}")
+    return EntityRecord(rec.kind, rec.id, aliases, f)
 
 
 def _secretary(r: tuple[Any, ...]) -> dict[str, str]:

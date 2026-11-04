@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import yaml
@@ -25,6 +26,7 @@ def _undeclared(c: Call) -> set[str]:
     if c.out is None:
         return set()
     got = _keys(dict(c.out.data)) | {k for r in c.out.records for k in r.fields}
+    got = {re.sub(r"_\d+$", "_N", k) for k in got}  # historico_1 -> historico_N
     return got - DECLARED[c.tool]
 
 

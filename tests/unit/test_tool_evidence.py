@@ -438,3 +438,63 @@ async def test_draft_due_date_covered(monkeypatch: pytest.MonkeyPatch) -> None:
     out = await protocols._draft(ctx(), {"service_code": "DOC-001"})
     assert out.draft is not None
     assert uncovered(out) == []
+
+
+# ---------------------------------------------------------------- fix round 1
+
+
+def _blocked(out: ToolOutput, answer: str) -> bool:
+    r = check_evidence(
+        answer, question="", records_by_entity=index_records(out.records), card_facts={},
+        enrollment_indices=("1",), tool_calls_this_turn=(), system_notes=(), canary="c" * 32,
+        prompt_prefix="Você é o assistente de atendimento ao aluno e responde só com dados.",
+        ontology=ONTO,
+    )  # fmt: skip
+    return not r.ok
+
+
+async def test_invoice_valor_is_alias_not_field(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_finance(monkeypatch)
+    out = await finance.list_invoices(ctx(), {})
+    f1 = next(r for r in out.records if r.id == "F1")
+    assert "valor" not in f1.fields and "valor R$ 500,00" in f1.aliases
+    assert uncovered(out) == []
+    accepted(out, "A fatura F1 tem valor de R$ 500,00.")
+    assert _blocked(out, "Você deve R$ 500,00 na fatura F1.") is False  # saldo = valor: legítimo
+    f2 = next(r for r in out.records if r.id == "F2")
+    assert "valor R$ 300,00" in f2.aliases
+
+
+async def test_invoice_valor_not_a_debt(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_finance(monkeypatch)
+
+    async def ledger(*_: Any) -> tuple[list[Any], list[Payment], list[LateCharge]]:
+        inv = [finance.q.LedgerInvoice("F2", 80000, "OPEN", TODAY + timedelta(days=5), "2026-11")]
+        return inv, [Payment("F2", 70000, 0, 0, "CONFIRMED")], []
+
+    monkeypatch.setattr(finance.q, "fetch_ledger", ledger)
+    out = await finance.list_invoices(ctx(), {})
+    accepted(out, "A fatura F2 tem valor de R$ 800,00.")
+    assert _blocked(out, "O saldo da fatura F2 é R$ 800,00.")
+    assert _blocked(out, "Você deve R$ 800,00 na fatura F2.")
+
+
+async def test_linked_invoice_valor_not_a_debt(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_protocols(monkeypatch)
+    out = await protocols._get(ctx(), {"numero": "20260022332"})
+    assert uncovered(out) == []
+    accepted(out, "A fatura F9 vinculada tem valor de R$ 450,00.")
+    assert _blocked(out, "No protocolo 20260022332 você deve R$ 450,00.")
+
+
+async def test_lms_rooms_are_per_room_records(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_lms(monkeypatch, n_rooms=3)
+    out = await lms.get_lms_activity(ctx(), {})
+    main = next(r for r in out.records if r.id == "2026/2")
+    assert not {"Sala A", "Sala B"} & set(main.aliases)
+    rooms = {r.id: r for r in out.records if r.id.startswith("sala-")}
+    assert set(rooms) == {"sala-Sala A", "sala-Sala B", "sala-Sala C"}
+    assert all(r.kind == "lms" and r.fields == {"status": "ativo"} for r in rooms.values())
+    accepted(out, "Você teve atividade no AVA em Sala A.")
+    for claim in ("aprovado", "reprovado", "pendente"):
+        assert _blocked(out, f"Você está {claim} em Sala A.")

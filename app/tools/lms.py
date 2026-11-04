@@ -175,9 +175,13 @@ async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOut
             "proxima_tipo": nxt.kind,
             "proxima_fonte": nxt.source,
         }
-    # as disciplinas do AVA são alias do registro: a guarda só deixa citar disciplina com registro
-    lms_rec = EntityRecord("lms", label, (label, *data["disciplinas"]), f)
-    return ToolOutput(data, (lms_rec, cobertura, *recs))
+    lms_rec = EntityRecord("lms", label, (label,), f)
+    # uma sala por registro (status "ativo"): a guarda só deixa citar disciplina com registro, e o
+    # status impede "aprovado/reprovado/pendente em <disciplina>" só com evidência do AVA
+    salas = tuple(
+        EntityRecord("lms", f"sala-{n}", (n,), {"status": "ativo"}) for n in data["disciplinas"]
+    )
+    return ToolOutput(data, (lms_rec, cobertura, *salas, *recs))
 
 
 TOOLS: tuple[Tool, ...] = (

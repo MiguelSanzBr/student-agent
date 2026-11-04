@@ -153,12 +153,12 @@ async def list_invoices(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput
             EntityRecord(
                 "fatura",
                 i.id,
-                (i.id, i.competence),
-                {
-                    k: it[k]
-                    for k in ("status", "vencimento", "saldo", "para_quitar", "valor")
-                    if k in it
-                },
+                (
+                    i.id,
+                    i.competence,
+                    f"valor {it['valor']}",
+                ),  # alias: o valor não ancora "deve/saldo"
+                {k: it[k] for k in ("status", "vencimento", "saldo", "para_quitar") if k in it},
             )
         )
     data: dict[str, Any] = {"faturas": items, "total": len(rows)}

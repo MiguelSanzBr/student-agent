@@ -2,7 +2,7 @@
 tools:
   get_academic_profile:
     outputs: [status, data_status, curso, matriz, unidade, modalidade, turno, semestre, ingresso,
-      semestre_ingresso, tipo_ingresso, cr, conclusao, origem, historico, rematricula,
+      semestre_ingresso, tipo_ingresso, cr, conclusao, origem, historico, historico_N, rematricula,
       observacao_rematricula, documentos, matricula, outras_matriculas, data, de, para, motivo, tipo, emitido_em, entrega]
   list_course_results:
     outputs: [total, disciplinas, aviso, aviso_limite, matricula, codigo, desde, disciplina, semestre, resultado, av1, av2, av3, media_final, frequencia, professor, divergencia]
