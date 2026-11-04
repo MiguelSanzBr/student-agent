@@ -1,24 +1,8 @@
-import math
-
 from app.agent.llm import LLMProvider
-from app.config import AppSettings
+from app.config import AppSettings, Quota
 
 
 def make_llm(settings: AppSettings) -> LLMProvider:
-    llm = _make_provider(settings)
-    from app.agent.gemini import GeminiProvider
-
-    if settings.lever_hedge_first_call and isinstance(
-        llm, GeminiProvider
-    ):  # replay/fake: sem hedge
-        from app.agent.levers import HedgedLLM
-
-        c = settings.slo.components["tool_call"]
-        return HedgedLLM(llm, math.exp(c.mu + 1.2816 * c.sigma))  # p90 da lognormal
-    return llm
-
-
-def _make_provider(settings: AppSettings) -> LLMProvider:
     provider: str = settings.llm_provider
     if provider == "auto":
         provider = "gemini" if settings.gemini_api_key else "replay"
@@ -31,6 +15,13 @@ def _make_provider(settings: AppSettings) -> LLMProvider:
             from app.agent.fakes import SmokeLLM
 
             return SmokeLLM()
+        case "loadtest":  # teste de carga sem gastar: latências dos lognormais do slo_targets
+            from app.agent.fakes import LoadTestLLM
+
+            q = settings.slo.quotas[settings.llm_model]
+            # o limitador sob teste é o balde; a cota do fake fica folgada (sem 429 próprio)
+            wide = Quota(rpm=q.rpm * 10, tpm=q.tpm * 10, rpd=q.rpd)
+            return LoadTestLLM(settings.slo.components, wide, seed=0, p_retry=0.03)
         case "replay":
             from app.agent.replay import DEFAULT_REPLAY, ReplayLLM
 

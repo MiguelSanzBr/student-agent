@@ -58,20 +58,24 @@ class SmokeLLM(ScriptedLLM):
         return LLMResponse(None, (call,), Usage(100, 10), model)
 
 
+P_TOOL, MAX_TOOLS = 0.5, 4  # defaults do LoadTestLLM (evals.latency.load_test deriva a cota deles)
+
+
 class LoadTestLLM:
     """Provedor falso para teste de carga sem gastar: a latência de cada chamada é sorteada da
     lognormal do componente (`slo_targets.components`) e a cota RPM da janela de 60 s é imposta
     (acima dela: `LLMUnavailable("quota")`, como o 429 do Gemini). Emite ferramenta com
-    probabilidade `p_tool` com ferramentas oferecidas, até `max_tools` por turno."""
+    probabilidade `p_tool` com ferramentas oferecidas, até `max_tools` por turno; com `p_retry`,
+    simula o retry transitório do adaptador (métrica e latência)."""
 
     def __init__(
         self, components: Mapping[str, Lognormal], quota: Quota, *, seed: int,
-        p_tool: float = 0.5, max_tools: int = 4,
+        p_tool: float = P_TOOL, max_tools: int = MAX_TOOLS, p_retry: float = 0.0,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = monotonic,
     ) -> None:  # fmt: skip
         self._c, self._quota, self._rng = components, quota, random.Random(seed)
-        self._p_tool, self._max_tools = p_tool, max_tools
+        self._p_tool, self._max_tools, self._p_retry = p_tool, max_tools, p_retry
         self._sleep, self._clock = sleep, clock
         self._stamps: deque[float] = deque()
 
@@ -94,9 +98,25 @@ class LoadTestLLM:
             if m.role == "user":
                 break
             done += m.role == "tool"
-        emit_tool = bool(tools) and done < self._max_tools and self._rng.random() < self._p_tool
-        await self._sleep(self.sample("tool_call" if emit_tool else "answer_call"))
+        readable = [t for t in tools if not t.parameters.get("required")]  # args {} são válidos
+        emit_tool = bool(readable) and done < self._max_tools and self._rng.random() < self._p_tool
+        comp = "tool_call" if emit_tool else "answer_call"
+        lat = self.sample(comp)
+        if self._rng.random() < self._p_retry:  # como o GeminiProvider: 1 retry transitório
+            from app.obs.metrics import METRICS
+
+            METRICS["agent_llm_retries_total"].inc()  # type: ignore[union-attr]
+            lat += self.sample(comp)
+        left = deadline - self._clock()
+        if lat > left:  # como o provedor real: o prazo corta a chamada
+            await self._sleep(max(0.0, left))
+            raise LLMUnavailable("timeout")
+        await self._sleep(lat)
         if emit_tool:
-            call = ToolCall(f"load-{self._rng.getrandbits(32):08x}", tools[0].name, {})
+            tool = self._rng.choice(readable)
+            args = (
+                {"enrollment": "1"} if "enrollment" in tool.parameters.get("properties", {}) else {}
+            )
+            call = ToolCall(f"load-{self._rng.getrandbits(32):08x}", tool.name, args)
             return LLMResponse(None, (call,), Usage(3500, 60, 100), model)
         return LLMResponse("Resposta de carga.", (), Usage(4000, 120, 300), model)

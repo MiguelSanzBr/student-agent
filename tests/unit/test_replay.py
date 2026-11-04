@@ -116,11 +116,7 @@ async def test_replay_provider_ships_recordings(app_secrets: object) -> None:
     assert isinstance(make_llm(s), ReplayLLM)
 
 
-async def test_hedge_lever_only_wraps_gemini(app_secrets: object) -> None:
-    from app.agent.levers import HedgedLLM
-
+async def test_hedge_lever_keeps_demo_suggestions(app_secrets: object) -> None:
+    # o hedge mora no TurnService (Task 33): make_llm nunca embrulha o provider
     rep = make_llm(AppSettings(llm_provider="replay", lever_hedge_first_call=True))
     assert isinstance(rep, ReplayLLM) and callable(rep.suggested)  # chips e faixa preservados
-    gem = make_llm(AppSettings(llm_provider="gemini", gemini_api_key="k" * 32,
-                               lever_hedge_first_call=True))  # fmt: skip
-    assert isinstance(gem, HedgedLLM)

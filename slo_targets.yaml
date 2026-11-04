@@ -14,6 +14,18 @@ components:  # lognormal por componente de latência (s): mu = ln(mediana); PRIO
   tool_call: {mu: 0.9555, sigma: 0.35}
   answer_call: {mu: 1.335, sigma: 0.35}
   overhead: {mu: -1.204, sigma: 0.2}
+hedge:  # alavanca lever_hedge_first_call (app/agent/levers.py): só dispara dentro deste orçamento
+  quantile: 0.9  # da 1ª chamada do turno
+  card_share: 0.45  # fração de turnos `card` (1ª chamada = resposta); PROVISÓRIO, refit na janela A
+  max_fraction: 0.10  # hedges/min <= 10% das chamadas
+  floor_per_min: 3
+  bucket_max_util: 0.8  # sem hedge com o balde de admissão acima de 80%
+model_constants:  # premissas fora dos componentes; testes amarram os módulos a estes valores
+  turn_usage: {input: 4000, output: 300, thinking: 400}  # turno médio de capacity.monthly_cost
+  ladder_a: {plateau: 0.9, p95_factor: 1.1, retry_max: 0.10, cut_max: 0.005}
+  initial_targets: {card: {p50: 3.5, p95: 6.0}, "1": {p95: 8.0, ttfe_p95: 4.0}, "2+": {p95: 12.0, ttfe_p95: 4.0}}
+  k_tools: {card: [0], "1": [1], "2+": [2, 2, 3, 4]}
+  p_guard_retry: 0.05
 limits:  # plano, Global Constraints (Limites); perfil escolhido por LIMITS_PROFILE
   default: &limits_default
     input_chars: 2000
@@ -33,6 +45,12 @@ limits:  # plano, Global Constraints (Limites); perfil escolhido por LIMITS_PROF
   eval:  # sem degradação por custo; o teto duro aborta a rodada
     <<: *limits_default
     global_ceiling_usd: 40
+    degrade_at: null
+  load:  # só no teste de carga (LLM_PROVIDER=loadtest): sem limite por aluno, para medir o balde e as vagas
+    <<: *limits_default
+    msgs_per_min: 1000000
+    tokens_per_day: 1000000000
+    global_ceiling_usd: 1000000
     degrade_at: null
 targets:  # segundos, por classe de ferramentas do turno: max(meta inicial, previsto)
   card: {p50: 4.19, p90: 6.77, p95: 7.9, p99: 10.46}

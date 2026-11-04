@@ -14,7 +14,7 @@ from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
 from app.agent.graph import SpendLevel, TurnResult, bare_result, run_turn
-from app.agent.levers import approved_sentences
+from app.agent.levers import HedgeBudget, Hedger, first_call_delay_s
 from app.agent.llm import LLMProvider, LLMResponse, Message, Usage
 from app.agent.messages import DRAFT_PENDING_USE_BUTTON
 from app.agent.prompt import SYSTEM_PREFIX
@@ -93,17 +93,32 @@ def _tokens(u: Usage) -> int:
 class _Meter:
     """Acumula o uso real do LLM no turno (sobrevive ao cancelamento) e se o taint já ocorreu."""
 
-    def __init__(self, inner: LLMProvider) -> None:
-        self.inner, self.calls, self.tainted = inner, 0, False
+    def __init__(self, inner: LLMProvider, hedger: Hedger | None = None) -> None:
+        self.inner, self.calls, self.tainted, self.hedger = inner, 0, False, hedger
         self.usage = Usage()
+        self.extra_calls, self.extra_usage = 0, Usage()  # 2ª requisição do hedge (cobrada)
 
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
         tools: Sequence[ToolSpec], deadline: float,
     ) -> LLMResponse:  # fmt: skip
-        r = await self.inner.generate(
-            model=model, system=system, messages=messages, tools=tools, deadline=deadline
-        )
+        def call() -> Awaitable[LLMResponse]:
+            return self.inner.generate(
+                model=model, system=system, messages=messages, tools=tools, deadline=deadline
+            )
+
+        if self.hedger is not None and self.calls == 0:
+            r, hedged = await self.hedger.run(call)  # só a 1ª chamada do turno
+            if hedged:  # a perdedora cancelada não devolve uso: cobra-se a estimativa (= vencedora)
+                e = self.extra_usage
+                self.extra_calls += 1
+                self.extra_usage = Usage(
+                    e.input_tokens + r.usage.input_tokens, e.output_tokens + r.usage.output_tokens,
+                    e.thinking_tokens + r.usage.thinking_tokens,
+                    e.cached_tokens + r.usage.cached_tokens,
+                )  # fmt: skip
+        else:
+            r = await call()
         u, a = r.usage, self.usage
         self.calls += 1
         self.usage = Usage(
@@ -111,6 +126,14 @@ class _Meter:
             a.thinking_tokens + u.thinking_tokens, a.cached_tokens + u.cached_tokens,
         )  # fmt: skip
         return r
+
+    def with_hedge(self, u: Usage, calls: int) -> tuple[Usage, int]:
+        e = self.extra_usage  # hedge: a 2ª requisição é real e entra no balde, na cota e no gasto
+        return (
+            Usage(u.input_tokens + e.input_tokens, u.output_tokens + e.output_tokens,
+                  u.thinking_tokens + e.thinking_tokens, u.cached_tokens + e.cached_tokens),
+            calls + self.extra_calls,
+        )  # fmt: skip
 
 
 class DefaultTurnService:
@@ -126,7 +149,16 @@ class DefaultTurnService:
         self.history, self.drafts = HistoryStore(redis, lim), DraftStore(redis, lim)
         self.outputs = TurnOutputCache(redis)
         self._meters: dict[str, _Meter] = {}
+        self.hedger: Hedger | None = None
+        if settings.lever_hedge_first_call:
+            h = settings.slo.hedge
+            self.hedger = Hedger(
+                first_call_delay_s(settings.slo.components, h), HedgeBudget(h), self._saturated
+            )
         self._shas = _shas()  # na subida: não pode falhar um turno antes do `meta`
+
+    async def _saturated(self) -> bool:
+        return await self.bucket.utilization() > self.settings.slo.hedge.bucket_max_util
 
     async def _refuse(
         self, reason: Literal["rate", "budget", "spend", "quota", "slots"],
@@ -152,7 +184,7 @@ class DefaultTurnService:
             await self.bucket.settle(res.ticket, 0, 0)  # devolve a reserva: nada vai rodar
             return await self._refuse("slots", 503, RETRY_SLOTS_S)
         METRICS["agent_turn_slots_in_use"].inc()  # type: ignore[union-attr]
-        self._meters[res.ticket] = _Meter(self.llm)
+        self._meters[res.ticket] = _Meter(self.llm, self.hedger)
         return Admission(True, 200, None, res.ticket, "ok", level, sub, channel)
 
     async def handle(
@@ -191,7 +223,7 @@ class DefaultTurnService:
             async with with_scope(self.pool, sub, scope.brand_families) as conn:
                 card = await build_student_card(conn, scope, s, today=today, pending=pending)
 
-            meter = self._meters.get(admission.ticket or "") or _Meter(self.llm)
+            meter = self._meters.get(admission.ticket or "") or _Meter(self.llm, self.hedger)
 
             def ctx_factory(rnd: int, tainted: bool) -> ToolContext:
                 meter.tainted = meter.tainted or (tainted and not conv.tainted)
@@ -232,16 +264,15 @@ class DefaultTurnService:
             if r.status in ERROR_STATUSES:
                 await emit({"event": "error", "message": r.answer})
             elif r.answer:
-                if s.lever_sentence_stream:  # depois do guard: só frases já aprovadas
-                    for sentence in approved_sentences(r.answer, r.guard):
-                        await emit({"event": "answer_delta", "text": sentence})
                 await emit({"event": "answer", "text": r.answer})
             await asyncio.shield(self._persist(sub, channel, conversation_id, r))
             await self.outputs.put(sub, trace_id, self._typed(r))
             if s.app_env == "dev" and s.limits_profile == "eval":
                 await emit({"event": "debug", **self._typed(r), "timings_ms": dict(r.timings_ms),
                             "pre_guard_answer": r.pre_guard_answer,
-                            "tool_values": self._tool_values(r)})  # fmt: skip
+                            "tool_values": self._tool_values(r),
+                            "usage": dataclasses.asdict(r.usage),
+                            "llm_calls": r.llm_calls})  # fmt: skip
             return await self._done(r, emit, trace_id, channel)
 
     async def _persist(self, sub: UUID, channel: Channel, cid: str, r: TurnResult) -> None:
@@ -314,9 +345,13 @@ class DefaultTurnService:
         meter = self._meters.pop(admission.ticket, None)
         if result is not None:
             u, calls, model = result.usage, result.llm_calls, result.model
+            if meter is not None:
+                u, calls = meter.with_hedge(u, calls)
         else:  # cancelado ou erro: vale o uso medido, no mínimo a estimativa da admissão
             u, calls, model = (
-                (meter.usage, meter.calls, s.llm_model) if meter else (Usage(), 0, s.llm_model)
+                (*meter.with_hedge(meter.usage, meter.calls), s.llm_model)
+                if meter
+                else (Usage(), 0, s.llm_model)
             )
             if meter is None or _tokens(u) < adm.est_tokens:
                 u, calls = Usage(output_tokens=adm.est_tokens), max(calls, adm.est_requests)

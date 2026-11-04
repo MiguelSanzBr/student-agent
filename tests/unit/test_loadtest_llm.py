@@ -6,8 +6,10 @@ import pytest
 from app.agent.fakes import LoadTestLLM
 from app.agent.llm import LLMUnavailable, Message
 from app.config import Quota, load_slo_targets
+from app.tools.registry import build_tools
 
 SLO = load_slo_targets()
+SPECS = tuple(t.spec for t in build_tools())
 
 
 def _llm(quota: Quota | None = None, seed: int = 1, **kw) -> LoadTestLLM:
@@ -43,3 +45,30 @@ async def test_quota_exceeded_raises() -> None:
     with pytest.raises(LLMUnavailable) as e:
         await llm.generate(**kw)
     assert e.value.reason == "quota"
+
+
+async def test_tool_calls_are_schema_valid() -> None:
+    async def sleep(_: float) -> None: ...
+
+    llm = _llm(sleep=sleep, p_tool=1.0, clock=lambda: 0.0)
+    by_name = {s.name: s for s in SPECS}
+    for _ in range(40):
+        r = await llm.generate(model="m", system="", messages=[Message("user", "oi")],
+                               tools=SPECS, deadline=1e9)  # fmt: skip
+        (call,) = r.tool_calls
+        spec = by_name[call.name]
+        assert not spec.parameters["required"]  # nunca o draft_protocol nem tool com args exigidos
+        props = spec.parameters["properties"]
+        assert set(call.args) <= set(props)
+        for k, v in call.args.items():
+            assert v in props[k].get("enum", [v])
+
+
+async def test_deadline_cuts_the_call() -> None:
+    async def sleep(_: float) -> None: ...
+
+    llm = _llm(sleep=sleep, p_tool=0.0, clock=lambda: 0.0)
+    with pytest.raises(LLMUnavailable) as e:
+        await llm.generate(model="m", system="", messages=[Message("user", "oi")], tools=(),
+                           deadline=0.001)  # fmt: skip
+    assert e.value.reason == "timeout"

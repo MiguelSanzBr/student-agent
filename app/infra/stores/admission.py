@@ -62,6 +62,25 @@ end
 return 1
 """
 
+_UTIL = """
+local now = tonumber(ARGV[#ARGV])
+local win = math.floor(now / 60)
+local cur = tonumber(redis.call('HGET', KEYS[1], 'win') or '-1')
+local h = redis.call('HMGET', KEYS[1], 'req', 'tok', 'preq', 'ptok')
+local req, tok = tonumber(h[1]) or 0, tonumber(h[2]) or 0
+local preq, ptok = tonumber(h[3]) or 0, tonumber(h[4]) or 0
+if cur == win - 1 then
+  preq, ptok, req, tok = req, tok, 0, 0
+elseif cur ~= win then
+  preq, ptok, req, tok = 0, 0, 0, 0
+end
+local w = (60 - (now - win * 60)) / 60
+local ur = (preq * w + req) / math.max(1, tonumber(ARGV[1]))
+local ut = (ptok * w + tok) / math.max(1, tonumber(ARGV[2]))
+local u = math.max(ur, ut)
+return math.floor(u * 1000)
+"""
+
 _ACQUIRE = """
 local now = tonumber(ARGV[#ARGV])
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
@@ -102,6 +121,13 @@ class AdmissionBucket:
             _RESERVE, keys, [est_requests, est_tokens, *self._cap, self._clock()]
         )
         return Reservation(True, None, ticket) if ok else Reservation(False, int(wait), None)
+
+    async def utilization(self) -> float:
+        """Fração usada da capacidade (a maior entre RPM e TPM), sem reservar nada."""
+        per_mille = await self._redis.eval(
+            _UTIL, [rkey("bucket", "global", "-", self._model)], [*self._cap, self._clock()]
+        )
+        return int(per_mille) / 1000
 
     async def settle(self, ticket: str, real_requests: int, real_tokens: int) -> None:
         keys = [rkey("bucket", "global", "-", self._model), self._ticket_key(ticket)]

@@ -125,3 +125,15 @@ async def test_bucket_works_for_each_model(app_secrets: object, model: str) -> N
     s = AppSettings(llm_model=model)
     b = AdmissionBucket(FakeRedis(), s, s.llm_model)
     assert (await b.reserve(1, 1)).ok
+
+
+async def test_utilization_reads_without_reserving(app_secrets: object) -> None:
+    await FakeRedis()._r.flushall()
+    b = bucket()
+    assert await b.utilization() == 0
+    await fill(b, 45)  # metade dos 90
+    assert await b.utilization() == pytest.approx(0.5, abs=0.01)
+    assert await b.utilization() == pytest.approx(0.5, abs=0.01)  # ler não consome
+    await fill(b, 45)
+    assert await b.utilization() == pytest.approx(1.0, abs=0.01)
+    await FakeRedis()._r.flushall()

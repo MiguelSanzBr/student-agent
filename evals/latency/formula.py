@@ -1,5 +1,7 @@
 """Fórmula pré-registrada de latência (spec §6.5): lognormal por componente + Monte Carlo."""
 
+from __future__ import annotations
+
 import math
 import random
 import statistics
@@ -85,34 +87,43 @@ def graph_budget_s(predicted: Mapping[str, ClassQuantiles]) -> float:
     return predicted["2+"].p99 * 1.2
 
 
-# Metas iniciais da spec §6.5 (o piso do max(inicial, previsto)); k de ferramentas e retry do guard
-# como nos priors de docs/evidence/spikes.md.
-INITIAL = {
-    "card": {"p50": 3.5, "p95": 6.0},
-    "1": {"p95": 8.0, "ttfe_p95": 4.0},
-    "2+": {"p95": 12.0, "ttfe_p95": 4.0},
-}
-K_TOOLS = {"card": [0], "1": [1], "2+": [2, 2, 3, 4]}
-P_GUARD_RETRY = 0.05
-
-
 def refit_after_window_a(
-    samples: Mapping[str, Sequence[float]], *, n: int = 200_000, seed: int = 42
-) -> "SloTargets":
-    """Única atualização das metas (depois da janela A): reajusta os lognormais dos componentes
-    com amostra e refaz targets/ttfe/graph_budget_s pela mesma fórmula. `frozen` fica como está
-    (o M4 é quem congela)."""
-    from app.config import Lognormal, SloTargets, load_slo_targets
+    samples: Mapping[str, Sequence[float]],
+    current: SloTargets,
+    *,
+    min_n: int = 30,
+    n: int = 200_000,
+    seed: int = 42,
+) -> SloTargets:
+    """Única atualização das metas (depois da janela A), função pura de (amostras, `current`):
+    reajusta os lognormais dos componentes com amostra e refaz targets/ttfe/graph_budget_s pela
+    mesma fórmula, com as premissas de `current.model_constants`. Recusa `frozen` e componente com
+    menos de `min_n` amostras. **Censura:** as amostras são só de chamadas que terminaram; o
+    chamador deve excluir (ou tratar à parte) as cortadas pelo prazo e as recusadas com 429, senão
+    a cauda sai subestimada. `frozen` fica como está (o M4 é quem congela)."""
+    from app.config import Lognormal, SloTargets
 
-    cur = load_slo_targets()
-    comps = {k: LogNormal(v.mu, v.sigma) for k, v in cur.components.items()}
+    if current.frozen:
+        raise ValueError("slo_targets.yaml está frozen: não há segundo refit")
+    short = {k: len(v) for k, v in samples.items() if len(v) < min_n}
+    if short:
+        raise ValueError(f"amostras insuficientes (mínimo {min_n}): {short}")
+    unknown = set(samples) - set(current.components)
+    if unknown:
+        raise ValueError(f"componente desconhecido: {sorted(unknown)}")
+    mc = current.model_constants
+    comps = {k: LogNormal(v.mu, v.sigma) for k, v in current.components.items()}
     comps.update({k: fit_lognormal(v) for k, v in samples.items()})
-    pred = {c: simulate_class(comps, k, P_GUARD_RETRY, n=n, seed=seed) for c, k in K_TOOLS.items()}
-    tg = targets(INITIAL, pred)
-    r = lambda x: round(x, 2)  # noqa: E731
-    data = cur.model_dump()
+    pred = {
+        c: simulate_class(comps, k, mc["p_guard_retry"], n=n, seed=seed)
+        for c, k in mc["k_tools"].items()
+    }
+    tg = targets(mc["initial_targets"], pred)
+    data = current.model_dump()
     data["components"] = {k: Lognormal(mu=v.mu, sigma=v.sigma) for k, v in comps.items()}
-    data["targets"] = {c: {q: r(v[q]) for q in ("p50", "p90", "p95", "p99")} for c, v in tg.items()}
-    data["ttfe"] = {c: {"p95": r(v["ttfe_p95"])} for c, v in tg.items()}
-    data["graph_budget_s"] = r(graph_budget_s(pred))
+    data["targets"] = {
+        c: {q: round(v[q], 2) for q in ("p50", "p90", "p95", "p99")} for c, v in tg.items()
+    }
+    data["ttfe"] = {c: {"p95": round(v["ttfe_p95"], 2)} for c, v in tg.items()}
+    data["graph_budget_s"] = round(graph_budget_s(pred), 2)
     return SloTargets.model_validate(data)

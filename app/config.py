@@ -1,3 +1,4 @@
+import os
 from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
@@ -34,6 +35,14 @@ class Lognormal(BaseModel):
     sigma: float
 
 
+class Hedge(BaseModel):
+    quantile: float  # da 1ª chamada do turno (mistura answer_call/tool_call)
+    card_share: float  # fração dos turnos `card`, cuja 1ª chamada é a resposta
+    max_fraction: float  # hedges por minuto, como fração das chamadas
+    floor_per_min: int  # piso por minuto (mesma regra do retry do guard)
+    bucket_max_util: float  # sem hedge com o balde de admissão acima disto
+
+
 class Limits(BaseModel):
     input_chars: int
     answer_chars: int
@@ -67,7 +76,9 @@ class SloTargets(BaseModel):
     quotas: dict[str, Quota]
     admission: Admission
     components: Mapping[str, Lognormal]
-    limits: Mapping[Literal["default", "eval"], Limits]
+    hedge: Hedge
+    model_constants: Mapping[str, Any]  # premissas da fórmula/escada (ver slo_targets.yaml)
+    limits: Mapping[Literal["default", "eval", "load"], Limits]
     targets: dict[str, Quantiles]
     ttfe: dict[str, Ttfe]
     graph_budget_s: float
@@ -76,7 +87,9 @@ class SloTargets(BaseModel):
     infra_overhead_p95_ms: int = 300
 
 
-def load_slo_targets(path: Path = SLO_PATH) -> SloTargets:
+def load_slo_targets(path: Path | None = None) -> SloTargets:
+    """`SLO_TARGETS_PATH` só serve às escadas de carga (ops/compose.load.yml)."""
+    path = path or Path(os.environ.get("SLO_TARGETS_PATH") or SLO_PATH)
     return SloTargets.model_validate(yaml.safe_load(path.read_text()))
 
 
@@ -138,8 +151,8 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     gemini_api_key: str | None = None  # opcional: sem ela, modo replay
 
     app_env: Literal["dev", "prod"] = "dev"
-    limits_profile: Literal["default", "eval"] = "default"
-    llm_provider: Literal["auto", "gemini", "replay", "fake"] = "auto"
+    limits_profile: Literal["default", "eval", "load"] = "default"
+    llm_provider: Literal["auto", "gemini", "replay", "fake", "loadtest"] = "auto"
     llm_backend: Literal["aistudio", "vertex"] = "aistudio"
     gcp_project: str | None = None
     gcp_location: str = "global"
@@ -161,7 +174,6 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     dataset_sha: str | None = None  # sha do dataset carregado (atributo dataset.sha)
     reference_date: date = date(2026, 10, 31)
     lever_hedge_first_call: bool = False  # 2ª requisição idêntica no p90 da 1ª chamada do turno
-    lever_sentence_stream: bool = False  # frases aprovadas pelo guard saem em answer_delta
     slo: SloTargets = Field(default_factory=load_slo_targets)
 
     @property
