@@ -504,6 +504,13 @@ def test_zero_like_rejects_empty():
         "Nada de estágio por aqui.",
         "Não há outras vagas para você.",
         "Nenhuma ação está pendente para você.",
+        # fix round 5: núcleo abstrato com complemento concreto
+        "Não há opções de estágio.",
+        "Não há opção de estágio.",
+        "Não há outras opções de estágio.",
+        "Não há limite de vagas.",
+        "Não há caminhos de rematrícula.",
+        "Sem outras ofertas de estágio.",
     ],
 )
 def test_absence_of_noun_outside_lexicon_is_denied(answer):
@@ -556,7 +563,9 @@ def test_short_yes_times_installments():
         "Não há necessidade de ir ao polo.",
         "Não há outro caminho.",
         "Não existe outra opção pelo chat.",
-        "Não há limite de pedidos.",
+        "Não há pressa.",
+        "Não há urgência.",
+        "Sem outros problemas.",
         "Não há motivo para preocupação.",
         "Não há dúvida de que você pode usar o Portal.",
         "Não temos como pagar no cartão.",
@@ -603,3 +612,17 @@ def test_installment_fragment_is_a_commitment(answer):
         {"orientacao": "parcelamento em até 6x, sem juros"},
     )  # fmt: skip
     assert chk(answer, records=with_(six)).ok
+
+
+# --- fix round 5 ---------------------------------------------------------------------------
+def test_no_limit_is_a_service_rule():
+    # Decisão: "limite de pedidos" é regra do serviço; só passa com registro que diga "sem limite".
+    from app.tools.base import EntityRecord, service_record
+
+    answer = "Não há limite de pedidos."
+    unlimited = EntityRecord("servico", "GEN-2", ("Atendimento geral",), {"limite": "sem limite"})
+    assert chk_with(answer, card={}).kinds() == {"polarity"}
+    assert chk_with(
+        answer, card={}, records=index_records((service_record("DOC-001"),))
+    ).kinds() == {"polarity"}
+    assert chk_with(answer, card={}, records=index_records((unlimited,))).ok

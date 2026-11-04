@@ -255,14 +255,34 @@ _DETERMINERS = {"outro", "outra", "outros", "outras"}  # o núcleo é a palavra 
 # ("pendente", "para você", "seu") voltam a ser afirmação de ausência.
 _ABSTRACT = {"necessidade", "necessidades", "motivo", "motivos", "duvida", "duvidas", "opcao",
              "opcoes", "caminho", "caminhos", "acao", "acoes", "limite", "limites", "problema",
-             "problemas"}  # fmt: skip
+             "problemas", "pressa", "urgencia", "preocupacao", "preocupacoes"}  # fmt: skip
+_PREP = {"de", "da", "do", "das", "dos", "para", "pra"}
+_ARTICLES = {"o", "a", "os", "as", "um", "uma"}
 _DATA_SIGNAL = re.compile(
     r"\b(?:abert[oa]s?|marcad[oa]s?|agendad[oa]s?|disponive(?:l|is)|pendentes?|ativ[oa]s?|"
     r"vigentes?|vencid[oa]s?|seus?|suas?|pa?ra voce)\b"
 )
 # taxa/prazo zero são regra do serviço: só o registro do serviço sustenta
-_SERVICE_FIELD = {"custo": "taxa", "taxa": "taxa", "tarifa": "taxa", "prazo": "prazo"}
+_SERVICE_FIELD = {"custo": "taxa", "taxa": "taxa", "tarifa": "taxa", "prazo": "prazo",
+                  "limite": "limite"}  # fmt: skip
 _NEUTRAL_ARGS = {"enrollment", "enrollment_index", "matricula", "limit", "page", "offset"}
+
+
+def _is_noun(w: str) -> bool:
+    return bool(w) and w not in _NOT_A_NOUN and not w.endswith(("ar", "er", "ir"))  # infinitivo
+
+
+def _abstract_claim(words: Sequence[str], k: int) -> str | None:
+    """Núcleo abstrato em words[k]: None se é conversa; senão o que a frase diz não existir."""
+    rest = words[k + 1 :]
+    if _DATA_SIGNAL.search(" ".join(rest[:4])):
+        return words[k]  # "nenhuma ação pendente para você"
+    if not rest or rest[0] not in _PREP:
+        return None
+    y = next((w for w in rest[1:] if w not in _ARTICLES and w not in _DETERMINERS), "")
+    if not _is_noun(y) or y in _ABSTRACT:
+        return None  # "necessidade de ir", "dúvida de que", "motivo para preocupação"
+    return "limite" if words[k].startswith("limite") else y  # "opções de estágio" -> estágio
 
 
 def _narrowed_away(args: Mapping[str, str], f: str) -> bool:
@@ -306,8 +326,12 @@ def _service_backed(c: _Ctx, field: str, cited: Sequence[EntityRecord]) -> bool:
     """Taxa zero exige `taxa` zerada; sem prazo, registro sem `prazo` (citados, ou do turno)."""
     svc = [r for r in cited if r.kind == "servico"]
     svc = svc or [r for r in c.records.values() if r.kind == "servico"]
-    missing = "0" if field == "prazo" else ""
-    return bool(svc) and all(_zero_like(r.fields.get(field, missing)) for r in svc)
+    if field == "limite":  # só um registro que diga "sem limite" sustenta
+        ok = [bool(re.search(r"sem limite|ilimitad", fold(r.fields.get(field, "")))) for r in svc]
+    else:
+        missing = "0" if field == "prazo" else ""
+        ok = [_zero_like(r.fields.get(field, missing)) for r in svc]
+    return bool(ok) and all(ok)
 
 
 def _total_pool(c: _Ctx, enrs: Sequence[str]) -> set[str]:
@@ -364,8 +388,9 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
             claims.append("financeiro")
             continue
         nxt = words[i + 1] if i + 1 < len(words) else ""
-        if w in ("sem", "zero") and len(nxt) > 3 and nxt.endswith("s") and nxt not in _ABSTRACT:
-            claims.append(stem(nxt))  # "Sem/Zero ofertas de estágio.": coisa contável no plural
+        head = next((x for x in words[i + 1 :] if x not in _DETERMINERS), "")
+        if w in ("sem", "zero") and len(head) > 3 and head.endswith("s") and head not in _ABSTRACT:
+            claims.append(stem(head))  # "Sem (outras) ofertas de estágio.": contável no plural
         if w in neg or w in zero:
             span = words[i + 1 : i + 4] if w in neg else []
             exist = w in _EXIST_NEG or (w == "nada" and nxt == "de" and i == 0)  # "Nada de X."
@@ -378,14 +403,9 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
                 if x in _LIGHT or x in _EXISTENCE or x in _DETERMINERS:
                     continue
                 # núcleo fora do léxico: ausência sem apoio (ver _empty_backed/_service_backed)
-                after = " ".join(words[i + j + 2 : i + j + 6])
-                if (
-                    exist
-                    and x not in _NOT_A_NOUN
-                    and not x.endswith(("ar", "er", "ir"))  # infinitivo, não substantivo
-                    and not (x in _ABSTRACT and not _DATA_SIGNAL.search(after))
-                ):
-                    claims.append(stem(x))
+                y = _abstract_claim(words, i + 1 + j) if x in _ABSTRACT else x
+                if exist and y and _is_noun(y):
+                    claims.append(stem(y))
                 break
             if w in zero:
                 for x in reversed(words[max(0, i - 3) : i]):
