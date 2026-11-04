@@ -7,6 +7,9 @@ RUN uv sync --frozen --no-dev
 COPY core ./core
 COPY app ./app
 COPY etl ./etl
+COPY ontology ./ontology
+COPY evals/__init__.py evals/oracle.py ./evals/
+COPY tests/fixtures/golden.json ./tests/fixtures/golden.json
 COPY scripts ./scripts
 COPY slo_targets.yaml ./
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app

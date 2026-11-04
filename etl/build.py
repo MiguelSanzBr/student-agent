@@ -455,8 +455,10 @@ def build_counts(tables: Mapping[str, Sequence[Row]]) -> Counts:
     return {t: len(rows) for t, rows in tables.items()}
 
 
-def build_all(raw: RawData, hmac_key: bytes, root: Path = ONTOLOGY_ROOT) -> dict[str, list[Row]]:
-    res, onto = resolve(raw, hmac_key), load_ontology(raw, root)
+def build_all(
+    raw: RawData, hmac_key: bytes, root: Path = ONTOLOGY_ROOT, res: Resolution | None = None
+) -> dict[str, list[Row]]:
+    res, onto = res or resolve(raw, hmac_key), load_ontology(raw, root)
     out: dict[str, list[Row]] = {}
     for part in (
         build_academic(raw, res, onto),

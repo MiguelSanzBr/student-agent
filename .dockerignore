@@ -9,3 +9,4 @@ tests
 **/__pycache__
 .*_cache
 .lanes
+!tests/fixtures/golden.json

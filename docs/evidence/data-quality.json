@@ -1,0 +1,230 @@
+{
+  "memory_counts": {
+    "person": 1000,
+    "enrollment": 1037,
+    "enrollment_event": 1559,
+    "term_enrollment": 4637,
+    "class_result": 20277,
+    "contract": 1065,
+    "invoice": 25931,
+    "payment": 24380,
+    "late_charge": 5241,
+    "discount": 304,
+    "agreement": 65,
+    "agreement_invoice": 196,
+    "protocol": 3911,
+    "protocol_event": 14201,
+    "protocol_message": 8960,
+    "issued_document": 1001,
+    "service": 18,
+    "lms_account": 1003,
+    "lms_event": 143727,
+    "lms_quiz": 25104,
+    "lms_quiz_attempt": 18857,
+    "brand": 10,
+    "unit": 27,
+    "course": 8,
+    "curriculum": 10,
+    "subject": 260,
+    "curriculum_subject": 328,
+    "term": 12,
+    "course_offer": 138,
+    "price": 330,
+    "coverage": 6
+  },
+  "sql_counts": {
+    "agreement": 65,
+    "agreement_invoice": 196,
+    "brand": 10,
+    "class_result": 20277,
+    "contract": 1065,
+    "course": 8,
+    "course_offer": 138,
+    "coverage": 6,
+    "curriculum": 10,
+    "curriculum_subject": 328,
+    "discount": 304,
+    "enrollment": 1037,
+    "enrollment_event": 1559,
+    "invoice": 25931,
+    "issued_document": 1001,
+    "late_charge": 5241,
+    "lms_account": 1003,
+    "lms_event": 143727,
+    "lms_quiz": 25104,
+    "lms_quiz_attempt": 18857,
+    "payment": 24380,
+    "person": 1000,
+    "price": 330,
+    "protocol": 3911,
+    "protocol_event": 14201,
+    "protocol_message": 8960,
+    "service": 18,
+    "subject": 260,
+    "term": 12,
+    "term_enrollment": 4637,
+    "unit": 27
+  },
+  "checks": [
+    {
+      "name": "pessoas",
+      "memory": 1000,
+      "oracle": 1000
+    },
+    {
+      "name": "matrículas",
+      "memory": 1037,
+      "oracle": 1037
+    },
+    {
+      "name": "contratos resolvidos",
+      "memory": 1065,
+      "oracle": 1065
+    },
+    {
+      "name": "protocolos ligados",
+      "memory": 3911,
+      "oracle": 3911
+    },
+    {
+      "name": "protocolos sem vínculo",
+      "memory": 22,
+      "oracle": 22
+    },
+    {
+      "name": "protocolos por regra",
+      "memory": {
+        "ra_cpf": 3455,
+        "guardian_payer": 73,
+        "cpf_brand_unique": 337,
+        "guardian_payer_unique": 29,
+        "cpf_brand_by_date": 17
+      },
+      "oracle": {
+        "ra_cpf": 3455,
+        "guardian_payer": 73,
+        "cpf_brand_unique": 337,
+        "guardian_payer_unique": 29,
+        "cpf_brand_by_date": 17
+      }
+    },
+    {
+      "name": "contas LMS ligadas",
+      "memory": 1003,
+      "oracle": 1003
+    },
+    {
+      "name": "PROTOCOL_REF encontrados",
+      "memory": [
+        229,
+        229
+      ],
+      "oracle": [
+        229,
+        229
+      ]
+    },
+    {
+      "name": "tentativas do LMS",
+      "memory": 18857,
+      "oracle": 18857
+    },
+    {
+      "name": "simulados abertos sem tentativa",
+      "memory": 1217,
+      "oracle": 1217
+    },
+    {
+      "name": "simulados abertos com tentativa restante",
+      "memory": 1615,
+      "oracle": 1615
+    },
+    {
+      "name": "provas com nota encerradas sem tentativa",
+      "memory": 0,
+      "oracle": 0
+    }
+  ],
+  "invariants": {
+    "toda linha com person_key aponta para uma pessoa": true,
+    "toda linha com enrollment_key aponta para uma matrícula": true,
+    "enrollment_key único": true,
+    "nenhuma tabela canônica vazia além das esperadas": true
+  },
+  "resolution": {
+    "pessoas": {
+      "unresolved": 0,
+      "duplicates": 0
+    },
+    "matrículas": {
+      "unresolved": 0,
+      "duplicates": 0
+    },
+    "contratos": {
+      "unresolved": 0,
+      "duplicates": 0
+    }
+  },
+  "protocols_by_rule": {
+    "ra_cpf": 3455,
+    "guardian_payer": 73,
+    "cpf_brand_unique": 337,
+    "guardian_payer_unique": 29,
+    "cpf_brand_by_date": 17
+  },
+  "protocols_unlinked": 22,
+  "protocol_ref": [
+    229,
+    229
+  ],
+  "snapshot": [
+    273,
+    273
+  ],
+  "lms": {
+    "simulados_abertos": 1217,
+    "simulados_com_tentativa_restante": 1615,
+    "encerradas_sem_tentativa": 0,
+    "tentativas": 18857
+  },
+  "logins_absent": 29,
+  "logins_present": 0,
+  "coverage": [
+    {
+      "source": "sag",
+      "domain": "matricula_eventos",
+      "starts_on": "2020-12-12",
+      "ends_on": null
+    },
+    {
+      "source": "sag",
+      "domain": "notas",
+      "starts_on": "2021-02-01",
+      "ends_on": null
+    },
+    {
+      "source": "sag",
+      "domain": "rematricula",
+      "starts_on": "2021-02-01",
+      "ends_on": null
+    },
+    {
+      "source": "secretary",
+      "domain": "secretaria",
+      "starts_on": "2022-03-01",
+      "ends_on": null
+    },
+    {
+      "source": "lms",
+      "domain": "lms",
+      "starts_on": "2023-01-15",
+      "ends_on": null
+    },
+    {
+      "source": "finance",
+      "domain": "financeiro",
+      "starts_on": "2021-01-01",
+      "ends_on": null
+    }
+  ]
+}

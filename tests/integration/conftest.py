@@ -65,3 +65,43 @@ def db() -> Iterator[Db]:
     finally:
         admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')  # type: ignore[call-overload]
         admin.close()
+
+
+MINI = Path(__file__).resolve().parents[1] / "fixtures" / "mini"
+GOLDEN = Path(__file__).resolve().parents[1] / "fixtures" / "golden.json"
+HMAC = "k" * 32
+
+
+def etl_settings(db: Db):  # type: ignore[no-untyped-def]
+    from etl.config import EtlSettings
+
+    pw = (db.secrets / "etl_owner_password").read_text().strip()
+    return EtlSettings(
+        etl_owner_password=pw, hmac_key=HMAC, db_host="127.0.0.1", db_port=int(db.port)
+    )
+
+
+@dataclass(frozen=True)
+class Loaded:
+    db: Db
+    report: "LoadReport"  # noqa: F821
+    out: Path
+    eval_out: Path
+    source: Path
+
+
+@pytest.fixture
+def loaded_db(db: Db, tmp_path: Path) -> Loaded:
+    """A fixture `mini` carregada pelo ETL de verdade (load_all) no banco descartável."""
+    from etl.load import load_all
+    from etl.raw import read_raw
+    from evals import oracle
+
+    out, eval_out = tmp_path / "etl-out", tmp_path / "eval-out"
+    out.mkdir()
+    eval_out.mkdir()
+    report = load_all(
+        read_raw(MINI), etl_settings(db), database=db.name, out=out, eval_out=eval_out,
+        oracle_raw=oracle.load_csv(MINI), golden=GOLDEN,
+    )  # fmt: skip
+    return Loaded(db, report, out, eval_out, MINI)
