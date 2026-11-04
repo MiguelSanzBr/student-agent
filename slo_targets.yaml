@@ -9,7 +9,7 @@ quotas:  # PROVISÓRIO: cotas reais (RPM/TPM/RPD) pendentes, sem GEMINI_API_KEY
   # PROVISÓRIO: limites reais dependem do tier da conta
   claude-opus-5-5: {rpm: 1000, tpm: 1000000, rpd: 10000}
   claude-sonnet-5-5: {rpm: 1000, tpm: 1000000, rpd: 10000}
-  claude-haiku-5-5: {rpm: 1000, tpm: 1000000, rpd: 10000}
+  claude-haiku-5-5: {rpm: 10000, tpm: 6000000, rpd: 14400000}  # cabeçalhos anthropic-ratelimit-* da conta do autor (2026-11-04); sem limite diário: rpd = rpm × 1440
   gpt-6.1-terra: {rpm: 1000, tpm: 1000000, rpd: 10000}
   gpt-6-luna: {rpm: 1000, tpm: 1000000, rpd: 10000}
 admission:
