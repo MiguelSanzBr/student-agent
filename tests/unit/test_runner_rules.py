@@ -283,6 +283,8 @@ def test_test_split_policy(tmp_path):
     dev = ["--split", "dev", "--model", "m", "--round", "1"]
     assert validate_args(parse(dev)) is None
     assert validate_args(parse([*dev, "--rehearsal", "--paraphrase", "--allow-dirty"])) is None
+    assert "--rehearsal" in validate_args(parse([*dev, "--limit", "3"]))
+    assert validate_args(parse([*dev, "--limit", "3", "--rehearsal"])) is None
 
 
 def test_out_refused_under_evidence_dirs(tmp_path, monkeypatch):

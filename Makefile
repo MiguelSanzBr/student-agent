@@ -69,11 +69,13 @@ eval-dev eval-test:
 	@test -n "$(MODEL)" -a -n "$(ROUND)" || { echo "use MODEL=... ROUND=N" >&2; exit 1; }
 	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
 	$(GIT_ENV) $(EVAL_DC) up -d --build --wait api-eval
+	$(EVAL_DC) build evals
 	$(EVALS) evals.golden.run --split $(patsubst eval-%,%,$@) --model $(MODEL) --round $(ROUND) \
 	  --record $(if $(HOLDOUT),--holdout-yaml /holdout/templates.yaml) $(ARGS)
 
 eval-guard:  # cego medido 1x (semente pré-registrada); ARGS="--dev-transcripts /eval-out/quality/dev-rN/transcripts.jsonl"
 	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
+	$(EVAL_DC) build evals
 	$(EVALS) evals.guard.run $(ARGS)
 
 package:

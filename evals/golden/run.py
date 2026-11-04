@@ -740,6 +740,7 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--tokens-per-call", type=int, default=3000)
     ap.add_argument("--n-boot", type=int, default=N_BOOT)
     ap.add_argument("--allow-dirty", action="store_true")
+    ap.add_argument("--limit", type=int, help="só os N primeiros itens (smoke; exige --rehearsal)")
     return ap.parse_args(argv)
 
 
@@ -756,6 +757,8 @@ def validate_args(a: argparse.Namespace) -> str | None:
         return None
     if not (a.split and a.model and a.round):
         return "--split, --model e --round são obrigatórios"
+    if a.limit and not a.rehearsal:
+        return "--limit só com --rehearsal (rodada contada roda o conjunto inteiro)"
     if a.split != "test":
         return None
     if a.out is not None and _inside_repo(a.out):
@@ -797,6 +800,9 @@ async def amain(a: argparse.Namespace) -> int:
     from evals.tokens import mint
 
     slo, settings = load_slo_targets(), AppSettings()
+    if a.model not in slo.quotas:
+        print(f"modelo sem cota em slo_targets.yaml: {a.model!r}", file=sys.stderr)
+        return 2
     if a.split == "test" and dirty and not a.allow_dirty:
         print("teste exige árvore limpa (SHA congelado)", file=sys.stderr)
         return 2
@@ -812,6 +818,8 @@ async def amain(a: argparse.Namespace) -> int:
     )
     if a.paraphrase:
         items = apply_paraphrases(items, templates)
+    if a.limit:
+        items = items[: a.limit]
     proj = project_round(
         sum(len(i.steps) for i in items), slo.admission.est_requests, a.tokens_per_call, a.model,
         spend_today=a.spend_today or Decimal(0),
@@ -869,7 +877,8 @@ async def amain(a: argparse.Namespace) -> int:
     s = build_summary(rr, strata, meta, n_boot=a.n_boot, labels=a.labels, utility=a.utility,
                       judge=a.judge, dev_dir=a.dev_dir, p_meta=p_meta)  # fmt: skip
     write_summary(out, s)
-    publish(out, evidence, tag)
+    if not a.rehearsal:  # ensaio não vai para a evidência
+        publish(out, evidence, tag)
     print(render_md(s))
     return 1 if rr.aborted else 0
 
