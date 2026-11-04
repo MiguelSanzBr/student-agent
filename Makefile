@@ -56,7 +56,7 @@ check: lint test
 # volume; só dados.zip é montado). Antes: o ETL precisa ter rodado (eval_students.json,
 # golden_login.json). O container não tem git: GIT_SHA/GIT_DIRTY/FROZEN_SHA vêm daqui.
 #   make eval-dev  MODEL=gemini-3.8-flash ROUND=1 [ARGS=...]    (dev: ARGS=--rehearsal = ensaio)
-#   (MODEL=claude-opus-5-5 ou gpt-6.1-terra também; MODEL vira o LLM_MODEL da api-eval)
+#   (MODEL=claude-haiku-5-5 ou gpt-6.1-terra também; MODEL vira o LLM_MODEL da api-eval)
 #   make eval-test MODEL=gemini-3.8-flash ROUND=1 HOLDOUT=/caminho/templates_test_only.yaml \
 #                  ARGS="--dev-json /eval-out/quality/dev-r2/quality.json --spend-today X --rpd-left N"
 # HOLDOUT (opt-in, nunca padrão): o YAML decifrado pelo autor, montado só nesta execução.

@@ -169,7 +169,7 @@ def test_auto_resolves_in_order(app_secrets: Path, keys: tuple[str, ...], expect
     ("provider", "model"),
     [
         ("gemini", "gemini-3.8-flash"),
-        ("anthropic", "claude-opus-5-5"),
+        ("anthropic", "claude-haiku-5-5"),
         ("openai", "gpt-6.1-terra"),
         ("replay", "gemini-3.8-flash"),
         ("fake", "gemini-3.8-flash"),

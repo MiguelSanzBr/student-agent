@@ -21,7 +21,7 @@ FALLBACK_MODEL = "gemini-3.8-flash"  # replay/fake/loadtest: comportamento de se
 MODEL_FAMILY = {"gemini": "gemini-", "anthropic": "claude-", "openai": "gpt-"}
 DEFAULT_MODELS = {
     "gemini": FALLBACK_MODEL,
-    "anthropic": "claude-opus-5-5",
+    "anthropic": "claude-haiku-5-5",
     "openai": "gpt-6.1-terra",
 }
 

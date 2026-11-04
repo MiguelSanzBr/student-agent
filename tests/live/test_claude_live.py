@@ -18,7 +18,7 @@ pytestmark = [
         not os.environ.get("ANTHROPIC_API_KEY"), reason="pendente: sem ANTHROPIC_API_KEY"
     ),
 ]
-MODEL = os.environ.get("ANTHROPIC_MODEL") or "claude-opus-5-5"
+MODEL = os.environ.get("ANTHROPIC_MODEL") or "claude-haiku-5-5"
 SPEC = ToolSpec(
     "get_clima", "Clima de uma cidade.",
     {"type": "object", "properties": {"cidade": {"type": "string"}}, "required": ["cidade"],
