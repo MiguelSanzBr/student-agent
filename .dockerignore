@@ -4,6 +4,7 @@
 .venv
 .env
 data
+**/holdout
 docs
 tests
 **/__pycache__

@@ -72,15 +72,19 @@ load-test:  # escadas (a) e (b) do loadgen; rodar sozinho na máquina (docs/evid
 
 EVAL_DC = docker compose -f docker-compose.yml -f ops/compose.eval.yml --profile eval
 RT = $(EVAL_DC) run --rm redteam python -m evals.redteam
-# Ataques (Task 32): ETL do banco real, banco plantado em api-redteam, ataques diretos à API e a
-# suíte de desenvolvimento (2 repetições; RT_ARGS= --label rerun nas rodadas depois das correções).
+# Ataques (Task 32): ETL do banco real, banco plantado em api-redteam, ataques diretos à API (alunos
+# 3 e 4) e a suíte de desenvolvimento (alunos 1 e 2, 2 repetições). Exige SPEND_TODAY e RPD_LEFT
+# (US$ já gastos hoje e requisições restantes do modelo; preflight). RT_ARGS=--label rerun nas
+# rodadas depois das correções. Falha em qualquer etapa faz o alvo falhar, mas as duas rodam.
 eval-security:
+	@test -n "$(SPEND_TODAY)" -a -n "$(RPD_LEFT)" || { echo "use SPEND_TODAY=0.00 RPD_LEFT=5000 (gasto hoje em USD, requisições restantes)" >&2; exit 1; }
 	$(EVAL_DC) up -d --build --wait init-secrets db redis
 	$(EVAL_DC) --profile etl run --rm etl
 	$(EVAL_DC) up -d --build --wait api-eval api-redteam
-	-$(RT).api_attacks --base-url http://api-eval:8000
+	@rc=0; $(RT).api_attacks --base-url http://api-eval:8000 --recall-control || rc=1; \
 	$(RT).run --suite dev --reps 2 --base-url http://api-eval:8000 \
-	  --planted-url http://api-redteam:8000 $(RT_ARGS)
+	  --planted-url http://api-redteam:8000 --spend-today $(SPEND_TODAY) --rpd-left $(RPD_LEFT) \
+	  $(RT_ARGS) || rc=1; exit $$rc
 
 phoenix-import:  # make phoenix-import FILE=docs/evidence/phoenix/<run>.json (PHOENIX_URL)
 	@test -n "$(FILE)" || { echo "use FILE=...json" >&2; exit 1; }

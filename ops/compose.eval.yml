@@ -29,7 +29,7 @@ services:
     restart: "no"
 
   etl-redteam:  # one-shot: planta as injeções no CSV cru (plant_payloads) e carrega em eval_redteam
-    build: .
+    build: {context: ., target: eval}
     user: "10001:10001"
     profiles: [eval]
     command:
@@ -40,7 +40,7 @@ services:
         python -m evals.redteam.plant_csv /data /tmp/planted
         python -m etl load --source /tmp/planted --database eval_redteam --no-oracle --out /tmp/rt-out --eval-out /tmp/rt-out
     volumes:
-      - ${DATA_DIR:-./data}:/data:ro
+      - ${DATA_ZIP:-./data/dados.zip}:/data/dados.zip:ro  # só o zip, nunca ./data inteiro
       - secrets-etl:/run/secrets/etl:ro
     depends_on:
       init-secrets: {condition: service_completed_successfully}
@@ -54,17 +54,18 @@ services:
       etl-redteam: {condition: service_completed_successfully}
 
   redteam:  # runner: suíte dev/cega, adaptativa e ataques diretos à API; segredos do app (canário)
-    build: .
+    build: {context: ., target: eval}
     user: "10001:10001"
     profiles: [eval]
     volumes:
       - secrets-app:/run/secrets/app:ro
       - etl-out:/etl-out:ro
       - eval-out:/out
-      - ${DATA_DIR:-./data}:/data:ro
+      - ${DATA_ZIP:-./data/dados.zip}:/data/dados.zip:ro  # só o zip, nunca ./data inteiro
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-auto}
       LLM_BACKEND: ${LLM_BACKEND:-aistudio}
+      APP_ENV: dev
     command: ["python", "-m", "evals.redteam.run"]
     depends_on:
       init-secrets: {condition: service_completed_successfully}

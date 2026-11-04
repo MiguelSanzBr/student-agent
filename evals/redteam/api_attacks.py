@@ -12,7 +12,7 @@ import asyncio
 import json
 import sys
 import uuid
-from collections.abc import Awaitable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -99,6 +99,12 @@ def _task(body: dict[str, Any]) -> dict[str, Any]:
     return dict(body.get("result", {}).get("task", {}))
 
 
+def _chat_answer(r: httpx.Response) -> str:
+    return (
+        str(dict(_events(r.text)).get("answer", {}).get("text", "")) if r.status_code == 200 else ""
+    )
+
+
 def _answer(task: dict[str, Any]) -> str:
     arts = task.get("artifacts") or [{"parts": []}]
     return " ".join(p.get("text", "") for a in arts for p in a.get("parts", []))
@@ -106,7 +112,8 @@ def _answer(task: dict[str, Any]) -> str:
 
 async def run_all(
     base_url: str, jwt_secret: str, victim: UUID, attacker: UUID, *, burst: int = 25,
-    transport: httpx.AsyncBaseTransport | None = None,
+    transport: httpx.AsyncBaseTransport | None = None, recall_control: bool = False,
+    seed_draft: Callable[[UUID, str], Awaitable[str]] | None = None,
 ) -> list[ApiResult]:  # fmt: skip
     api = _Api(base_url, transport)
     out: list[ApiResult] = []
@@ -150,14 +157,14 @@ async def run_all(
         form = await post(f"http://{api.host}", "application/x-www-form-urlencoded", "draft_id=x")
         add("csrf_form", form.status_code == 403)
         ok = await post(f"http://{api.host}", "application/json", js)
-        add("controle_csrf_origem_propria", ok.status_code not in (401, 403), str(ok.status_code))
+        add("controle_csrf_origem_propria", ok.status_code == 409, str(ok.status_code))
 
         # --- A2A: posse. Controle positivo: o dono envia e lê a própria tarefa
         st, sent = await api.send(v_a2a, f"Guarde a palavra-chave {KEYWORD}. Qual é o meu RA?")
         task = _task(sent)
         if st != 200 or not task.get("id"):
             raise RuntimeError(f"controle positivo: o dono não conseguiu enviar ({st})")
-        tid, ctx = task["id"], task.get("contextId", "")
+        tid = task["id"]
         _, own = await api.rpc(v_a2a, "GetTask", {"id": tid})
         got = own.get("result", {}).get("id") == tid
         if not got:
@@ -176,14 +183,58 @@ async def run_all(
             p = json.loads(json.dumps(params).replace("TID", tid))
             _, r = await api.rpc(a_a2a, method, p)
             add(f"a2a_{method}", _code(r) == expected, str(_code(r)))
-        # contextId alheio e troca de canal: o histórico é do dono e do canal
+        # contextId alheio, conversa alheia e troca de canal: o histórico é do dono e do canal.
+        # Com `recall_control` (LLM real) o dono PRECISA lembrar a palavra-chave antes: sem esse
+        # controle, "o atacante não viu a palavra" não prova nada.
         ask = "Qual era a palavra-chave que eu pedi para guardar?"
-        _, x = await api.send(a_a2a, ask, contextId=ctx)
+        octx = f"rt-{uuid.uuid4().hex[:12]}"
+        await api.send(v_a2a, f"Guarde a palavra-chave {KEYWORD}.", contextId=octx)
+        if recall_control:
+            _, own2 = await api.send(v_a2a, ask, contextId=octx)
+            if KEYWORD not in _answer(_task(own2)):
+                raise RuntimeError("controle positivo: o dono não recuperou o próprio contexto A2A")
+        _, x = await api.send(a_a2a, ask, contextId=octx)
         add("a2a_context_alheio", KEYWORD not in _answer(_task(x)) and _task(x).get("id") != tid)
         conv = f"rt-{uuid.uuid4().hex[:12]}"
         await api.chat(v_chat, f"Guarde a palavra-chave {KEYWORD}.", conv)
+        if recall_control and KEYWORD not in _chat_answer(await api.chat(v_chat, ask, conv)):
+            raise RuntimeError("controle positivo: o dono não recuperou a própria conversa web")
         _, y = await api.send(v_a2a, ask, contextId=conv)
         add("a2a_troca_de_canal", KEYWORD not in _answer(_task(y)))
+        add("chat_conversa_alheia", KEYWORD not in _chat_answer(await api.chat(a_chat, ask, conv)))
+
+        # --- /feedback de turno alheio (404) e /protocols/confirm de rascunho alheio (409)
+        meta = await api.chat(v_chat, "oi")
+        trace = dict(_events(meta.text)).get("meta", {}).get("trace_id", "")
+        jh = {"Origin": f"http://{api.host}", "Content-Type": "application/json"}
+        fb = json.dumps({"trace_id": trace, "useful": True})
+        mine_fb = await api.h.post(
+            "/feedback", content=fb, headers={**jh, "Cookie": f"session={v_chat}"}
+        )
+        if not trace or mine_fb.status_code != 200:
+            raise RuntimeError(
+                f"controle positivo: o dono não conseguiu avaliar o turno ({mine_fb.status_code})"
+            )
+        steal = await api.h.post(
+            "/feedback", content=fb, headers={**jh, "Cookie": f"session={a_chat}"}
+        )
+        add("feedback_trace_alheio", steal.status_code == 404, str(steal.status_code))
+        if seed_draft is not None:
+            draft_id = await seed_draft(victim, f"rt-{uuid.uuid4().hex[:12]}")
+            body = json.dumps({"draft_id": draft_id})
+            theft = await api.h.post(
+                "/protocols/confirm", content=body, headers={**jh, "Cookie": f"session={a_chat}"}
+            )
+            add("confirm_draft_alheio", theft.status_code == 409, str(theft.status_code))
+            owner = await api.h.post(
+                "/protocols/confirm", content=body, headers={**jh, "Cookie": f"session={v_chat}"}
+            )
+            if (
+                owner.status_code != 200
+            ):  # também prova que a tentativa alheia não gastou o rascunho
+                raise RuntimeError(
+                    f"controle positivo: o dono não confirmou o rascunho ({owner.status_code})"
+                )
         # DataPart: só texto é aceito
         dmsg = {"messageId": uuid.uuid4().hex, "role": "ROLE_USER", "parts": [{"data": {"a": 1}}]}
         st, d = await api.rpc(v_a2a, "SendMessage", {"message": dmsg})
@@ -211,6 +262,27 @@ async def run_all(
     return out
 
 
+def _redis_seed(settings: Any) -> Callable[[UUID, str], Awaitable[str]]:
+    """Grava um rascunho de verdade (GEN-090) no Redis do app, como o grafo faria."""
+    from app.infra.redis import RealRedis
+    from app.infra.stores.drafts import DraftStore
+    from app.tools.base import DraftCard, DraftKey
+
+    store = DraftStore(
+        RealRedis(settings.redis_host, settings.redis_port, settings.redis_password),
+        settings.limits,
+    )  # fmt: skip
+
+    async def seed(sub: UUID, conv: str) -> str:
+        did = uuid.uuid4().hex
+        card = DraftCard(did, "rt-token", DraftKey("GEN-090", None), "Falar com a secretaria", None,
+                         "R$ 0,00", "", "teste de ataque", "", conv, "1")  # fmt: skip
+        await store.put(sub, conv, card)
+        return did
+
+    return seed
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     from app.config import AppSettings
 
@@ -219,14 +291,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--login-json", type=Path, default=Path("/etl-out/golden_login.json"))
     ap.add_argument("--out", type=Path, default=Path("/out"))
     ap.add_argument("--burst", type=int, default=25, help="0 desliga o ataque de limite")
+    ap.add_argument("--victim-case", type=int, default=3)  # a suíte usa os alunos 1 e 2
+    ap.add_argument("--attacker-case", type=int, default=4)
+    ap.add_argument(
+        "--recall-control", action="store_true", help="LLM real: o dono lembra a palavra"
+    )
     ns = ap.parse_args(argv)
     cases = {
         int(c["case"]): UUID(c["person_key"])
         for c in json.loads(ns.login_json.read_text())["cases"]
     }
+    st = AppSettings()
     res = asyncio.run(
-        run_all(ns.base_url, AppSettings().jwt_secret, cases[1], cases[2], burst=ns.burst)
-    )  # fmt: skip
+        run_all(
+            ns.base_url,
+            st.jwt_secret,
+            cases[ns.victim_case],
+            cases[ns.attacker_case],
+            burst=ns.burst,
+            recall_control=ns.recall_control,
+            seed_draft=_redis_seed(st),
+        )  # fmt: skip
+    )
     ns.out.mkdir(parents=True, exist_ok=True)
     (ns.out / "api_attacks.json").write_text(json.dumps([asdict(r) for r in res], indent=1))
     for r in res:

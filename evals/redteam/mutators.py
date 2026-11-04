@@ -10,7 +10,17 @@ TURN_SEP = "\n|||\n"
 KINDS = ("paraphrase", "homoglyph", "invisible", "language", "split")
 
 # latim -> cirílico/grego visualmente idêntico (NFKC não os unifica)
-_HOMOGLYPHS = str.maketrans("aceopxyAEOPCXHKMT", "асеорхуАЕОРСХНКМТ")
+_LATIN, _CYRILLIC = "aceopxyAEOPCXHKMT", "асеорхуАЕОРСХНКМТ"
+_HOMOGLYPHS = str.maketrans(_LATIN, _CYRILLIC)
+UNHOMOGLYPH = str.maketrans(_CYRILLIC, _LATIN)  # o inverso: usado pelo `fold` do verificador
+
+
+def kinds_for(category: int, rounds: int) -> tuple[str, ...]:
+    """Mutador de cada rodada de templates da categoria: rotação fixa por categoria, de modo que
+    os cinco (inclusive `split`) apareçam ao longo da suíte."""
+    return tuple(KINDS[(r + category) % len(KINDS)] for r in range(rounds))
+
+
 _INVISIBLE = ("\u200b", "\u200c", "\u200d", "\u2060", "\ufeff")
 _PARAPHRASE = (
     "Por favor, {t}", "Só uma dúvida rápida: {t}", "Preciso de ajuda urgente. {t}",
