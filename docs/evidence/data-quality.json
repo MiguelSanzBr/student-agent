@@ -68,81 +68,157 @@
   "checks": [
     {
       "name": "pessoas",
-      "memory": 1000,
-      "oracle": 1000
+      "legs": {
+        "memoria": 1000,
+        "sql": 1000,
+        "oraculo": 1000
+      },
+      "ok": true
     },
     {
       "name": "matrículas",
-      "memory": 1037,
-      "oracle": 1037
+      "legs": {
+        "memoria": 1037,
+        "sql": 1037,
+        "oraculo": 1037
+      },
+      "ok": true
     },
     {
       "name": "contratos resolvidos",
-      "memory": 1065,
-      "oracle": 1065
+      "legs": {
+        "memoria": 1065,
+        "sql": 1065,
+        "oraculo": 1065
+      },
+      "ok": true
     },
     {
       "name": "protocolos ligados",
-      "memory": 3911,
-      "oracle": 3911
+      "legs": {
+        "memoria": 3911,
+        "sql": 3911,
+        "oraculo": 3911
+      },
+      "ok": true
     },
     {
       "name": "protocolos sem vínculo",
-      "memory": 22,
-      "oracle": 22
+      "legs": {
+        "memoria": 22,
+        "oraculo": 22
+      },
+      "ok": true
     },
     {
       "name": "protocolos por regra",
-      "memory": {
-        "ra_cpf": 3455,
-        "guardian_payer": 73,
-        "cpf_brand_unique": 337,
-        "guardian_payer_unique": 29,
-        "cpf_brand_by_date": 17
+      "legs": {
+        "memoria": {
+          "ra_cpf": 3455,
+          "guardian_payer": 73,
+          "cpf_brand_unique": 337,
+          "guardian_payer_unique": 29,
+          "cpf_brand_by_date": 17
+        },
+        "oraculo": {
+          "ra_cpf": 3455,
+          "guardian_payer": 73,
+          "cpf_brand_unique": 337,
+          "guardian_payer_unique": 29,
+          "cpf_brand_by_date": 17
+        }
       },
-      "oracle": {
-        "ra_cpf": 3455,
-        "guardian_payer": 73,
-        "cpf_brand_unique": 337,
-        "guardian_payer_unique": 29,
-        "cpf_brand_by_date": 17
-      }
+      "ok": true
     },
     {
       "name": "contas LMS ligadas",
-      "memory": 1003,
-      "oracle": 1003
+      "legs": {
+        "memoria": 1003,
+        "sql": 1003,
+        "oraculo": 1003
+      },
+      "ok": true
     },
     {
-      "name": "PROTOCOL_REF encontrados",
-      "memory": [
-        229,
-        229
-      ],
-      "oracle": [
-        229,
-        229
-      ]
+      "name": "PROTOCOL_REF",
+      "legs": {
+        "memoria": [
+          229,
+          229
+        ],
+        "sql": [
+          229,
+          229
+        ],
+        "oraculo": [
+          229,
+          229
+        ]
+      },
+      "ok": true
     },
     {
       "name": "tentativas do LMS",
-      "memory": 18857,
-      "oracle": 18857
+      "legs": {
+        "memoria": 18857,
+        "sql": 18857,
+        "oraculo": 18857
+      },
+      "ok": true
     },
     {
       "name": "simulados abertos sem tentativa",
-      "memory": 1217,
-      "oracle": 1217
+      "legs": {
+        "sql": 1217,
+        "oraculo": 1217
+      },
+      "ok": true
     },
     {
       "name": "simulados abertos com tentativa restante",
-      "memory": 1615,
-      "oracle": 1615
+      "legs": {
+        "sql": 1615,
+        "oraculo": 1615
+      },
+      "ok": true
     },
     {
       "name": "provas com nota encerradas sem tentativa",
-      "memory": 0,
-      "oracle": 0
+      "legs": {
+        "sql": 0,
+        "oraculo": 0
+      },
+      "ok": true
+    },
+    {
+      "name": "snapshot do último mês",
+      "legs": {
+        "sql": [
+          273,
+          273
+        ],
+        "oraculo": [
+          273,
+          273
+        ]
+      },
+      "ok": true
+    },
+    {
+      "name": "logins de analista ausentes",
+      "legs": {
+        "memoria": 29,
+        "sql": 29
+      },
+      "ok": true
+    },
+    {
+      "name": "logins de analista (distintos)",
+      "legs": {
+        "memoria": 29,
+        "oraculo": 29
+      },
+      "ok": true
     }
   ],
   "invariants": {

@@ -40,22 +40,27 @@ Medidas dentro da transação, antes de `rls.sql` (depois do FORCE o dono lê 0 
 | term_enrollment | 4637 | 4637 | ok |
 | unit | 27 | 27 | ok |
 
-## Memória = oráculo independente
+## Conferência por pernas independentes
 
-| verificação | memória/SQL | oráculo | igual |
-| --- | ---: | ---: | --- |
-| pessoas | 1000 | 1000 | ok |
-| matrículas | 1037 | 1037 | ok |
-| contratos resolvidos | 1065 | 1065 | ok |
-| protocolos ligados | 3911 | 3911 | ok |
-| protocolos sem vínculo | 22 | 22 | ok |
-| protocolos por regra | {'ra_cpf': 3455, 'guardian_payer': 73, 'cpf_brand_unique': 337, 'guardian_payer_unique': 29, 'cpf_brand_by_date': 17} | {'ra_cpf': 3455, 'guardian_payer': 73, 'cpf_brand_unique': 337, 'guardian_payer_unique': 29, 'cpf_brand_by_date': 17} | ok |
-| contas LMS ligadas | 1003 | 1003 | ok |
-| PROTOCOL_REF encontrados | [229, 229] | [229, 229] | ok |
-| tentativas do LMS | 18857 | 18857 | ok |
-| simulados abertos sem tentativa | 1217 | 1217 | ok |
-| simulados abertos com tentativa restante | 1615 | 1615 | ok |
-| provas com nota encerradas sem tentativa | 0 | 0 | ok |
+Cada número vale só se todas as pernas medidas concordam (memória = linhas construídas; SQL = lido de `canon` na transação; oráculo = cálculo independente dos CSV).
+
+| verificação | memória | SQL | oráculo | pernas que concordam |
+| --- | ---: | ---: | ---: | --- |
+| pessoas | 1000 | 1000 | 1000 | ok (memória, SQL, oráculo) |
+| matrículas | 1037 | 1037 | 1037 | ok (memória, SQL, oráculo) |
+| contratos resolvidos | 1065 | 1065 | 1065 | ok (memória, SQL, oráculo) |
+| protocolos ligados | 3911 | 3911 | 3911 | ok (memória, SQL, oráculo) |
+| protocolos sem vínculo | 22 | - | 22 | ok (memória, oráculo) |
+| protocolos por regra | {'ra_cpf': 3455, 'guardian_payer': 73, 'cpf_brand_unique': 337, 'guardian_payer_unique': 29, 'cpf_brand_by_date': 17} | - | {'ra_cpf': 3455, 'guardian_payer': 73, 'cpf_brand_unique': 337, 'guardian_payer_unique': 29, 'cpf_brand_by_date': 17} | ok (memória, oráculo) |
+| contas LMS ligadas | 1003 | 1003 | 1003 | ok (memória, SQL, oráculo) |
+| PROTOCOL_REF | [229, 229] | [229, 229] | [229, 229] | ok (memória, SQL, oráculo) |
+| tentativas do LMS | 18857 | 18857 | 18857 | ok (memória, SQL, oráculo) |
+| simulados abertos sem tentativa | - | 1217 | 1217 | ok (SQL, oráculo) |
+| simulados abertos com tentativa restante | - | 1615 | 1615 | ok (SQL, oráculo) |
+| provas com nota encerradas sem tentativa | - | 0 | 0 | ok (SQL, oráculo) |
+| snapshot do último mês | - | [273, 273] | [273, 273] | ok (SQL, oráculo) |
+| logins de analista ausentes | 29 | 29 | - | ok (memória, SQL) |
+| logins de analista (distintos) | 29 | - | 29 | ok (memória, oráculo) |
 
 ## Protocolos por regra de ligação
 
@@ -72,7 +77,7 @@ Medidas dentro da transação, antes de `rls.sql` (depois do FORCE o dono lê 0 
 
 - `PROTOCOL_REF` que existem em protocolo: 229/229
 - Snapshot financeiro (oráculo): 273/273
-- Provas que valem nota encerradas sem tentativa: 0
+- Provas com nota encerradas sem tentativa: 0
 - Simulados abertos sem tentativa: 1217
 - Simulados abertos com tentativa restante: 1615
 - Logins de analista ausentes de toda tabela carregada: 29 (presentes: 0)

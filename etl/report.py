@@ -4,6 +4,8 @@ Nunca grava CPF nem outro valor pessoal: só contagens, nomes de regra e rótulo
 """
 
 import json
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from pathlib import Path
@@ -50,11 +52,77 @@ def lms_sql_facts(
     }
 
 
-@dataclass(frozen=True)
+LEGS = (("memoria", "memória"), ("sql", "SQL"), ("oraculo", "oráculo"))
+
+
+@dataclass
 class Check:
+    """Um número conferido por pernas independentes (memória / SQL / oráculo); ok = todas iguais."""
+
     name: str
-    memory: Any
-    oracle: Any
+    legs: dict[str, Any]
+    ok: bool = field(init=False)
+
+    def __post_init__(self) -> None:
+        vals = list(self.legs.values())
+        self.ok = len(vals) >= 2 and all(v == vals[0] for v in vals)
+
+
+_SNAP_SQL = """
+SELECT i.contract_id, count(*),
+  sum(i.net_cents - coalesce(p.principal, 0)),
+  sum(coalesce(l.fine, 0) - coalesce(p.fine, 0)),
+  sum(coalesce(l.interest, 0) - coalesce(p.interest, 0))
+FROM canon.invoice i
+LEFT JOIN (SELECT invoice_id, sum(principal_cents) AS principal, sum(fine_cents) AS fine,
+                  sum(interest_cents) AS interest
+           FROM canon.payment WHERE status = 'CONFIRMED' GROUP BY 1) p USING (invoice_id)
+LEFT JOIN (SELECT invoice_id, sum(fine_cents) AS fine, sum(interest_cents) AS interest
+           FROM canon.late_charge WHERE NOT coalesce(waived, false) GROUP BY 1) l USING (invoice_id)
+WHERE i.status IN ('OVERDUE', 'PARTIAL') AND i.due_date < %s
+GROUP BY 1
+"""
+
+
+def snapshot_sql(conn: psycopg.Connection, rows: Sequence[Mapping[str, str]]) -> tuple[int, int]:
+    """Contratos do último snapshot cujo saldo (faturas vencidas, principal, multa, juros) calculado
+    de `canon` bate com o snapshot. O snapshot em si é resolution_only: vem do CSV cru."""
+    last = max(r["snapshotDate"] for r in rows)
+    mine = {
+        r[0]: [int(x) for x in r[1:]]
+        for r in conn.execute(_SNAP_SQL, (date.fromisoformat(last),)).fetchall()
+    }
+    snap = [r for r in rows if r["snapshotDate"] == last]
+    want = ("overdueInvoices", "principalCents", "fineCents", "interestCents")
+    ok = sum(1 for r in snap if mine.get(r["contractId"]) == [int(r[k]) for k in want])
+    return ok, len(snap)
+
+
+def logins_in_sql(conn: psycopg.Connection, logins: set[str]) -> int:
+    """Quantos dos logins aparecem em alguma célula de qualquer tabela de `canon`."""
+    if not logins:
+        return 0
+    rx = r"\m(" + "|".join(re.escape(x) for x in sorted(logins)) + r")\M"
+    tables = [
+        r[0]
+        for r in conn.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'canon'"
+        ).fetchall()
+    ]
+    found: set[str] = set()
+    for t in tables:
+        q = f"SELECT DISTINCT lower((regexp_matches(x::text, %s, 'gi'))[1]) FROM canon.{t} x"
+        found |= {r[0] for r in conn.execute(q, (rx,)).fetchall()}
+    return len(found)
+
+
+def protocol_ref_sql(conn: psycopg.Connection) -> tuple[int, int]:
+    row = conn.execute(
+        "SELECT count(p.protocol), count(*) FROM canon.enrollment_event e "
+        "LEFT JOIN canon.protocol p ON p.protocol = e.protocol_ref WHERE e.protocol_ref IS NOT NULL"
+    ).fetchone()
+    assert row
+    return int(row[0]), int(row[1])
 
 
 @dataclass
@@ -99,11 +167,21 @@ def render_markdown(r: LoadReport) -> str:
             for t, n in sorted(r.memory_counts.items())
         ),
         "",
-        "## Memória = oráculo independente",
+        "## Conferência por pernas independentes",
         "",
-        _row("verificação", "memória/SQL", "oráculo", "igual"),
-        _row("---", "---:", "---:", "---"),
-        *(_row(c.name, c.memory, c.oracle, ok(c.memory == c.oracle)) for c in r.checks),
+        "Cada número vale só se todas as pernas medidas concordam (memória = linhas construídas; "
+        "SQL = lido de `canon` na transação; oráculo = cálculo independente dos CSV).",
+        "",
+        _row("verificação", "memória", "SQL", "oráculo", "pernas que concordam"),
+        _row("---", "---:", "---:", "---:", "---"),
+        *(
+            _row(
+                c.name,
+                *(c.legs.get(k, "-") for k, _ in LEGS),
+                ok(c.ok) + " (" + ", ".join(lbl for k, lbl in LEGS if k in c.legs) + ")",
+            )
+            for c in r.checks
+        ),
         "",
         "## Protocolos por regra de ligação",
         "",

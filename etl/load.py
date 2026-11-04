@@ -25,7 +25,15 @@ from etl.build import (
 )
 from etl.config import EtlSettings
 from etl.raw import RawData
-from etl.report import Check, LoadReport, lms_sql_facts, write_report
+from etl.report import (
+    Check,
+    LoadReport,
+    lms_sql_facts,
+    logins_in_sql,
+    protocol_ref_sql,
+    snapshot_sql,
+    write_report,
+)
 from etl.resolve_core import (
     ResolutionStats,
     resolve_contracts,
@@ -116,6 +124,7 @@ def _invariants(tables: Mapping[str, Sequence[Row]], counts: Mapping[str, int]) 
 
 
 def _report(
+    conn: psycopg.Connection,
     raw: RawData,
     res: Resolution,
     tables: Mapping[str, Sequence[Row]],
@@ -151,30 +160,88 @@ def _report(
             {k: None if v is None else str(v) for k, v in c.items()} for c in tables["coverage"]
         ],
     )
+    snap_rows = raw["finance/receivable_snapshot"]
+    r.snapshot = snapshot_sql(conn, snap_rows)
+    distinct = len(logins)
+    cov: Mapping[str, Any] = {}
+    facts: list[Any] = []
+    o: Any = None
     if oracle_raw is not None:
         from evals import oracle as o
 
         cov = o.oracle_coverage(oracle_raw)
-        r.snapshot = tuple(cov["snapshot"])
         facts = [o.oracle_lms(oracle_raw, k) for k in o.enrollments(oracle_raw)]
-        r.checks = [
-            Check("pessoas", mem["person"], len(set(o.person_cpf(oracle_raw).values()))),
-            Check("matrículas", mem["enrollment"], cov["matriculas"]),
-            Check("contratos resolvidos", mem["contract"], cov["contratos_resolvidos"][0]),
-            Check("protocolos ligados", mem["protocol"], cov["protocolos_ligados"]),
-            Check("protocolos sem vínculo", r.protocols_unlinked, cov["protocolos_sem_vinculo"]),
-            Check("protocolos por regra", by_rule, cov["protocolos_por_regra"]),
-            Check("contas LMS ligadas", mem["lms_account"], cov["contas_lms"]),
-            Check("PROTOCOL_REF encontrados", list(r.protocol_ref), list(cov["protocol_ref"])),
-            Check("tentativas do LMS", lms["tentativas"], sum(f.tentativas for f in facts)),
-            Check("simulados abertos sem tentativa", lms["simulados_abertos"],
-                  sum(f.simulados_abertos for f in facts)),
-            Check("simulados abertos com tentativa restante",
-                  lms["simulados_com_tentativa_restante"],
-                  sum(f.simulados_com_tentativa_restante for f in facts)),
-            Check("provas com nota encerradas sem tentativa", lms["encerradas_sem_tentativa"],
-                  sum(f.encerradas_sem_tentativa for f in facts)),
-        ]  # fmt: skip
+
+    def chk(name: str, memoria: Any, sql_leg: Any, oraculo: Any = None) -> Check:
+        legs = {"memoria": memoria, "sql": sql_leg, "oraculo": oraculo}
+        return Check(name, {k: v for k, v in legs.items() if v is not None})
+
+    def orc(f: Any) -> Any:
+        return f() if oracle_raw is not None else None
+
+    sql_present = logins_in_sql(conn, logins)
+    r.checks = [
+        chk(
+            "pessoas",
+            mem["person"],
+            sql["person"],
+            orc(lambda: len(set(o.person_cpf(oracle_raw).values()))),
+        ),
+        chk("matrículas", mem["enrollment"], sql["enrollment"], cov.get("matriculas")),
+        chk(
+            "contratos resolvidos",
+            mem["contract"],
+            sql["contract"],
+            cov["contratos_resolvidos"][0] if cov else None,
+        ),
+        chk("protocolos ligados", mem["protocol"], sql["protocol"], cov.get("protocolos_ligados")),
+        chk(
+            "protocolos sem vínculo", r.protocols_unlinked, None, cov.get("protocolos_sem_vinculo")
+        ),
+        chk("protocolos por regra", by_rule, None, cov.get("protocolos_por_regra")),
+        chk("contas LMS ligadas", mem["lms_account"], sql["lms_account"], cov.get("contas_lms")),
+        chk(
+            "PROTOCOL_REF",
+            list(r.protocol_ref),
+            list(protocol_ref_sql(conn)),
+            list(cov["protocol_ref"]) if cov else None,
+        ),
+        chk(
+            "tentativas do LMS",
+            mem["lms_quiz_attempt"],
+            lms["tentativas"],
+            orc(lambda: sum(f.tentativas for f in facts)),
+        ),
+        chk(
+            "simulados abertos sem tentativa",
+            None,
+            lms["simulados_abertos"],
+            orc(lambda: sum(f.simulados_abertos for f in facts)),
+        ),
+        chk(
+            "simulados abertos com tentativa restante",
+            None,
+            lms["simulados_com_tentativa_restante"],
+            orc(lambda: sum(f.simulados_com_tentativa_restante for f in facts)),
+        ),
+        chk(
+            "provas com nota encerradas sem tentativa",
+            None,
+            lms["encerradas_sem_tentativa"],
+            orc(lambda: sum(f.encerradas_sem_tentativa for f in facts)),
+        ),
+        chk(
+            "snapshot do último mês", None, list(r.snapshot), list(cov["snapshot"]) if cov else None
+        ),
+        chk("logins de analista ausentes", distinct - present, distinct - sql_present),
+        chk(
+            "logins de analista (distintos)",
+            distinct,
+            None,
+            orc(lambda: len(_analyst_logins(oracle_raw or {}))),
+        ),
+    ]
+    r.checks = [c for c in r.checks if len(c.legs) >= 2]  # sem oráculo, só as de 2 pernas
     return r
 
 
@@ -244,11 +311,13 @@ def load_all(
         expected = {t: mem.get(t, 0) for t in sql}
         if sql != expected or set(mem) - set(sql):
             raise RuntimeError(f"contagens SQL != memória: {_diff(sql, mem)}")
-        report = _report(raw, res, tables, mem, sql, lms_sql_facts(conn, TODAY), key, oracle_raw)
-        if out is not None:
-            write_report(report, out)
+        report = _report(
+            conn, raw, res, tables, mem, sql, lms_sql_facts(conn, TODAY), key, oracle_raw
+        )
         conn.execute(_sql("rls.sql"))
         conn.commit()
+    if out is not None:
+        write_report(report, out)  # só depois do commit: carga que falha não deixa relatório
     if out is not None and golden is not None:
         write_golden_login(out, golden, res)
     if eval_out is not None:

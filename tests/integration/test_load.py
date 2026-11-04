@@ -3,11 +3,12 @@ import re
 from pathlib import Path
 
 import psycopg
+import pytest
 
 from etl.load import LoadReport
 from etl.report import lms_sql_facts
 from evals import oracle as o
-from tests.integration.conftest import GOLDEN, Loaded
+from tests.integration.conftest import GOLDEN, Db, Loaded
 
 TODAY = o.REFERENCE
 
@@ -73,9 +74,7 @@ def test_load_matches_oracle(loaded_db: Loaded) -> None:
 
 def test_report_from_memory_matches_oracle(loaded_db: Loaded) -> None:
     r: LoadReport = loaded_db.report
-    assert r.checks and all(c.memory == c.oracle for c in r.checks), [
-        c for c in r.checks if c.memory != c.oracle
-    ]
+    assert r.checks and all(c.ok for c in r.checks), [c for c in r.checks if not c.ok]
     md = (loaded_db.out / "data-quality.md").read_text()
     js = json.loads((loaded_db.out / "data-quality.json").read_text())
     assert "contagens SQL" in md and js["sql_counts"] == js["memory_counts"]
@@ -115,3 +114,93 @@ def test_login_files_no_cpf(loaded_db: Loaded) -> None:
         "protocolo_aberto", "lms_manual", "transferido", "payer_type",
     }  # fmt: skip
     assert Path(loaded_db.out / "golden_login.json").exists()
+
+
+def test_frozen_numbers_have_two_independent_legs(loaded_db: Loaded) -> None:
+    by = {c.name: c for c in loaded_db.report.checks}
+    for name in ("snapshot do último mês", "logins de analista ausentes", "PROTOCOL_REF"):
+        assert len(by[name].legs) >= 2 and by[name].ok, by[name]
+    assert {"sql", "oraculo"} <= set(by["snapshot do último mês"].legs)
+    assert {"memoria", "sql"} <= set(by["logins de analista ausentes"].legs)
+    md = (loaded_db.out / "data-quality.md").read_text()
+    assert "memória" in md and "SQL" in md and "oráculo" in md and "snapshot do último mês" in md
+
+
+def _state(db: Db) -> tuple[object, ...]:
+    with db.connect("postgres") as c:
+        return (
+            one(c, "SELECT count(*) FROM canon.person")[0],
+            one(c, "SELECT count(*) FROM canon.protocol")[0],
+            one(c, "SELECT count(*) FROM pg_policies WHERE schemaname='canon'")[0],
+            one(c, "SELECT relforcerowsecurity FROM pg_class WHERE oid='canon.person'::regclass")[
+                0
+            ],
+            one(c, "SELECT count(*) FROM agent_rw.feedback")[0],
+        )
+
+
+def test_failed_load_rolls_back_canon_and_rls(
+    loaded_db: Loaded, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import etl.load as L
+    from etl.raw import read_raw
+    from tests.integration.conftest import etl_settings
+
+    db = loaded_db.db
+    with db.connect("postgres") as c:
+        c.execute(
+            "INSERT INTO agent_rw.feedback (trace_id, person_key, useful) "
+            "VALUES ('t', gen_random_uuid(), true)"
+        )
+    before = _state(db)
+    monkeypatch.setattr(
+        L, "build_counts", lambda t: {**{k: len(v) for k, v in t.items()}, "person": -1}
+    )
+    out = tmp_path / "again"
+    out.mkdir()
+    with pytest.raises(RuntimeError, match="contagens SQL"):
+        L.load_all(read_raw(loaded_db.source), etl_settings(db), database=db.name, out=out)
+    assert _state(db) == before and before[3] is True and before[0] > 0
+    assert not list(out.iterdir())
+
+
+def test_failure_after_copy_never_applies_rls(
+    db: Db, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import etl.load as L
+    from etl.raw import read_raw
+    from tests.integration.conftest import MINI, etl_settings
+
+    def boom(*a: object, **k: object) -> None:
+        raise ValueError("falha depois do COPY")
+
+    monkeypatch.setattr(L, "_report", boom)
+    with pytest.raises(ValueError):
+        L.load_all(read_raw(MINI), etl_settings(db), database=db.name, out=tmp_path)
+    with db.connect("postgres") as c:
+        assert one(c, "SELECT count(*) FROM canon.person")[0] == 0  # COPY desfeito
+        assert one(c, "SELECT count(*) FROM pg_policies WHERE schemaname='canon'")[0] == 0
+        assert (
+            one(c, "SELECT relrowsecurity FROM pg_class WHERE oid='canon.person'::regclass")[0]
+            is False
+        )
+
+
+def test_report_files_only_after_commit(
+    db: Db, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import etl.load as L
+    from etl.raw import read_raw
+    from tests.integration.conftest import MINI, etl_settings
+
+    real = L._sql
+
+    def sql(name: str) -> str:
+        if name == "rls.sql":
+            raise ValueError("rls falhou")
+        return real(name)
+
+    monkeypatch.setattr(L, "_sql", sql)
+    with pytest.raises(ValueError):
+        L.load_all(read_raw(MINI), etl_settings(db), database=db.name, out=tmp_path)
+    assert not list(tmp_path.iterdir())

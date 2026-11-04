@@ -38,7 +38,7 @@ def test_full_counts(db: Db, tmp_path: Path) -> None:
     assert lms["encerradas_sem_tentativa"] == 0
     assert (lms["simulados_abertos"], lms["simulados_com_tentativa_restante"]) == (1217, 1615)
     assert r.logins_absent == 29 and r.logins_present == 0
-    assert all(k.memory == k.oracle for k in r.checks)
+    assert all(k.ok for k in r.checks)
     js = json.loads((out / "data-quality.json").read_text())
     assert js["sql_counts"] == js["memory_counts"]
     assert not re.search(r"\b\d{11}\b", (out / "data-quality.md").read_text())
