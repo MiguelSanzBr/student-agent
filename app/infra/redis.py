@@ -3,6 +3,13 @@ from typing import Any, Protocol
 
 from core.rkey import RKey
 
+# GET+DEL atômico (uso único); passe por `eval` com 1 chave e sem args.
+GETDEL = """
+local v = redis.call('GET', KEYS[1])
+if v then redis.call('DEL', KEYS[1]) end
+return v
+"""
+
 
 class RedisClient(Protocol):
     """Aceita só RKey; o mypy rejeita str."""

@@ -189,7 +189,10 @@ def resolve_enrollment(
         for e in scope.enrollments:  # já em ordem: a mais relevante/recente primeiro
             if e.status == prefer_status:
                 return e
-    return next(e for e in scope.enrollments if e.is_primary)
+    for e in scope.enrollments:
+        if e.is_primary:
+            return e
+    raise ToolError("MATRICULA_INEXISTENTE")  # escopo sem matrículas
 
 
 def validate_args(spec: ToolSpec, args: Mapping[str, Any]) -> dict[str, Any]:

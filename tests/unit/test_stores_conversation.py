@@ -10,6 +10,7 @@ from app.infra.stores.tickets import LoginTickets
 from app.obs.metrics import METRICS
 from app.tools.base import DraftCard, DraftKey
 from core.rkey import rkey
+from tests.conftest import GOOD
 from tests.unit.redis_fake import FakeRedis
 
 SUB, CONV = uuid4(), "c1"
@@ -79,7 +80,7 @@ async def test_history_ttl(app_secrets) -> None:  # type: ignore[no-untyped-def]
     r = FakeRedis()
     h = HistoryStore(r, _limits(app_secrets))
     await h.append(SUB, "web", CONV, _turn(0), draft_only=False)
-    ttl = await r._r.ttl(rkey("conv", SUB, "web", CONV))
+    ttl = await r._r.ttl(rkey("conv", SUB, "web", f"t:{CONV}"))
     assert 0 < ttl <= 1800
 
 
@@ -108,13 +109,13 @@ async def test_draft_ttl_and_expiry_marker(app_secrets) -> None:  # type: ignore
     r = FakeRedis()
     d = DraftStore(r, _limits(app_secrets))
     await d.put(SUB, CONV, _card())
-    assert 0 < await r._r.ttl(rkey("draft", SUB, "web", "d1")) <= 600
-    marker = rkey("draft", SUB, "web", f"exp:{CONV}")
+    assert 0 < await r._r.ttl(rkey("draft", SUB, "web", "d:d1")) <= 600
+    marker = rkey("draft", SUB, "web", f"x:{CONV}")
     assert 600 < await r._r.ttl(marker) <= 1800
     counter = METRICS["agent_draft_total"].labels(outcome="expirado")  # type: ignore[union-attr]
     before = counter._value.get()
     assert await d.pending(SUB, CONV) is not None and counter._value.get() == before
-    await r._r.delete(rkey("draft", SUB, "web", "d1"))  # o TTL de 600 s venceu
+    await r._r.delete(rkey("draft", SUB, "web", "d:d1"))  # o TTL de 600 s venceu
     assert await d.pending(SUB, CONV) is None
     assert counter._value.get() == before + 1 and await r._r.get(marker) is None
     assert await d.pending(SUB, CONV) is None and counter._value.get() == before + 1
@@ -158,3 +159,70 @@ async def test_label_cache() -> None:
     await c.put("course:1", "Direito")
     assert await c.get("course:1") == "Direito"
     assert await r._r.get(rkey("labels", "global", "-", "course:1")) == b"Direito"
+
+
+class _Yielding(FakeRedis):
+    """Cede o loop antes de cada operação: força o interleaving que o fakeredis não produz."""
+
+    async def get(self, key):  # type: ignore[no-untyped-def]
+        await asyncio.sleep(0)
+        return await super().get(key)
+
+    async def set(self, key, value, **kw):  # type: ignore[no-untyped-def]
+        await asyncio.sleep(0)
+        return await super().set(key, value, **kw)
+
+
+async def test_concurrent_turns_keep_taint_and_flags(app_secrets) -> None:  # type: ignore[no-untyped-def]
+    h = HistoryStore(_Yielding(), _limits(app_secrets))
+    for _ in range(20):  # interleavings variados: nenhum pode perder flag nem turno
+        conv = uuid4().hex
+        await asyncio.gather(
+            h.append(SUB, "web", conv, _turn(1), draft_only=False),
+            h.mark_tainted(SUB, "web", conv),
+            h.mark_other_enrollment_offered(SUB, "web", conv),
+            h.append(SUB, "web", conv, _turn(2), draft_only=False),
+        )
+        c = await h.load(SUB, "web", conv)
+        assert c.tainted and c.other_enrollment_offered and len(c.turns) == 2
+
+
+async def test_history_conversation_ids_do_not_collide(app_secrets) -> None:  # type: ignore[no-untyped-def]
+    h = HistoryStore(FakeRedis(), _limits(app_secrets))
+    await h.mark_tainted(SUB, "web", "a")
+    assert (await h.load(SUB, "web", "t:a")).tainted is False
+    await h.append(SUB, "web", "t:a", _turn(0), draft_only=True)
+    assert (await h.load(SUB, "web", "a")).turns == ()
+
+
+async def test_draft_id_cannot_reach_pointer_or_marker(app_secrets) -> None:  # type: ignore[no-untyped-def]
+    r = FakeRedis()
+    d = DraftStore(r, _limits(app_secrets))
+    await d.put(SUB, CONV, _card())
+    for bad in (f"conv:{CONV}", f"exp:{CONV}", f"p:{CONV}", f"x:{CONV}", "", "a" * 200):
+        assert await d.take(SUB, bad) is None
+    assert await d.pending(SUB, CONV) == _card()  # ponteiro e marcador intactos
+    await r._r.set(rkey("draft", SUB, "web", "d:lixo"), b"nao-json")
+    assert await d.take(SUB, "lixo") is None
+
+
+async def test_take_pending_tolerate_corrupt_blob(app_secrets) -> None:  # type: ignore[no-untyped-def]
+    r = FakeRedis()
+    d = DraftStore(r, _limits(app_secrets))
+    await d.put(SUB, CONV, _card())
+    await r._r.set(rkey("draft", SUB, "web", "d:d1"), b"{")
+    assert await d.pending(SUB, CONV) is None
+
+
+def test_conninfo_quotes_password(app_secrets) -> None:  # type: ignore[no-untyped-def]
+    from psycopg.conninfo import conninfo_to_dict
+
+    from app.data.db import conninfo
+
+    s = AppSettings(**{**GOOD, "agent_app_password": "a b'c\\d" + "z" * 30}, db_host="h")  # type: ignore[arg-type]
+    got = conninfo_to_dict(conninfo(s))
+    assert (
+        got["password"] == "a b'c\\d" + "z" * 30
+        and got["user"] == "agent_app"
+        and got["host"] == "h"
+    )

@@ -70,3 +70,11 @@ def test_orientation_and_service_record() -> None:
     assert isinstance(r, EntityRecord) and r.key == "servico:GEN-090"
     assert "Falar com a secretaria" in r.aliases
     assert {"orientacao", "taxa", "prazo", "canais"} <= set(r.fields)
+
+
+def test_empty_scope_is_nonexistent_enrollment() -> None:
+    empty = StudentScope(uuid4(), (), ())
+    for args in ((None, None), (None, "ACTIVE"), ("1", None)):
+        with pytest.raises(ToolError) as e:
+            resolve_enrollment(empty, *args)
+        assert e.value.code == "MATRICULA_INEXISTENTE"

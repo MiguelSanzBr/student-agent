@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from uuid import UUID
 
 from psycopg import AsyncConnection
+from psycopg.conninfo import make_conninfo
 from psycopg_pool import AsyncConnectionPool
 
 from app.config import AppSettings
@@ -26,15 +27,18 @@ async def _configure(conn: AsyncConnection) -> None:
     await conn.set_autocommit(True)
 
 
+def conninfo(settings: AppSettings) -> str:
+    return make_conninfo(
+        host=settings.db_host, port=settings.db_port, dbname=settings.db_name,
+        user="agent_app", password=settings.agent_app_password,
+    )  # fmt: skip
+
+
 def create_pool(settings: AppSettings, *, max_size: int = 10) -> Pool:
     """Pool fechado; o chamador faz `await pool.open()`."""
     return AsyncConnectionPool(
-        conninfo=(
-            f"host={settings.db_host} port={settings.db_port} dbname={settings.db_name} "
-            f"user=agent_app password={settings.agent_app_password}"
-        ),
-        min_size=1, max_size=max_size, open=False, configure=_configure, reset=_reset,
-        connection_class=AsyncConnection,
+        conninfo=conninfo(settings), min_size=1, max_size=max_size, open=False,
+        configure=_configure, reset=_reset, connection_class=AsyncConnection,
     )  # fmt: skip
 
 

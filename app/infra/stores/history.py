@@ -52,54 +52,59 @@ def _dec(d: Mapping[str, Any]) -> Message:
     )  # fmt: skip
 
 
+_APPEND = """
+redis.call('RPUSH', KEYS[1], ARGV[1])
+redis.call('LTRIM', KEYS[1], -tonumber(ARGV[3]), -1)
+redis.call('EXPIRE', KEYS[1], ARGV[2])
+redis.call('SET', KEYS[4], ARGV[4], 'EX', ARGV[2])
+redis.call('EXPIRE', KEYS[2], ARGV[2])
+redis.call('EXPIRE', KEYS[3], ARGV[2])
+return 1
+"""
+_LOAD = """
+return {redis.call('LRANGE', KEYS[1], 0, -1), redis.call('GET', KEYS[2]),
+        redis.call('GET', KEYS[3]), redis.call('GET', KEYS[4])}
+"""
+
+
 class HistoryStore:
-    """Um blob JSON por conversa. shortcut: read-modify-write sem lock; o lease de vaga por turno
-    já serializa as escritas de uma conversa, trocar por script Lua se isso mudar."""
+    """Turnos numa lista (RPUSH+LTRIM atômicos) e flags em chaves próprias: o taint só vai de
+    False para True (SET idempotente), então turnos concorrentes da mesma conversa não o perdem."""
 
     def __init__(self, redis: RedisClient, limits: Limits) -> None:
         self._r, self._lim = redis, limits
 
-    def _key(self, sub: UUID, channel: Channel, conversation_id: str) -> RKey:
-        return rkey("conv", sub, channel, conversation_id)
-
-    async def _get(self, key: RKey) -> dict[str, Any]:
-        raw = await self._r.get(key)
-        return (
-            json.loads(raw)
-            if raw
-            else {"turns": [], "tainted": False, "offered": False, "draft_only": False}
-        )
-
-    async def _put(self, key: RKey, blob: Mapping[str, Any]) -> None:
-        await self._r.set(key, json.dumps(blob).encode(), ex=self._lim.history_ttl_s)
+    def _keys(self, sub: UUID, channel: Channel, cid: str) -> list[RKey]:
+        # o prefixo vem antes do id: ":" no conversation_id nunca colide entre as 4 chaves
+        return [rkey("conv", sub, channel, f"{p}:{cid}") for p in ("t", "x", "o", "d")]
 
     async def load(self, sub: UUID, channel: Channel, conversation_id: str) -> Conversation:
-        b = await self._get(self._key(sub, channel, conversation_id))
+        turns, tainted, offered, draft_only = await self._r.eval(
+            _LOAD, self._keys(sub, channel, conversation_id), []
+        )
         return Conversation(
-            tuple(tuple(_dec(m) for m in t) for t in b["turns"]),
-            b["tainted"], b["offered"], b["draft_only"],
+            tuple(tuple(_dec(m) for m in json.loads(t)) for t in turns),
+            bool(tainted), bool(offered), draft_only == b"1",
         )  # fmt: skip
 
     async def append(
         self, sub: UUID, channel: Channel, conversation_id: str,
         turn: tuple[Message, ...], *, draft_only: bool,
     ) -> None:  # fmt: skip
-        key = self._key(sub, channel, conversation_id)
-        b = await self._get(key)
-        b["turns"] = [*b["turns"], [_enc(m) for m in turn]][-self._lim.history_turns :]
-        b["draft_only"] = draft_only  # o taint mora fora de `turns`: o corte não o apaga
-        await self._put(key, b)
+        await self._r.eval(
+            _APPEND, self._keys(sub, channel, conversation_id),
+            [json.dumps([_enc(m) for m in turn]), self._lim.history_ttl_s,
+             self._lim.history_turns, "1" if draft_only else "0"],
+        )  # fmt: skip
 
-    async def _flag(self, sub: UUID, channel: Channel, conversation_id: str, flag: str) -> None:
-        key = self._key(sub, channel, conversation_id)
-        b = await self._get(key)
-        b[flag] = True
-        await self._put(key, b)
+    async def _flag(self, sub: UUID, channel: Channel, conversation_id: str, i: int) -> None:
+        key = self._keys(sub, channel, conversation_id)[i]
+        await self._r.set(key, b"1", ex=self._lim.history_ttl_s)
 
     async def mark_tainted(self, sub: UUID, channel: Channel, conversation_id: str) -> None:
-        await self._flag(sub, channel, conversation_id, "tainted")
+        await self._flag(sub, channel, conversation_id, 1)
 
     async def mark_other_enrollment_offered(
         self, sub: UUID, channel: Channel, conversation_id: str
     ) -> None:
-        await self._flag(sub, channel, conversation_id, "offered")
+        await self._flag(sub, channel, conversation_id, 2)
