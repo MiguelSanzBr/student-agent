@@ -89,7 +89,7 @@ def test_holdout_only_encrypted_in_git() -> None:
     out = subprocess.run(["git", "ls-files", "evals/holdout"], cwd=ROOT, text=True,
                          capture_output=True, check=True).stdout.split()  # fmt: skip
     names = {Path(f).name for f in out}
-    assert names <= {"author.pub", "manifest.json", "seal.py", "__init__.py"} | {
+    assert names <= {"author.pub", "manifest.json", "seal.py", "__init__.py", "verify.py"} | {
         n for n in names if n.endswith(".age")
     }
     ages = sorted(HOLD.glob("*.age"))

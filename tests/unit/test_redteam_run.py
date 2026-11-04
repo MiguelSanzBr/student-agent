@@ -366,3 +366,18 @@ def test_blind_templates_sha_checked_against_manifest(tmp_path, monkeypatch) -> 
     monkeypatch.setattr(verify, "MANIFEST", man)
     with pytest.raises(SystemExit, match="SHA-256"):
         verify.verify_plain(y, "attacks_blind.yaml.age")
+
+
+def test_setup_blind_rejects_yaml_not_matching_manifest(tmp_path, monkeypatch) -> None:
+    import argparse
+
+    from evals.holdout import verify
+    from evals.redteam.run import setup
+
+    y = tmp_path / "b.yaml"
+    y.write_text("- x\n")
+    man = tmp_path / "m.json"
+    man.write_text(json.dumps({"attacks_blind.yaml.age": {"plain_sha256": "1" * 64}}))
+    monkeypatch.setattr(verify, "MANIFEST", man)
+    with pytest.raises(SystemExit, match="SHA-256"):
+        setup(argparse.Namespace(suite="blind", templates=y))

@@ -598,6 +598,8 @@ class Env:
 
 
 def setup(a: argparse.Namespace) -> Env:
+    if a.suite == "blind" and a.templates is not None:  # antes de qualquer leitura ou chamada
+        verify_plain(a.templates, "attacks_blind.yaml.age")
     from app.agent.prompt import SYSTEM_PREFIX
     from app.config import AppSettings
     from evals.oracle import cpf11, load_csv
@@ -634,7 +636,6 @@ def setup(a: argparse.Namespace) -> Env:
     if a.suite == "blind":
         if a.templates is None:
             raise SystemExit("--suite blind exige --templates (texto claro, fora do git)")
-        verify_plain(a.templates, "attacks_blind.yaml.age")
         attacks = load_blind(a.templates, forbidden=union)
     else:
         attacks = build_suite(TEMPLATES, random.Random(a.seed), fill=fill, forbidden=union)
