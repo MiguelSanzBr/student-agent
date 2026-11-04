@@ -125,6 +125,7 @@ class DefaultTurnService:
         self.history, self.drafts = HistoryStore(redis, lim), DraftStore(redis, lim)
         self.outputs = TurnOutputCache(redis)
         self._meters: dict[str, _Meter] = {}
+        self._shas = _shas()  # na subida: não pode falhar um turno antes do `meta`
 
     async def _refuse(
         self, reason: Literal["rate", "budget", "spend", "quota", "slots"],
@@ -160,13 +161,16 @@ class DefaultTurnService:
         s, sub, trace_id = self.settings, scope.person_key, uuid4().hex
         with span("chat.turn", "AGENT", channel=channel) as sp:
             trace_id = sp.trace_id or trace_id  # o id do trace é o do Phoenix (anotações, 👎)
-            prompt_sha, tools_sha = _shas()
+            prompt_sha, tools_sha = self._shas
             sp.set_attribute("session.id", session_id(s, conversation_id))
             sp.set_attribute("prompt.sha", prompt_sha)
             sp.set_attribute("tools.sha", tools_sha)
             if s.dataset_sha:
                 sp.set_attribute("dataset.sha", s.dataset_sha)
-            await emit({"event": "meta", "trace_id": trace_id, "conversation_id": conversation_id})
+            meta = {"event": "meta", "trace_id": trace_id, "conversation_id": conversation_id}
+            if s.app_env == "dev" and s.limits_profile == "eval":
+                meta["span_id"] = sp.span_id  # o runner da eval anota por span (outro processo)
+            await emit(meta)
             try:
                 text = normalize_input(text)
                 sp.set_content("input.value", text)

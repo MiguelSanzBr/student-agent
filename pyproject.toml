@@ -22,6 +22,7 @@ dependencies = [
   "openinference-semantic-conventions==0.1.43",
   "arize-phoenix-otel==0.17.2",
   "arize-phoenix-client==3.6.0",
+  "opentelemetry-exporter-otlp-proto-http==1.45.2",
 ]
 
 [dependency-groups]

@@ -27,6 +27,8 @@ def _trace_id(_: Any, __: str, ed: dict[str, Any]) -> dict[str, Any]:
 def _scrub(_: Any, __: str, ed: dict[str, Any]) -> dict[str, Any]:
     # exceção: só o tipo (a mensagem e o traceback podem carregar PII)
     exc = ed.pop("exc_info", None)
+    if exc is True:  # structlog `.exception()`
+        exc = sys.exc_info()
     if not exc and (rec := ed.get("_record")) is not None:
         exc = rec.exc_info
     if isinstance(exc, tuple) and exc[0] is not None:
@@ -56,3 +58,4 @@ def configure_logging(settings: AppSettings) -> None:
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(logging.INFO)
+    logging.getLogger("uvicorn.access").disabled = True  # a linha leva a query string (ticket)

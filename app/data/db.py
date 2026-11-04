@@ -10,6 +10,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.config import AppSettings
 from app.infra.stores.labels import LabelCache
+from app.obs.tracing import span
 from core.clock import wall_now
 from core.keys import brand_family
 from core.scope import EnrollmentRef, StudentScope
@@ -64,13 +65,15 @@ async def with_scope(
     pool: Pool, person_key: UUID, families: tuple[str, ...]
 ) -> AsyncIterator[AsyncConnection]:
     """Uma conexão por chamada; app.* valem só nesta transação (set_config local)."""
-    async with pool.connection() as conn, conn.transaction():
-        await conn.execute(
-            "SELECT set_config('app.person_key', %s, true), set_config('app.brands', %s, true),"
-            " set_config('app.now', %s, true)",
-            (str(person_key), _array_literal(families), wall_now().isoformat()),
-        )
-        yield conn
+    # span `db.query`: uma conexão/transação por chamada; sem SQL com valores nem person_key
+    with span("db.query", "CHAIN", **{"db.system": "postgresql", "db.families": len(families)}):
+        async with pool.connection() as conn, conn.transaction():
+            await conn.execute(
+                "SELECT set_config('app.person_key', %s, true), set_config('app.brands', %s, true),"
+                " set_config('app.now', %s, true)",
+                (str(person_key), _array_literal(families), wall_now().isoformat()),
+            )
+            yield conn
 
 
 async def _course_label(conn: AsyncConnection, labels: LabelCache, course_id: str) -> str:

@@ -121,12 +121,18 @@ async def test_tool_args_enumerated_no_pii(exp: InMemorySpanExporter) -> None:
     call = ToolCall("1", "get_x", {"status": "aberta", "texto_livre": f"meu cpf {CPF}"})
     await _exec(env, None, call)  # type: ignore[arg-type]
     await _exec(env, None, ToolCall("2", "bad", call.args))  # type: ignore[arg-type]
+    await _exec(env, None, ToolCall("3", "get_x", {"status": f"meu cpf {CPF} " + "x" * 5000}))  # type: ignore[arg-type]
     d = dump(exp)
-    assert CPF not in d and "meu cpf" not in d
-    ok_s, bad_s = [s.attributes or {} for s in exp.get_finished_spans()]
+    assert CPF not in d and "meu cpf" not in d and "xxxx" not in d
+    ok_s, bad_s, inv_s = [s.attributes or {} for s in exp.get_finished_spans()]
+    assert inv_s["tool.args.status"] == "invalido" and "tool.failed" not in inv_s
     assert ok_s["tool.name"] == "get_x" and ok_s["tool.args.status"] == "aberta"
     assert ok_s["tool.args.count"] == 2 and ok_s["tool.returned_records"] == 0
-    assert bad_s["tool.failed"] is True and "tool.returned_records" not in bad_s  # nunca -1
+    assert (
+        bad_s["tool.failed"] is True
+        and "tool.refused" not in bad_s
+        and "tool.returned_records" not in bad_s
+    )  # nunca -1
 
 
 def test_session_id_hmac() -> None:
@@ -226,6 +232,19 @@ async def test_force_flush_in_thread_with_timeout() -> None:
 
 
 # --- logs -------------------------------------------------------------------------------------
+@pytest.fixture
+def restore_logging() -> Iterator[None]:
+    import logging
+
+    root = logging.getLogger()
+    handlers, level, ua = root.handlers[:], root.level, logging.getLogger("uvicorn.access").disabled
+    yield
+    root.handlers[:], root.level = handlers, level
+    logging.getLogger("uvicorn.access").disabled = ua
+    structlog.reset_defaults()
+
+
+@pytest.mark.usefixtures("restore_logging")
 def test_logs_no_pii(capsys: pytest.CaptureFixture[str], exp: InMemorySpanExporter) -> None:
     import logging
 
@@ -245,3 +264,114 @@ def test_logs_no_pii(capsys: pytest.CaptureFixture[str], exp: InMemorySpanExport
     for bad in (CPF, "Maria", SECRET, "ABC123", "vazou"):
         assert bad not in out
     assert lines[0]["ok"] == 1 and lines[2]["exception_type"] == "RuntimeError"
+
+
+@pytest.mark.usefixtures("restore_logging")
+def test_uvicorn_access_silent_and_structlog_exception(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import logging
+
+    configure_logging(AppSettings())
+    logging.getLogger("uvicorn.access").info("GET /auth?ticket=SEGREDO HTTP/1.1")
+    try:
+        raise ValueError("vazou")
+    except ValueError:
+        structlog.get_logger().exception("erro")
+    out = capsys.readouterr().out
+    assert "SEGREDO" not in out and "vazou" not in out
+    assert json.loads(out.splitlines()[0])["exception_type"] == "ValueError"
+
+
+async def test_annotation_during_slow_drain_not_stranded() -> None:
+    sent: list[str] = []
+    gate = threading.Event()
+
+    def flush() -> None:
+        gate.wait(1)
+
+    annotations.configure(
+        flush=flush, send=lambda b: sent.extend(a.name for a in b), backoff_s=0.01
+    )
+    annotations.annotate("t" * 32, "a", "x", None, None)
+    first = asyncio.create_task(annotations.drain())
+    await asyncio.sleep(0.1)  # drain em curso, preso no flush
+    annotations.annotate("t" * 32, "b", "x", None, None)  # chega durante o drain
+    gate.set()
+    await first
+    for _ in range(40):  # o worker (re-armado) esvazia o resto sozinho
+        if sent == ["a", "b"] or sent == ["a", "a", "b"][:3] and "b" in sent:
+            break
+        await asyncio.sleep(0.05)
+    assert "b" in sent
+
+
+async def test_failed_send_keeps_queue_and_annotate_span() -> None:
+    sent: list[annotations.Annotation] = []
+    ok = {"v": False}
+
+    def send(b: list[annotations.Annotation]) -> None:
+        if not ok["v"]:
+            raise ConnectionError("fora")
+        sent.extend(b)
+
+    annotations.configure(flush=None, send=send, backoff_s=0.001)  # type: ignore[arg-type]
+    annotations._queue.clear()
+    annotations.annotate_span("ab" * 8, "thumb", "down", 0.0, None)
+    assert await annotations.drain() is False and len(annotations._queue) == 1
+    ok["v"] = True
+    assert await annotations.drain() is True and not annotations._queue
+    assert sent[0].span_id == "ab" * 8 and len(sent) == 1  # sem duplicar
+
+
+def test_roots_eviction() -> None:
+    annotations._roots.clear()
+    for i in range(10_005):
+        annotations.remember_root(f"t{i}", "s")
+    assert len(annotations._roots) == 10_000 and "t0" not in annotations._roots
+    assert "t10004" in annotations._roots
+
+
+async def test_meta_span_id_only_dev_eval(exp: InMemorySpanExporter) -> None:
+    async def metas(s: AppSettings) -> dict[str, Any]:
+        got: list[Mapping[str, Any]] = []
+
+        async def emit(e: Mapping[str, Any]) -> None:
+            got.append(e)
+
+        svc = make_service(s, scripted(OK))
+        adm = await svc.admit(scope=SCOPE, channel="web")
+        await svc.handle(admission=adm, scope=SCOPE, conversation_id="c", text="oi",
+                         channel="web", emit=emit)  # fmt: skip
+        await svc.settle(adm, None)
+        return dict(got[0])
+
+    assert "span_id" not in await metas(AppSettings())
+    m = await metas(AppSettings(limits_profile="eval"))
+    root = next(s for s in exp.get_finished_spans() if s.name == "chat.turn" and s.context.span_id
+                == int(m["span_id"], 16))  # fmt: skip
+    assert format(root.context.trace_id, "032x") == m["trace_id"]
+
+
+async def test_db_query_span(exp: InMemorySpanExporter) -> None:
+    from contextlib import asynccontextmanager
+    from uuid import UUID
+
+    from app.data.db import with_scope
+
+    class Conn:
+        async def execute(self, *a: Any) -> None: ...
+
+        @asynccontextmanager
+        async def transaction(self) -> Any:
+            yield
+
+    class Pool:
+        @asynccontextmanager
+        async def connection(self) -> Any:
+            yield Conn()
+
+    async with with_scope(Pool(), UUID(int=1), ("UniSaoPaulo",)):  # type: ignore[arg-type]
+        pass
+    (s,) = exp.get_finished_spans()
+    assert s.name == "db.query" and str(UUID(int=1)) not in dump(exp)

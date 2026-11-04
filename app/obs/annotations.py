@@ -20,6 +20,7 @@ class Annotation:
     label: str
     score: float | None
     explanation: str | None
+    span_id: str | None = None  # alvo direto (runner da eval, outro processo)
 
 
 _queue: deque[Annotation] = deque(maxlen=1000)
@@ -40,12 +41,23 @@ def remember_root(trace_id: str, span_id: str) -> None:
         _roots.popitem(last=False)
 
 
+def annotate_span(
+    span_id: str, name: str, label: str, score: float | None, explanation: str | None
+) -> None:
+    """Como `annotate`, pelo span raiz (runner da eval em outro processo, via `meta.span_id`)."""
+    _enqueue(Annotation("", name, label, score, explanation, span_id))
+
+
 def annotate(
     trace_id: str, name: str, label: str, score: float | None, explanation: str | None
 ) -> None:
     """Enfileira (não bloqueia); o worker envia depois do flush. Sem loop: fica para `drain()`."""
+    _enqueue(Annotation(trace_id, name, label, score, explanation))
+
+
+def _enqueue(a: Annotation) -> None:
     global _worker
-    _queue.append(Annotation(trace_id, name, label, score, explanation))
+    _queue.append(a)
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -56,45 +68,52 @@ def annotate(
 
 async def _run() -> None:
     await asyncio.sleep(BATCH_WINDOW_S)
-    await drain()
+    while _queue and await drain():  # o que chegou durante um drain em curso não fica para trás
+        pass
 
 
-async def drain() -> None:
-    if not _queue:
-        return
+async def drain() -> bool:
+    """Envia a fila; só remove o que foi enviado. False se falhou (a fila é mantida)."""
+    n = len(_queue)
+    if not n:
+        return True
     batch = list(_queue)
-    _queue.clear()
     if (flush := _cfg["flush"]) is not None:
         try:  # o span precisa estar no Phoenix antes da anotação; o flush bloqueia: em thread
             await asyncio.wait_for(asyncio.to_thread(flush), FLUSH_TIMEOUT_S)
         except Exception as e:  # noqa: BLE001 - segue: o retry cobre o span ainda em trânsito
             log.warning("force_flush falhou: %s", type(e).__name__)
     if (send := _cfg["send"]) is None:
-        return
+        return False
     for i in range(ATTEMPTS):
         try:
             await asyncio.to_thread(send, batch)
-            return
+            for _ in range(n):  # tudo-ou-nada: o lote enviado sai; o que chegou depois fica
+                _queue.popleft()
+            return True
         except Exception as e:  # noqa: BLE001
             log.warning("anotação: tentativa %d falhou: %s", i + 1, type(e).__name__)
             if i + 1 < ATTEMPTS:
                 await asyncio.sleep(_cfg["backoff_s"] * 2**i)
-    log.warning("anotações descartadas: %d", len(batch))
+    log.warning("anotações mantidas na fila: %d", n)
+    return False
 
 
 def phoenix_sender(base_url: str) -> Callable[[list[Annotation]], None]:
     def send(batch: list[Annotation]) -> None:
         from phoenix.client import Client
 
-        client = Client(base_url=base_url)
+        data: list[Any] = []
         for a in batch:
-            if (span_id := _roots.get(a.trace_id)) is None:
-                # shortcut: só resolve traces deste processo; trace de outro processo, descarta
-                log.warning("anotação sem span raiz conhecido: %s", a.name)
+            if not (span_id := a.span_id or _roots.get(a.trace_id)):
+                log.warning(
+                    "anotação sem span raiz conhecido: %s", a.name
+                )  # trace de outro processo
                 continue
-            client.spans.add_span_annotation(
-                span_id=span_id, annotation_name=a.name, annotator_kind="HUMAN",
-                label=a.label, score=a.score, explanation=a.explanation, sync=True,
-            )  # fmt: skip
+            data.append({"span_id": span_id, "name": a.name, "annotator_kind": "HUMAN",
+                         "result": {"label": a.label, "score": a.score,
+                                    "explanation": a.explanation}})  # fmt: skip
+        if data:  # um POST só: falha = nada enviado, o retry não duplica
+            Client(base_url=base_url).spans.log_span_annotations(span_annotations=data, sync=True)
 
     return send

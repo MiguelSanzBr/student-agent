@@ -217,18 +217,21 @@ class _Res:
 async def _exec(env: _Env, ctx: ToolContext, call: ToolCall) -> _Res:
     """Valida, confere `allowed` e só então chama o handler; nada além do código estável sai."""
     tool = env.tools[call.name]
-    enums = {k for k, p in tool.spec.parameters.get("properties", {}).items() if "enum" in p}
-    with span(
-        "agent.tool",
-        "TOOL",
-        **{"tool.name": call.name, "tool.args.count": len(call.args)},
-        **{f"tool.args.{k}": str(v) for k, v in call.args.items() if k in enums},
-    ) as sp:
+    props = tool.spec.parameters.get("properties", {})
+
+    def _enum(k: str, v: Any) -> str:  # só valor do enum; o resto é texto do LLM/aluno
+        return v if isinstance(v, str) and v in props[k]["enum"] else "invalido"
+
+    with span("agent.tool", "TOOL", **{"tool.name": call.name, "tool.args.count": len(call.args)},
+              **{f"tool.args.{k}": _enum(k, v) for k, v in call.args.items()
+                 if k in props and "enum" in props[k]}) as sp:  # fmt: skip
         r = await _exec_tool(tool, ctx, call)
         if r.output is not None:
             sp.set_attribute("tool.returned_records", len(r.output.records))
-        else:  # falhou ou foi recusada: nunca "0 registros"
+        elif r.failed:  # o handler levantou
             sp.set_attribute("tool.failed", True)
+        else:  # ToolError ou recusa por `allowed`
+            sp.set_attribute("tool.refused", True)
         return r
 
 

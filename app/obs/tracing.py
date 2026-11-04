@@ -37,6 +37,11 @@ class Span:
             self._s.set_attribute(key, value)
 
     @property
+    def span_id(self) -> str:
+        ctx = self._s.get_span_context()
+        return format(ctx.span_id, "016x") if ctx.is_valid else ""
+
+    @property
     def trace_id(self) -> str:
         ctx = self._s.get_span_context()
         return format(ctx.trace_id, "032x") if ctx.is_valid else ""
