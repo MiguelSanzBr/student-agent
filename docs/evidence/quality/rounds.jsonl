@@ -4,3 +4,5 @@
 {"split": "dev", "round": 2, "sha": "340b5283a310d7a9099dcb90cf1eaeab184028ba", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 553, "status": "done"}
 {"split": "dev", "round": 3, "sha": "9ffa74fddc6b3e86e5c4665fe6e79d009181f4c2", "model": "claude-haiku-5-5", "primary_run": false, "items": 553, "status": "started"}
 {"split": "dev", "round": 3, "sha": "9ffa74fddc6b3e86e5c4665fe6e79d009181f4c2", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 553, "status": "done"}
+{"split": "guard", "round": 1, "status": "started", "seed": 20261106}
+{"split": "guard", "round": 1, "status": "done", "seed": 20261106}

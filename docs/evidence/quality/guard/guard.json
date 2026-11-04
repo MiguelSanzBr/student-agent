@@ -1,0 +1,159 @@
+{
+  "blind": {
+    "seed": 20261106,
+    "n_mutated": 170,
+    "n_controls": 43,
+    "recall": {
+      "low": 0.788235294117647,
+      "high": 1.0,
+      "point": 0.9176470588235294
+    },
+    "recall_by_template": {
+      "absent_deadline": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "absent_discount": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "count_change": {
+        "k": 9,
+        "n": 10,
+        "point": 0.9,
+        "low": 0.5958499732047615,
+        "high": 0.9821237869049271
+      },
+      "date_from_other_student": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "date_shift_days": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "date_shift_month": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "flip_negation": {
+        "k": 7,
+        "n": 10,
+        "point": 0.7,
+        "low": 0.39677814746114537,
+        "high": 0.8922087325936989
+      },
+      "invented_promise": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "invented_protocol_number": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "money_digit": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "money_from_other_student": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "money_off_by_amount": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "money_swap_in_answer": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "percent_change": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "period_change": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "protocol_number_digit": {
+        "k": 10,
+        "n": 10,
+        "point": 1.0,
+        "low": 0.7224672001371107,
+        "high": 0.9999999999999999
+      },
+      "status_word": {
+        "k": 0,
+        "n": 10,
+        "point": 0.0,
+        "low": 0.0,
+        "high": 0.2775327998628892
+      }
+    },
+    "empty_templates": [],
+    "false_block": {
+      "k": 0,
+      "n": 43,
+      "point": 0.0,
+      "low": 0.0,
+      "high": 0.08200980322579117
+    },
+    "caught": 156
+  },
+  "dev": {
+    "skipped": 304,
+    "rascunhos_certos": {
+      "k": 151,
+      "n": 169,
+      "point": 0.893491124260355,
+      "low": 0.837931647939205,
+      "high": 0.9315596587615463
+    },
+    "perturbados": 236,
+    "cruzamento": {
+      "guard_bloqueia_scorer_reprova": 133,
+      "guard_bloqueia_scorer_passa": 101,
+      "guard_passa_scorer_reprova": 0,
+      "guard_passa_scorer_passa": 2
+    }
+  }
+}
