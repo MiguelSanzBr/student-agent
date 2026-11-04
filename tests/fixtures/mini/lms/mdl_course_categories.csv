@@ -1,0 +1,76 @@
+id,tenant_id,parent,name,idnumber,path,depth,visible
+1,1,0,UniSaoPaulo,,/1,1,1
+2,1,1,Presencial,PRES,/1/2,2,1
+3,1,2,Business Administration,ADM,/1/2/3,3,1
+4,1,2,Systems Analysis & Development,ADS,/1/2/4,3,1
+5,1,2,Accounting,CON,/1/2/5,3,1
+6,1,2,Law,DIR,/1/2/6,3,1
+7,1,2,Nursing,ENF,/1/2/7,3,1
+8,1,2,Civil Engineering,ENC,/1/2/8,3,1
+9,1,2,Psychology,PSI,/1/2/9,3,1
+10,1,1,EAD,EAD,/1/10,2,1
+11,1,10,Business Administration,ADM,/1/10/11,3,1
+12,1,10,Systems Analysis & Development,ADS,/1/10/12,3,1
+13,1,10,Accounting,CON,/1/10/13,3,1
+14,1,10,Pedagogy,PED,/1/10/14,3,1
+15,1,1,Institutional,,/1/15,2,1
+16,2,0,UniMontanhas,,/16,1,1
+17,2,16,Presencial,PRES,/16/17,2,1
+18,2,17,Business Administration,ADM,/16/17/18,3,1
+19,2,17,Systems Analysis & Development,ADS,/16/17/19,3,1
+20,2,17,Accounting,CON,/16/17/20,3,1
+21,2,17,Law,DIR,/16/17/21,3,1
+22,2,17,Nursing,ENF,/16/17/22,3,1
+23,2,17,Civil Engineering,ENC,/16/17/23,3,1
+24,2,17,Psychology,PSI,/16/17/24,3,1
+25,2,16,EAD,EAD,/16/25,2,1
+26,2,25,Business Administration,ADM,/16/25/26,3,1
+27,2,25,Systems Analysis & Development,ADS,/16/25/27,3,1
+28,2,25,Accounting,CON,/16/25/28,3,1
+29,2,25,Pedagogy,PED,/16/25/29,3,1
+30,2,16,Institutional,,/16/30,2,1
+31,3,0,UniLitoral,,/31,1,1
+32,3,31,Presencial,PRES,/31/32,2,1
+33,3,32,Business Administration,ADM,/31/32/33,3,1
+34,3,32,Systems Analysis & Development,ADS,/31/32/34,3,1
+35,3,32,Accounting,CON,/31/32/35,3,1
+36,3,32,Law,DIR,/31/32/36,3,1
+37,3,32,Nursing,ENF,/31/32/37,3,1
+38,3,32,Civil Engineering,ENC,/31/32/38,3,1
+39,3,32,Psychology,PSI,/31/32/39,3,1
+40,3,31,EAD,EAD,/31/40,2,1
+41,3,40,Business Administration,ADM,/31/40/41,3,1
+42,3,40,Systems Analysis & Development,ADS,/31/40/42,3,1
+43,3,40,Accounting,CON,/31/40/43,3,1
+44,3,40,Pedagogy,PED,/31/40/44,3,1
+45,3,31,Institutional,,/31/45,2,1
+46,4,0,UniAtlantico,,/46,1,1
+47,4,46,Presencial,PRES,/46/47,2,1
+48,4,47,Business Administration,ADM,/46/47/48,3,1
+49,4,47,Systems Analysis & Development,ADS,/46/47/49,3,1
+50,4,47,Accounting,CON,/46/47/50,3,1
+51,4,47,Law,DIR,/46/47/51,3,1
+52,4,47,Nursing,ENF,/46/47/52,3,1
+53,4,47,Civil Engineering,ENC,/46/47/53,3,1
+54,4,47,Psychology,PSI,/46/47/54,3,1
+55,4,46,EAD,EAD,/46/55,2,1
+56,4,55,Business Administration,ADM,/46/55/56,3,1
+57,4,55,Systems Analysis & Development,ADS,/46/55/57,3,1
+58,4,55,Accounting,CON,/46/55/58,3,1
+59,4,55,Pedagogy,PED,/46/55/59,3,1
+60,4,46,Institutional,,/46/60,2,1
+61,5,0,UniAraucaria,,/61,1,1
+62,5,61,Presencial,PRES,/61/62,2,1
+63,5,62,Business Administration,ADM,/61/62/63,3,1
+64,5,62,Systems Analysis & Development,ADS,/61/62/64,3,1
+65,5,62,Accounting,CON,/61/62/65,3,1
+66,5,62,Law,DIR,/61/62/66,3,1
+67,5,62,Nursing,ENF,/61/62/67,3,1
+68,5,62,Civil Engineering,ENC,/61/62/68,3,1
+69,5,62,Psychology,PSI,/61/62/69,3,1
+70,5,61,EAD,EAD,/61/70,2,1
+71,5,70,Business Administration,ADM,/61/70/71,3,1
+72,5,70,Systems Analysis & Development,ADS,/61/70/72,3,1
+73,5,70,Accounting,CON,/61/70/73,3,1
+74,5,70,Pedagogy,PED,/61/70/74,3,1
+75,5,61,Institutional,,/61/75,2,1

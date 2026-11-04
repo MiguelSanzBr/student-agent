@@ -1,0 +1,26 @@
+Analyst_Login,Analyst_Name,Team,Unit_Code,Hired_On,Active
+fcavalcanti,Fernando da Cunha Cavalcanti,Academic Records,SPA-PAU,13/11/2023,True
+aviana,Ana Lívia Pereira Viana,Academic Records,SPA-PAU,31/07/2022,True
+rcassiano,Raul Cassiano,Academic Records,MON-SAV,25/10/2020,True
+hdapaz,Heitor Santos da Paz,Academic Records,MON-SAV,09/02/2020,True
+lvieira,Luiza Ágatha Vieira,Academic Records,LIT-BOT,25/12/2020,True
+bdacunha,Benjamim Apollo Castro da Cunha,Academic Records,LIT-BOT,21/04/2021,True
+lmachado,Luna Machado,Academic Records,ATL-PIT,06/10/2022,True
+arocha,Ana Laura da Conceição Rocha,Academic Records,ATL-PIT,05/11/2023,False
+mpinto,Marcela Sá Pinto,Academic Records,ARA-BAT,06/04/2024,True
+mcosta,Melissa Machado Costa,Academic Records,ARA-BAT,23/06/2024,True
+bfogaca,Bernardo Fernandes Fogaça,Financial Desk,,01/06/2025,True
+cmachado,Camila Sousa Machado,Financial Desk,,19/09/2023,True
+ydasneves,Yago das Neves,Financial Desk,,05/04/2019,True
+acasagrande,Ana Cecília Sousa Casa Grande,Financial Desk,,18/02/2024,True
+lsilva,Lorena Silva,Documents & Diplomas,,07/06/2024,True
+ccamargo,Caleb Caldeira Camargo,Documents & Diplomas,,11/11/2022,True
+gfarias,Gustavo João Pedro da Mota Farias,Documents & Diplomas,,12/02/2021,False
+asampaio,Ana Beatriz Maria Liz da Mata Sampaio,Documents & Diplomas,,21/09/2024,True
+mfarias,Maria Cecília Caldeira Farias,DL Support,,26/03/2025,True
+sfarias,Sara Carolina Farias,DL Support,,29/05/2019,True
+msousa,Manuela Lima Sousa,DL Support,,22/12/2019,True
+jdacosta,João Pedro Leandro da Paz da Costa,DL Support,,08/03/2024,True
+fgarcia,Fernando Paulo da Rocha Garcia,DL Support,,17/01/2021,True
+hguerra,Helena Guerra,Ombudsman,,28/06/2021,True
+abrito,Amanda Cecilia Vasconcelos Brito,Ombudsman,,10/04/2025,True

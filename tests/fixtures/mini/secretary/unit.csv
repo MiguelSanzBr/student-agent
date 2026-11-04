@@ -1,0 +1,28 @@
+Unit_Code,Unit_Name,Unit_Type,Brand_Name,City,UF
+SPA-PAU,Campus Paulista,Campus,Uni São Paulo,Sao Paulo,SP
+SPA-CPS,Campus Campinas,Campus,Uni São Paulo,Campinas,SP
+SPA-SAO-EAD,Polo EAD Sao Paulo,Polo EAD,Uni São Paulo,Sao Paulo,SP
+SPA-CPS-EAD,Polo EAD Campinas,Polo EAD,Uni São Paulo,Campinas,SP
+SPA-RAO-EAD,Polo EAD Ribeirao Preto,Polo EAD,Uni São Paulo,Ribeirao Preto,SP
+SPA-STS-EAD,Polo EAD Santos,Polo EAD,Uni São Paulo,Santos,SP
+SPA-RIO-EAD,Polo EAD Rio de Janeiro,Polo EAD,Uni São Paulo,Rio de Janeiro,RJ
+MON-SAV,Campus Savassi,Campus,Uni Montanhas,Belo Horizonte,MG
+MON-UDI,Campus Uberlandia,Campus,Uni Montanhas,Uberlandia,MG
+MON-BHZ-EAD,Polo EAD Belo Horizonte,Polo EAD,Uni Montanhas,Belo Horizonte,MG
+MON-JDF-EAD,Polo EAD Juiz de Fora,Polo EAD,Uni Montanhas,Juiz de Fora,MG
+MON-GYN-EAD,Polo EAD Goiania,Polo EAD,Uni Montanhas,Goiania,GO
+LIT-BOT,Campus Botafogo,Campus,Uni Litoral,Rio de Janeiro,RJ
+LIT-NIT,Campus Niteroi,Campus,Uni Litoral,Niteroi,RJ
+LIT-RIO-EAD,Polo EAD Rio de Janeiro,Polo EAD,Uni Litoral,Rio de Janeiro,RJ
+LIT-VIX-EAD,Polo EAD Vitoria,Polo EAD,Uni Litoral,Vitoria,ES
+ATL-PIT,Campus Pituba,Campus,Uni Atlântico,Salvador,BA
+ATL-REC,Campus Recife,Campus,Uni Atlântico,Recife,PE
+ATL-SSA-EAD,Polo EAD Salvador,Polo EAD,Uni Atlântico,Salvador,BA
+ATL-REC-EAD,Polo EAD Recife,Polo EAD,Uni Atlântico,Recife,PE
+ATL-FOR-EAD,Polo EAD Fortaleza,Polo EAD,Uni Atlântico,Fortaleza,CE
+ATL-SAO-EAD,Polo EAD Sao Paulo,Polo EAD,Uni Atlântico,Sao Paulo,SP
+ARA-BAT,Campus Batel,Campus,Uni Araucária,Curitiba,PR
+ARA-POA,Campus Porto Alegre,Campus,Uni Araucária,Porto Alegre,RS
+ARA-CWB-EAD,Polo EAD Curitiba,Polo EAD,Uni Araucária,Curitiba,PR
+ARA-JOI-EAD,Polo EAD Joinville,Polo EAD,Uni Araucária,Joinville,SC
+ARA-POA-EAD,Polo EAD Porto Alegre,Polo EAD,Uni Araucária,Porto Alegre,RS

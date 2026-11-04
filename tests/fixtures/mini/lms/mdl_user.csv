@@ -1,0 +1,32 @@
+student_lms_id,tenant_id,username,student_id,auth,firstname,lastname,email,city,country,timezone,suspended,deleted,firstaccess,lastaccess,timecreated,timemodified
+2,1,admin,,manual,Admin,User,admin@ava.example,,BR,99,0,0,0,0,1671159600,1671159600
+3,1,integration.sag,,manual,SAG,Integration,integration.sag@ava.example,,BR,99,0,0,0,0,1671159600,1671159600
+4,1,support.lms,,manual,LMS,Support,support.lms@ava.example,,BR,99,0,0,0,0,1671159600,1671159600
+100006,1,ead_01215,EAD_01215,saml2,Elisa Heloísa,Pastor,elisa.pastor70@aluno.unisaopaulo.example,Campinas,BR,America/Sao_Paulo,0,0,1675292906,1793501863,1671084180,1793501863
+100073,1,pres_18054,PRES_18054,saml2,Luiz Miguel Davi Lucas,Ferreira,luizmiguel.ferreira51@aluno.unisaopaulo.example,Campinas,BR,America/Sao_Paulo,0,0,1679263440,1791050280,1672380480,1791050280
+100128,1,prof40013,PROF_40013,saml2,Larissa,Nunes,larissa.nunes@prof.unisaopaulo.example,São Paulo - SP,BR,America/Sao_Paulo,0,0,1676561940,1791455880,1673755613,1791455880
+100270,1,ead_01170,EAD_01170,saml2,Marcelo,da Paz Montenegro,marcelo.montenegro16@aluno.unisaopaulo.example,Santos,BR,America/Sao_Paulo,1,0,1677552037,1702342260,1673758866,1702342260
+100303,1,ead_01184,EAD_01184,saml2,Maria Júlia Eloah,Rios,mariajulia.rios40@aluno.unisaopaulo.example,Ribeirão Preto - SP,BR,America/Sao_Paulo,1,0,1677328634,1765316460,1673758979,1765316460
+100334,5,ead_01175,EAD_01175,saml2,João Guilherme,Martins Casa Grande,joaoguilherme.casagrande69@aluno.uniaraucaria.example,Curitiba,BR,99,1,0,1676420958,1733611800,1673759078,1733611800
+100341,1,mariavitoria.araujo25,,manual,Maria Vitória Zoe,Sousa Araújo,mariavitoria.araujo25@aluno.unisaopaulo.example,ribeirao preto,BR,99,0,0,1724166025,1793240176,1673759097,1793240176
+100374,4,ead_01193,EAD_01193,saml2,Maria Liz,Vargas Rios,marializ.rios47@aluno.uniatlantico.example,lauro de freitas,BR,99,1,0,1678382490,1724799935,1673759202,1724799935
+100418,5,ead_01170,EAD_01170,saml2,Ester,Cavalcanti da Luz,ester.daluz25@aluno.uniaraucaria.example,joinville,BR,America/Sao_Paulo,0,0,1676757904,1782856618,1673759343,1782856618
+100494,2,ead_01215,EAD_01215,saml2,Nicolas Gael,Sales Oliveira,nicolas.oliveira42@aluno.unimontanhas.example,BELO HORIZONTE,BR,America/Sao_Paulo,0,0,1676550015,1781790826,1673759565,1781790826
+100585,3,aluno.teste03,,manual,Aluno,Teste 03,aluno.teste03@unilitoral.example,,BR,99,0,0,1685919530,1762365818,1673787600,1762365818
+100627,4,ead_01215,EAD_01215,saml2,Melina,Costela Freitas,melina.freitas83@aluno.uniatlantico.example,fortaleza,BR,America/Sao_Paulo,1,0,1676796598,1697510777,1675404960,1697510777
+100670,5,ead_01215,EAD_01215,saml2,Pedro Henrique,Fernandes Novaes,pedrohenrique.novaes31@aluno.uniaraucaria.example,Joinville - SC,BR,America/Sao_Paulo,1,0,1691544810,1765423140,1687243140,1765423140
+100686,1,pres_18082,PRES_18082,saml2,Evelyn,Ferreira,evelyn.ferreira49@aluno.unisaopaulo.example,Campinas,BR,America/Sao_Paulo,0,0,1693073789,1792541520,1687846680,1792541520
+100848,3,ead_01193,EAD_01193,saml2,Fernando,da Luz,fernando.daluz32@aluno.unilitoral.example,duque de caxias,BR,99,0,0,1712406960,1791216420,1703745480,1791216420
+100985,1,ead_01281,EAD_01281,saml2,Camila Ana Lívia,da Mota Silva,camila.silva59@aluno.unisaopaulo.example,Santos,BR,America/Sao_Paulo,0,0,1708754997,1791587820,1706249220,1791587820
+101166,1,ead_01322,EAD_01322,saml2,Emilly,Nascimento Cavalcanti,emilly.cavalcanti91@aluno.unisaopaulo.example,ribeirao preto,BR,99,0,0,1723516917,1792839592,1721543700,1792839592
+101174,1,pres_18154,PRES_18154,saml2,Leandro Diego,Cirino Azevedo,leandro.azevedo77@aluno.unisaopaulo.example,Campinas - SP,BR,America/Sao_Paulo,1,0,1725499586,1765110456,1721717460,1765110456
+101356,1,pres_18172,PRES_18172,saml2,Ana Beatriz Júlia,da Conceição Barros,anabeatriz.barros45@aluno.unisaopaulo.example,São Paulo - SP,BR,America/Sao_Paulo,0,0,1742033220,1791750180,1737009120,1791750180
+101384,4,ead_01281,EAD_01281,saml2,Bruna Isis,Cirino,bruna.cirino52@aluno.uniatlantico.example,São Paulo - SP,BR,America/Sao_Paulo,0,0,1738853913,1791848263,1737355260,1791848263
+101458,5,ead_01281,EAD_01281,saml2,João Guilherme,Martins Casa Grande,joaoguilherme.casagrande62@aluno.uniaraucaria.example,CURITIBA,BR,99,1,0,1739008912,1760656845,1738564320,1760656845
+101590,5,pres_09094,PRES_09094,saml2,João Miguel Murilo,Porto Macedo,joaomiguel.macedo81@aluno.uniaraucaria.example,porto alegre,BR,America/Sao_Paulo,0,0,1755821937,1765363432,1752818880,1765363432
+101629,1,lara.martins33,,manual,Lara,Fonseca Martins,lara.martins33@aluno.unisaopaulo.example,São Paulo,BR,America/Sao_Paulo,0,0,1755008843,1793318220,1754289000,1793318220
+101749,4,ead_01322,EAD_01322,saml2,Fernando Pedro Lucas,Albuquerque,fernando.albuquerque37@aluno.uniatlantico.example,Lauro de Freitas,BR,America/Sao_Paulo,0,0,1771247421,1793497903,1767594840,1793497903
+101780,1,ead_01421,EAD_01421,saml2,Leandro Diego,Cirino Azevedo,leandro.azevedo21@aluno.unisaopaulo.example,Campinas - SP,BR,America/Sao_Paulo,0,0,1771760485,1793412749,1768114740,1793412749
+101818,5,ead_01322,EAD_01322,saml2,Benjamim,Cassiano,benjamim.cassiano30@aluno.uniaraucaria.example,Joinville,BR,America/Sao_Paulo,0,0,1772154555,1791681376,1768719180,1791681376
+101921,3,ead_01281,EAD_01281,saml2,Letícia Ana Beatriz,Pereira Pacheco,leticia.pacheco21@aluno.unilitoral.example,Vitória,BR,America/Sao_Paulo,0,0,1771075938,1793143498,1770273840,1793143498
+102128,1,mariajulia.rios51,,manual,Maria Júlia Eloah,Rios,mariajulia.rios51@aluno.unisaopaulo.example,Ribeirão Preto - SP,BR,America/Sao_Paulo,0,0,1789051307,1791129812,1785825180,1791129812

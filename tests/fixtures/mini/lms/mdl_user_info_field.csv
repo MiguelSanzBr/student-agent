@@ -1,0 +1,5 @@
+id,shortname,name,datatype
+1,cpf,CPF,text
+2,polo,Polo,menu
+3,curso,Curso,menu
+4,turma,Turma,text

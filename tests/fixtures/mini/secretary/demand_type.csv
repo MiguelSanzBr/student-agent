@@ -1,0 +1,19 @@
+Demand_Code,Demand_Name,Area,SLA_Hours,Service_Fee,Active
+DOC-001,Enrollment Certificate,DOCUMENTS,48,"R$ 0,00",True
+DOC-002,Printed Transcript,DOCUMENTS,72,"R$ 20,00",True
+DOC-003,Syllabus Package,DOCUMENTS,120,"R$ 30,00",True
+DOC-040,Diploma Issuance,DOCUMENTS,240,"R$ 0,00",True
+DOC-041,Diploma Second Copy,DOCUMENTS,240,"R$ 150,00",True
+ACA-010,Enrollment Lock,ACADEMIC,72,"R$ 0,00",True
+ACA-011,Enrollment Reactivation,ACADEMIC,72,"R$ 0,00",True
+ACA-012,Enrollment Cancellation,ACADEMIC,72,"R$ 0,00",True
+ACA-013,Internal Transfer,ACADEMIC,120,"R$ 0,00",True
+ACA-014,Curriculum Migration,ACADEMIC,120,"R$ 0,00",True
+ACA-020,Grade Review,ACADEMIC,168,"R$ 0,00",True
+ACA-021,Second-Call Exam,ACADEMIC,72,"R$ 45,00",True
+FIN-030,Payment Slip Reissue,FINANCIAL,48,"R$ 0,00",True
+FIN-031,Debt Renegotiation,FINANCIAL,72,"R$ 0,00",True
+FIN-032,Discount/Scholarship Request,FINANCIAL,120,"R$ 0,00",True
+TEC-060,LMS Access Issue,TECH,48,"R$ 0,00",True
+GEN-090,General Information,GENERAL,72,"R$ 0,00",True
+OUV-099,Complaint,OMBUDSMAN,120,"R$ 0,00",True

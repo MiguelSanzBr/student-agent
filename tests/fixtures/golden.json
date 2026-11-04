@@ -1,0 +1,84 @@
+{
+  "cases": [
+    {
+      "case": 1,
+      "brand": "UniSaoPaulo",
+      "ra": "181722",
+      "cpf": "08140522660",
+      "other_enrollments": []
+    },
+    {
+      "case": 2,
+      "brand": "UniAtlantico_EAD",
+      "ra": "012815",
+      "cpf": "20930797205",
+      "other_enrollments": []
+    },
+    {
+      "case": 3,
+      "brand": "UniSaoPaulo_EAD",
+      "ra": "014214",
+      "cpf": "23241640191",
+      "other_enrollments": [
+        [
+          "UniSaoPaulo",
+          "181544"
+        ]
+      ]
+    },
+    {
+      "case": 4,
+      "brand": "UniSaoPaulo",
+      "ra": "180823",
+      "cpf": "79616774107",
+      "other_enrollments": []
+    },
+    {
+      "case": 5,
+      "brand": "UniSaoPaulo_EAD",
+      "ra": "012157",
+      "cpf": "05278737727",
+      "other_enrollments": []
+    },
+    {
+      "case": 6,
+      "brand": "UniSaoPaulo_EAD",
+      "ra": "013226",
+      "cpf": "16910893204",
+      "other_enrollments": []
+    },
+    {
+      "case": 7,
+      "brand": "UniSaoPaulo_EAD",
+      "ra": "011703",
+      "cpf": "35425914407",
+      "other_enrollments": []
+    },
+    {
+      "case": 8,
+      "brand": "UniSaoPaulo",
+      "ra": "182230",
+      "cpf": "38836867359",
+      "other_enrollments": []
+    },
+    {
+      "case": 9,
+      "brand": "UniSaoPaulo",
+      "ra": "182915",
+      "cpf": "43691697127",
+      "other_enrollments": [
+        [
+          "UniSaoPaulo_EAD",
+          "011843"
+        ]
+      ]
+    },
+    {
+      "case": 10,
+      "brand": "UniSaoPaulo_EAD",
+      "ra": "011932",
+      "cpf": "44178634232",
+      "other_enrollments": []
+    }
+  ]
+}

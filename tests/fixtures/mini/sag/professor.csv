@@ -1,0 +1,61 @@
+PROFESSOR_ID,FULL_NAME,CPF,BRAND,ACADEMIC_TITLE,HIRED_ON,EMAIL
+40013,LARISSA NUNES,647.892.689-34,UniSaoPaulo,MSC,2020-07-10,larissa.nunes@prof.unisaopaulo.example
+40026,JOAO GABRIEL PASTOR,659.286.682-95,UniSaoPaulo,MSC,2024-10-09,joaogabriel.pastor@prof.unisaopaulo.example
+40039,MARIA EDUARDA GUERRA,473.623.587-09,UniSaoPaulo,SPECIALIST,2021-08-23,mariaeduarda.guerra@prof.unisaopaulo.example
+40046,MARIA LUISA LIMA FARIAS,808.546.324-50,UniSaoPaulo,PHD,2024-08-01,marialuisa.farias@prof.unisaopaulo.example
+40053,MARIA LAURA LETICIA RODRIGUES SANTOS,114.501.087-33,UniSaoPaulo,PHD,2024-01-17,marialaura.santos@prof.unisaopaulo.example
+40059,JUAN DA ROCHA,960.385.266-09,UniSaoPaulo,PHD,2018-02-08,juan.darocha@prof.unisaopaulo.example
+40069,ISAQUE ALVES LIMA,137.711.860-64,UniSaoPaulo,MSC,2024-09-29,isaque.lima@prof.unisaopaulo.example
+40079,YURI LEANDRO VIEIRA,282.869.506-90,UniSaoPaulo,PHD,2024-01-22,yuri.vieira@prof.unisaopaulo.example
+40080,GAEL BARBOSA BRITO,427.074.059-06,UniSaoPaulo,SPECIALIST,2019-05-17,gael.brito@prof.unisaopaulo.example
+40090,PEDRO CAMARA CAMPOS,783.844.512-49,UniSaoPaulo,SPECIALIST,2011-12-29,pedro.campos@prof.unisaopaulo.example
+40101,HADASSA CARVALHO COSTA,349.671.230-90,UniSaoPaulo,SPECIALIST,2018-12-04,hadassa.costa@prof.unisaopaulo.example
+40113,BERNARDO MENDES ARAUJO,382.205.210-82,UniSaoPaulo,SPECIALIST,2018-03-21,bernardo.araujo@prof.unisaopaulo.example
+40117,THOMAS MENDONCA DA ROSA,047.851.771-87,UniMontanhas,PHD,2012-09-29,thomas.darosa@prof.unimontanhas.example
+40131,GABRIELA ISABEL ABREU DA PAZ,784.842.182-10,UniMontanhas,MSC,2009-06-24,gabriela.dapaz@prof.unimontanhas.example
+40146,OTAVIO BORGES,627.942.303-44,UniMontanhas,MSC,2023-02-01,otavio.borges@prof.unimontanhas.example
+40159,RAFAEL DA MOTA MONTENEGRO,030.253.530-66,UniMontanhas,MSC,2021-03-06,rafael.montenegro@prof.unimontanhas.example
+40160,GABRIELLY FONSECA SALES,574.451.558-56,UniMontanhas,MSC,2010-04-01,gabrielly.sales@prof.unimontanhas.example
+40173,DANTE YAGO CARDOSO DA LUZ,197.940.132-26,UniMontanhas,MSC,2015-02-25,dante.daluz@prof.unimontanhas.example
+40174,MATHEUS RAMOS SANTOS,916.104.186-62,UniMontanhas,SPECIALIST,2011-05-03,matheus.santos@prof.unimontanhas.example
+40186,AMANDA MILENA DA CUNHA PEIXOTO,733.749.707-53,UniMontanhas,SPECIALIST,2018-07-31,amanda.peixoto@prof.unimontanhas.example
+40198,EVELYN ALICIA MORAES,096.291.555-67,UniMontanhas,SPECIALIST,2020-11-05,evelyn.moraes@prof.unimontanhas.example
+40208,ANA CLARA OLIVEIRA MARQUES,506.585.638-90,UniMontanhas,SPECIALIST,2020-09-18,anaclara.marques@prof.unimontanhas.example
+40215,AUGUSTO MACEDO BARROS,230.654.401-80,UniMontanhas,SPECIALIST,2023-03-18,augusto.barros@prof.unimontanhas.example
+40224,SARA PIRES MELO,201.302.110-01,UniMontanhas,SPECIALIST,2018-07-15,sara.melo@prof.unimontanhas.example
+40237,RODRIGO COSTA,807.745.774-60,UniLitoral,MSC,2012-05-21,rodrigo.costa@prof.unilitoral.example
+40252,NATALIA CECILIA VIEIRA MARQUES,415.086.298-20,UniLitoral,MSC,2009-03-05,natalia.marques@prof.unilitoral.example
+40259,RAVI CASA GRANDE NOGUEIRA,832.721.894-83,UniLitoral,MSC,2010-03-22,ravi.nogueira@prof.unilitoral.example
+40271,LAURA NOVAES PEIXOTO,766.996.136-85,UniLitoral,SPECIALIST,2023-12-09,laura.peixoto@prof.unilitoral.example
+40286,DOM SILVA MARQUES,420.635.219-48,UniLitoral,PHD,2018-06-12,dom.marques@prof.unilitoral.example
+40296,KAIQUE DANTE CAMPOS ALBUQUERQUE,349.286.378-79,UniLitoral,SPECIALIST,2020-11-13,kaique.albuquerque@prof.unilitoral.example
+40302,ANA VITORIA BORGES,096.418.316-15,UniLitoral,PHD,2018-04-08,anavitoria.borges@prof.unilitoral.example
+40314,MATEUS LOPES,294.630.920-72,UniLitoral,PHD,2016-12-17,mateus.lopes@prof.unilitoral.example
+40324,MARIA LIZ AZEVEDO,841.027.037-48,UniLitoral,MSC,2009-08-26,marializ.azevedo@prof.unilitoral.example
+40330,ALEXIA CAMILA SAMPAIO VIANA,724.121.783-72,UniLitoral,SPECIALIST,2010-11-17,alexia.viana@prof.unilitoral.example
+40334,EDUARDA CASA GRANDE PEREIRA,588.158.767-74,UniLitoral,PHD,2021-07-07,eduarda.pereira@prof.unilitoral.example
+40349,JOSE MIGUEL VIANA MORAES,467.310.347-54,UniLitoral,SPECIALIST,2007-05-27,josemiguel.moraes@prof.unilitoral.example
+40353,ALICE RIOS SILVEIRA,001.525.826-22,UniAtlantico,MSC,2012-07-09,alice.silveira@prof.uniatlantico.example
+40354,ISIS PINTO,410.886.382-87,UniAtlantico,MSC,2015-08-27,isis.pinto@prof.uniatlantico.example
+40359,DAVI LUCCA LUAN OLIVEIRA BRITO,033.292.697-40,UniAtlantico,PHD,2008-05-12,davilucca.brito@prof.uniatlantico.example
+40370,THEODORO MATEUS BORGES DA CRUZ,183.464.483-68,UniAtlantico,PHD,2006-09-29,theodoro.dacruz@prof.uniatlantico.example
+40385,GUILHERME PEDRO LUCAS NOVAES,704.662.838-65,UniAtlantico,MSC,2008-01-02,guilherme.novaes@prof.uniatlantico.example
+40390,ARTHUR MIGUEL CARLOS EDUARDO COSTELA CUNHA,775.885.074-03,UniAtlantico,MSC,2018-07-04,arthurmiguel.cunha@prof.uniatlantico.example
+40404,DAVI LUCAS MENDES PEREIRA,752.623.787-90,UniAtlantico,PHD,2010-05-11,davilucas.pereira@prof.uniatlantico.example
+40406,MARIANE FERNANDES SOUSA,732.337.243-73,UniAtlantico,SPECIALIST,2013-02-14,mariane.sousa@prof.uniatlantico.example
+40416,PAULO YURI CAMARGO LEAO,098.934.495-96,UniAtlantico,MSC,2014-08-05,paulo.leao@prof.uniatlantico.example
+40431,BRUNO ALVES PIMENTA,190.760.517-71,UniAtlantico,PHD,2018-02-03,bruno.pimenta@prof.uniatlantico.example
+40440,LIVIA DA ROCHA PEIXOTO,700.733.283-83,UniAtlantico,PHD,2012-03-19,livia.peixoto@prof.uniatlantico.example
+40455,BRUNA PIMENTA FONSECA,886.815.991-00,UniAtlantico,MSC,2019-01-25,bruna.fonseca@prof.uniatlantico.example
+40463,ZOE NOGUEIRA BORGES,867.129.264-91,UniAraucaria,SPECIALIST,2014-07-21,zoe.borges@prof.uniaraucaria.example
+40466,SOFIA CORREIA SAMPAIO,997.056.502-84,UniAraucaria,MSC,2021-03-31,sofia.sampaio@prof.uniaraucaria.example
+40477,GABRIEL GAEL HENRIQUE VIANA MOURA,078.148.306-99,UniAraucaria,MSC,2012-01-21,gabriel.moura@prof.uniaraucaria.example
+40479,LEONARDO NASCIMENTO CAMPOS,603.385.313-00,UniAraucaria,MSC,2015-11-27,leonardo.campos@prof.uniaraucaria.example
+40481,THEODORO PEREIRA CAVALCANTE,251.094.210-72,UniAraucaria,MSC,2019-09-12,theodoro.cavalcante@prof.uniaraucaria.example
+40489,PIETRA LIVIA MOREIRA SANTOS,363.882.338-56,UniAraucaria,PHD,2011-09-07,pietra.santos@prof.uniaraucaria.example
+40496,EDUARDO DA PAZ PIMENTA,234.010.133-60,UniAraucaria,MSC,2013-05-20,eduardo.pimenta@prof.uniaraucaria.example
+40507,AUGUSTO SOUSA DA ROSA,249.464.780-00,UniAraucaria,PHD,2016-12-07,augusto.darosa@prof.uniaraucaria.example
+40522,VITOR GABRIEL ROCHA PIRES,164.871.318-14,UniAraucaria,PHD,2008-08-08,vitorgabriel.pires@prof.uniaraucaria.example
+40534,ISABELLA TEIXEIRA NOVAES,984.996.541-00,UniAraucaria,MSC,2013-01-21,isabella.novaes@prof.uniaraucaria.example
+40537,CATARINA BELLA CUNHA,773.613.312-38,UniAraucaria,SPECIALIST,2010-03-22,catarina.cunha@prof.uniaraucaria.example
+40539,JOAO LUCAS BARROS,882.801.735-01,UniAraucaria,MSC,2010-08-22,joaolucas.barros@prof.uniaraucaria.example

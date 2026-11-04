@@ -1,0 +1,711 @@
+Protocol,Seq,From_Status,To_Status,Changed_At,Changed_By
+20220001006,1,,Open,2022-03-16T22:17:45Z,system
+20220001006,2,Open,In Analysis,2022-03-17T11:21:33Z,mpinto
+20220001006,3,In Analysis,Resolved,2022-03-20T11:12:28Z,mpinto
+20220001067,1,,Open,2022-03-19T02:42:24Z,system
+20220001067,2,Open,In Analysis,2022-03-19T11:40:49Z,gfarias
+20220001067,3,In Analysis,Resolved,2022-03-20T11:40:54Z,gfarias
+20220001067,4,Resolved,Reopened,2022-03-24T11:40:54Z,system
+20220001067,5,Reopened,In Analysis,2022-03-25T11:40:54Z,gfarias
+20220001067,6,In Analysis,Resolved,2022-03-25T19:40:54Z,gfarias
+20220001266,1,,Open,2022-04-08T01:25:43Z,system
+20220001266,2,Open,In Analysis,2022-04-08T11:41:20Z,fcavalcanti
+20220001266,3,In Analysis,Resolved,2022-04-08T17:42:03Z,fcavalcanti
+20220001849,1,,Open,2022-05-23T15:59:39Z,system
+20220001849,2,Open,In Analysis,2022-05-23T19:05:10Z,gfarias
+20220001849,3,In Analysis,Cancelled,2022-05-24T22:24:05Z,gfarias
+20220001874,1,,Open,2022-05-25T00:57:08Z,system
+20220001874,2,Open,In Analysis,2022-05-25T11:16:15Z,ydasneves
+20220001874,3,In Analysis,Resolved,2022-05-25T21:29:40Z,ydasneves
+20220002359,1,,Open,2022-06-14T15:40:16Z,system
+20220002359,2,Open,In Analysis,2022-06-14T20:56:52Z,gfarias
+20220002359,3,In Analysis,Pending Requester,2022-06-14T22:56:52Z,gfarias
+20220002359,4,Pending Requester,In Analysis,2022-06-15T07:56:52Z,system
+20220002359,5,In Analysis,Resolved,2022-06-15T15:46:46Z,gfarias
+20220002450,1,,Open,2022-06-23T22:14:45Z,system
+20220002450,2,Open,In Analysis,2022-06-24T11:09:06Z,mpinto
+20220002450,3,In Analysis,Resolved,2022-06-25T11:04:45Z,mpinto
+20220002557,1,,Open,2022-06-28T20:58:19Z,system
+20220002557,2,Open,In Analysis,2022-06-29T11:28:19Z,ydasneves
+20220002557,3,In Analysis,Resolved,2022-06-29T17:29:20Z,ydasneves
+20220002789,1,,Open,2022-07-06T17:30:07Z,system
+20220002789,2,Open,In Analysis,2022-07-07T11:14:24Z,arocha
+20220002789,3,In Analysis,Pending Requester,2022-07-07T17:14:24Z,arocha
+20220002789,4,Pending Requester,In Analysis,2022-07-08T15:14:24Z,system
+20220002789,5,In Analysis,Resolved,2022-07-09T16:57:17Z,arocha
+20220004776,1,,Open,2022-10-22T16:06:52Z,system
+20220004776,2,Open,In Analysis,2022-10-22T19:28:37Z,ydasneves
+20220004776,3,In Analysis,Resolved,2022-10-23T11:41:55Z,ydasneves
+20220004787,1,,Open,2022-10-23T12:34:26Z,system
+20220004787,2,Open,In Analysis,2022-10-23T16:23:38Z,ydasneves
+20220004787,3,In Analysis,Resolved,2022-10-24T11:55:49Z,ydasneves
+20220005049,1,,Open,2022-11-07T00:06:10Z,system
+20220005049,2,Open,In Analysis,2022-11-07T11:00:37Z,gfarias
+20220005049,3,In Analysis,Pending Requester,2022-11-07T13:00:37Z,gfarias
+20220005049,4,Pending Requester,In Analysis,2022-11-08T12:00:37Z,system
+20220005049,5,In Analysis,Resolved,2022-11-09T15:59:06Z,gfarias
+20220005574,1,,Open,2022-11-26T15:49:26Z,system
+20220005574,2,Open,In Analysis,2022-11-26T22:13:42Z,gfarias
+20220005574,3,In Analysis,Resolved,2022-11-27T12:11:36Z,gfarias
+20220005760,1,,Open,2022-11-30T22:04:39Z,system
+20220005760,2,Open,In Analysis,2022-12-01T14:50:17Z,ydasneves
+20220005760,3,In Analysis,Pending Requester,2022-12-01T18:50:17Z,ydasneves
+20220005760,4,Pending Requester,In Analysis,2022-12-02T07:50:17Z,system
+20220005760,5,In Analysis,Resolved,2022-12-03T11:55:02Z,ydasneves
+20220005842,1,,Open,2022-12-05T12:40:00Z,system
+20220005842,2,Open,In Analysis,2022-12-06T11:56:05Z,ydasneves
+20220005842,3,In Analysis,Resolved,2022-12-10T11:02:44Z,ydasneves
+20220005895,1,,Open,2022-12-06T16:36:21Z,system
+20220005895,2,Open,In Analysis,2022-12-06T21:59:03Z,aviana
+20220005895,3,In Analysis,Resolved,2022-12-08T11:38:16Z,aviana
+20220005895,4,Resolved,Reopened,2022-12-12T11:38:16Z,system
+20220005895,5,Reopened,In Analysis,2022-12-14T11:38:16Z,aviana
+20220005895,6,In Analysis,Resolved,2022-12-15T11:38:16Z,aviana
+20220005936,1,,Open,2022-12-07T02:19:45Z,system
+20220005936,2,Open,In Analysis,2022-12-07T11:46:41Z,aviana
+20220005936,3,In Analysis,Cancelled,2022-12-08T23:29:32Z,aviana
+20220006181,1,,Open,2022-12-09T15:42:19Z,system
+20220006181,2,Open,In Analysis,2022-12-09T22:02:46Z,aviana
+20220006181,3,In Analysis,Resolved,2022-12-10T11:53:06Z,aviana
+20220006577,1,,Open,2022-12-21T15:05:55Z,system
+20220006577,2,Open,In Analysis,2022-12-22T11:12:29Z,lmachado
+20220006577,3,In Analysis,Resolved,2022-12-23T14:14:19Z,lmachado
+20230000406,1,,Open,2023-01-08T14:02:13Z,system
+20230000406,2,Open,In Analysis,2023-01-10T11:56:56Z,ccamargo
+20230000406,3,In Analysis,Resolved,2023-01-11T21:27:42Z,ccamargo
+20230000823,1,,Open,2023-01-16T15:42:44Z,system
+20230000823,2,Open,In Analysis,2023-01-16T20:42:16Z,aviana
+20230000823,3,In Analysis,Resolved,2023-01-16T21:42:16Z,aviana
+20230001148,1,,Open,2023-01-25T21:51:15Z,system
+20230001148,2,Open,In Analysis,2023-01-26T13:12:43Z,lmachado
+20230001148,3,In Analysis,Resolved,2023-01-27T19:55:00Z,lmachado
+20230001148,4,Resolved,Reopened,2023-01-29T19:55:00Z,system
+20230001148,5,Reopened,In Analysis,2023-01-30T11:55:00Z,lmachado
+20230001148,6,In Analysis,Resolved,2023-01-30T23:55:00Z,lmachado
+20230001419,1,,Open,2023-02-03T14:13:53Z,system
+20230001419,2,Open,In Analysis,2023-02-03T19:28:29Z,fgarcia
+20230001419,3,In Analysis,Pending Requester,2023-02-03T21:28:29Z,fgarcia
+20230001419,4,Pending Requester,In Analysis,2023-02-04T20:28:29Z,system
+20230001419,5,In Analysis,Resolved,2023-02-05T11:15:33Z,fgarcia
+20230001770,1,,Open,2023-02-12T18:15:43Z,system
+20230001770,2,Open,In Analysis,2023-02-13T11:06:05Z,sfarias
+20230001770,3,In Analysis,Pending Requester,2023-02-13T18:06:05Z,sfarias
+20230001770,4,Pending Requester,In Analysis,2023-02-14T16:06:05Z,system
+20230001770,5,In Analysis,Resolved,2023-02-15T11:45:40Z,sfarias
+20230001842,1,,Open,2023-02-15T15:18:12Z,system
+20230001842,2,Open,In Analysis,2023-02-15T17:57:47Z,ydasneves
+20230001842,3,In Analysis,Resolved,2023-02-15T21:35:52Z,ydasneves
+20230002046,1,,Open,2023-03-11T13:34:51Z,system
+20230002046,2,Open,In Analysis,2023-03-11T20:14:19Z,mpinto
+20230002046,3,In Analysis,Resolved,2023-03-12T11:32:08Z,mpinto
+20230002140,1,,Open,2023-03-17T14:31:31Z,system
+20230002140,2,Open,In Analysis,2023-03-18T11:33:19Z,rcassiano
+20230002140,3,In Analysis,Resolved,2023-03-19T13:13:44Z,rcassiano
+20230002425,1,,Open,2023-04-04T00:28:17Z,system
+20230002425,2,Open,In Analysis,2023-04-04T19:00:14Z,bdacunha
+20230002425,3,In Analysis,Resolved,2023-04-05T17:53:45Z,bdacunha
+20230003896,1,,Open,2023-06-02T16:55:04Z,system
+20230003896,2,Open,In Analysis,2023-06-03T11:12:08Z,ydasneves
+20230003896,3,In Analysis,Resolved,2023-06-04T11:33:04Z,ydasneves
+20230003896,4,Resolved,Reopened,2023-06-06T11:33:04Z,system
+20230003896,5,Reopened,In Analysis,2023-06-06T22:33:04Z,ydasneves
+20230003896,6,In Analysis,Resolved,2023-06-07T21:33:04Z,ydasneves
+20230003953,1,,Open,2023-06-05T16:18:33Z,system
+20230003953,2,Open,In Analysis,2023-06-06T11:11:01Z,ydasneves
+20230003953,3,In Analysis,Resolved,2023-06-07T22:16:51Z,ydasneves
+20230004612,1,,Open,2023-06-22T16:19:46Z,system
+20230004612,2,Open,In Analysis,2023-06-22T21:10:41Z,ydasneves
+20230004612,3,In Analysis,Resolved,2023-06-23T14:55:32Z,ydasneves
+20230005032,1,,Open,2023-07-06T01:08:33Z,system
+20230005032,2,Open,In Analysis,2023-07-07T11:08:07Z,mpinto
+20230005032,3,In Analysis,Pending Requester,2023-07-07T13:08:07Z,mpinto
+20230005032,4,Pending Requester,In Analysis,2023-07-08T09:08:07Z,system
+20230005032,5,In Analysis,Resolved,2023-07-10T11:17:47Z,mpinto
+20230005366,1,,Open,2023-07-13T17:39:42Z,system
+20230005366,2,Open,In Analysis,2023-07-14T23:40:45Z,lmachado
+20230005366,3,In Analysis,Pending Requester,2023-07-15T07:40:45Z,lmachado
+20230005366,4,Pending Requester,In Analysis,2023-07-15T17:40:45Z,system
+20230005366,5,In Analysis,Resolved,2023-07-17T16:26:48Z,lmachado
+20230005493,1,,Open,2023-07-15T00:36:55Z,system
+20230005493,2,Open,In Analysis,2023-07-16T11:46:27Z,mcosta
+20230005493,3,In Analysis,Resolved,2023-07-18T16:15:30Z,mcosta
+20230005607,1,,Open,2023-07-23T23:10:59Z,system
+20230005607,2,Open,In Analysis,2023-07-24T11:11:45Z,ydasneves
+20230005607,3,In Analysis,Resolved,2023-07-24T21:11:37Z,ydasneves
+20230006015,1,,Open,2023-08-06T23:29:53Z,system
+20230006015,2,Open,In Analysis,2023-08-07T11:25:25Z,ydasneves
+20230006015,3,In Analysis,Resolved,2023-08-08T11:53:18Z,ydasneves
+20230006383,1,,Open,2023-08-18T02:44:38Z,system
+20230006383,2,Open,In Analysis,2023-08-18T11:11:14Z,ydasneves
+20230006383,3,In Analysis,Resolved,2023-08-19T11:10:45Z,ydasneves
+20230007735,1,,Open,2023-10-05T23:28:09Z,system
+20230007735,2,Open,In Analysis,2023-10-06T11:25:02Z,ccamargo
+20230007735,3,In Analysis,Pending Requester,2023-10-06T16:25:02Z,ccamargo
+20230007735,4,Pending Requester,In Analysis,2023-10-07T04:25:02Z,system
+20230007735,5,In Analysis,Resolved,2023-10-07T11:07:53Z,ccamargo
+20230007759,1,,Open,2023-10-06T17:11:16Z,system
+20230007759,2,Open,In Analysis,2023-10-07T11:37:37Z,mpinto
+20230007759,3,In Analysis,Resolved,2023-10-08T17:55:22Z,mpinto
+20230007819,1,,Open,2023-10-06T19:08:08Z,system
+20230007819,2,Open,In Analysis,2023-10-07T11:51:29Z,mpinto
+20230007819,3,In Analysis,Pending Requester,2023-10-07T17:51:29Z,mpinto
+20230007819,4,Pending Requester,In Analysis,2023-10-08T02:51:29Z,system
+20230007819,5,In Analysis,Resolved,2023-10-08T11:56:13Z,mpinto
+20230008587,1,,Open,2023-11-10T12:58:08Z,system
+20230008587,2,Open,In Analysis,2023-11-10T17:03:26Z,gfarias
+20230008587,3,In Analysis,Pending Requester,2023-11-10T20:03:26Z,gfarias
+20230008587,4,Pending Requester,In Analysis,2023-11-11T11:03:26Z,system
+20230008587,5,In Analysis,Resolved,2023-11-12T11:35:50Z,gfarias
+20230009297,1,,Open,2023-11-30T18:20:57Z,system
+20230009297,2,Open,In Analysis,2023-12-01T11:37:21Z,ydasneves
+20230009297,3,In Analysis,Resolved,2023-12-02T11:37:48Z,ydasneves
+20230009489,1,,Open,2023-12-06T21:20:39Z,system
+20230009489,2,Open,In Analysis,2023-12-08T11:12:04Z,ydasneves
+20230009489,3,In Analysis,Resolved,2023-12-09T11:30:47Z,ydasneves
+20230009489,4,Resolved,Reopened,2023-12-10T11:30:47Z,system
+20230009489,5,Reopened,In Analysis,2023-12-11T11:30:47Z,ydasneves
+20230009489,6,In Analysis,Resolved,2023-12-12T06:30:47Z,ydasneves
+20230009769,1,,Open,2023-12-10T10:38:17Z,system
+20230009769,2,Open,In Analysis,2023-12-11T11:27:39Z,rcassiano
+20230009769,3,In Analysis,Cancelled,2023-12-12T18:17:32Z,rcassiano
+20230009770,1,,Open,2023-12-10T10:56:57Z,system
+20230009770,2,Open,In Analysis,2023-12-10T16:07:02Z,hdapaz
+20230009770,3,In Analysis,Resolved,2023-12-11T12:49:57Z,hdapaz
+20230009770,4,Resolved,Reopened,2023-12-16T12:49:57Z,system
+20230009770,5,Reopened,In Analysis,2023-12-18T11:49:57Z,hdapaz
+20230009770,6,In Analysis,Resolved,2023-12-19T07:49:57Z,hdapaz
+20230010219,1,,Open,2023-12-18T23:12:16Z,system
+20230010219,2,Open,In Analysis,2023-12-19T11:51:38Z,cmachado
+20230010219,3,In Analysis,Resolved,2023-12-19T21:55:51Z,cmachado
+20230010230,1,,Open,2023-12-18T23:31:52Z,system
+20230010230,2,Open,In Analysis,2023-12-19T11:24:39Z,arocha
+20230010230,3,In Analysis,Resolved,2023-12-24T22:16:14Z,arocha
+20230010784,1,,Open,2023-12-25T11:26:44Z,system
+20230010784,2,Open,In Analysis,2023-12-25T16:38:11Z,cmachado
+20230010784,3,In Analysis,Resolved,2023-12-26T11:41:46Z,cmachado
+20230011067,1,,Open,2023-12-29T02:08:55Z,system
+20230011067,2,Open,In Analysis,2023-12-29T18:21:35Z,lmachado
+20230011067,3,In Analysis,Resolved,2024-01-01T11:50:35Z,lmachado
+20230011067,4,Resolved,Reopened,2024-01-03T11:50:35Z,system
+20230011067,5,Reopened,In Analysis,2024-01-04T12:50:35Z,lmachado
+20230011067,6,In Analysis,Resolved,2024-01-05T01:50:35Z,lmachado
+20240000283,1,,Open,2024-01-01T12:36:00Z,system
+20240000283,2,Open,In Analysis,2024-01-01T22:57:33Z,cmachado
+20240000283,3,In Analysis,Resolved,2024-01-02T14:15:19Z,cmachado
+20240000305,1,,Open,2024-01-03T19:11:05Z,system
+20240000305,2,Open,In Analysis,2024-01-04T11:40:31Z,cmachado
+20240000305,3,In Analysis,Resolved,2024-01-04T19:44:00Z,cmachado
+20240000465,1,,Open,2024-01-10T23:45:54Z,system
+20240000465,2,Open,In Analysis,2024-01-11T11:36:11Z,mcosta
+20240000465,3,In Analysis,Resolved,2024-01-15T12:43:00Z,mcosta
+20240000768,1,,Open,2024-01-16T13:08:59Z,system
+20240000768,2,Open,In Analysis,2024-01-16T16:50:45Z,fcavalcanti
+20240000768,3,In Analysis,Resolved,2024-01-16T17:50:45Z,fcavalcanti
+20240000844,1,,Open,2024-01-18T21:33:06Z,system
+20240000844,2,Open,In Analysis,2024-01-19T15:35:14Z,cmachado
+20240000844,3,In Analysis,Pending Requester,2024-01-19T20:35:14Z,cmachado
+20240000844,4,Pending Requester,In Analysis,2024-01-20T18:35:14Z,system
+20240000844,5,In Analysis,Resolved,2024-01-22T11:29:25Z,cmachado
+20240001095,1,,Open,2024-01-23T17:17:35Z,system
+20240001095,2,Open,In Analysis,2024-01-23T19:05:08Z,cmachado
+20240001095,3,In Analysis,Resolved,2024-01-28T11:49:17Z,cmachado
+20240001410,1,,Open,2024-02-01T13:26:06Z,system
+20240001410,2,Open,In Analysis,2024-02-01T19:54:41Z,cmachado
+20240001410,3,In Analysis,Resolved,2024-02-03T11:48:20Z,cmachado
+20240001659,1,,Open,2024-02-05T19:13:32Z,system
+20240001659,2,Open,In Analysis,2024-02-06T11:16:33Z,cmachado
+20240001659,3,In Analysis,Resolved,2024-02-07T13:18:00Z,cmachado
+20240002194,1,,Open,2024-02-16T17:36:49Z,system
+20240002194,2,Open,In Analysis,2024-02-16T21:23:39Z,cmachado
+20240002194,3,In Analysis,Cancelled,2024-02-17T11:09:48Z,cmachado
+20240002513,1,,Open,2024-03-02T11:13:44Z,system
+20240002513,2,Open,In Analysis,2024-03-02T17:35:25Z,ccamargo
+20240002513,3,In Analysis,Pending Requester,2024-03-02T20:35:25Z,ccamargo
+20240002513,4,Pending Requester,In Analysis,2024-03-03T04:35:25Z,system
+20240002513,5,In Analysis,Resolved,2024-03-04T11:57:38Z,ccamargo
+20240003086,1,,Open,2024-03-26T11:32:00Z,system
+20240003086,2,Open,In Analysis,2024-03-27T11:26:21Z,arocha
+20240003086,3,In Analysis,Resolved,2024-03-27T23:12:48Z,arocha
+20240003086,4,Resolved,Reopened,2024-03-30T23:12:48Z,system
+20240003086,5,Reopened,In Analysis,2024-03-31T20:12:48Z,arocha
+20240003086,6,In Analysis,Resolved,2024-04-01T02:12:48Z,arocha
+20240003370,1,,Open,2024-04-01T11:31:24Z,system
+20240003370,2,Open,In Analysis,2024-04-02T11:27:39Z,fcavalcanti
+20240003370,3,In Analysis,Resolved,2024-04-02T23:52:17Z,fcavalcanti
+20240004071,1,,Open,2024-04-10T12:24:30Z,system
+20240004071,2,Open,In Analysis,2024-04-10T21:51:01Z,mpinto
+20240004071,3,In Analysis,Pending Requester,2024-04-11T02:51:01Z,mpinto
+20240004071,4,Pending Requester,In Analysis,2024-04-11T11:51:01Z,system
+20240004071,5,In Analysis,Resolved,2024-04-11T20:47:36Z,mpinto
+20240004378,1,,Open,2024-04-22T02:15:18Z,system
+20240004378,2,Open,In Analysis,2024-04-22T11:09:25Z,lcasagrande
+20240004378,3,In Analysis,Pending Requester,2024-04-22T19:09:25Z,lcasagrande
+20240004378,4,Pending Requester,In Analysis,2024-04-23T06:09:25Z,system
+20240004378,5,In Analysis,Resolved,2024-04-24T11:03:38Z,lcasagrande
+20240004914,1,,Open,2024-05-08T13:21:33Z,system
+20240004914,2,Open,In Analysis,2024-05-09T11:45:12Z,cmachado
+20240004914,3,In Analysis,Resolved,2024-05-12T11:32:33Z,cmachado
+20240005575,1,,Open,2024-06-01T14:44:48Z,system
+20240005575,2,Open,In Analysis,2024-06-01T21:08:06Z,aviana
+20240005575,3,In Analysis,Resolved,2024-06-03T13:41:18Z,aviana
+20240005592,1,,Open,2024-06-02T23:49:40Z,system
+20240005592,2,Open,In Analysis,2024-06-03T11:06:51Z,gfarias
+20240005592,3,In Analysis,Resolved,2024-06-05T11:14:59Z,gfarias
+20240005649,1,,Open,2024-06-03T21:39:15Z,system
+20240005649,2,Open,In Analysis,2024-06-04T11:13:04Z,fcavalcanti
+20240005649,3,In Analysis,Resolved,2024-06-06T11:11:06Z,fcavalcanti
+20240006122,1,,Open,2024-06-10T17:45:43Z,system
+20240006122,2,Open,In Analysis,2024-06-11T11:57:18Z,aviana
+20240006122,3,In Analysis,Pending Requester,2024-06-11T12:57:18Z,aviana
+20240006122,4,Pending Requester,In Analysis,2024-06-12T06:57:18Z,system
+20240006122,5,In Analysis,Resolved,2024-06-13T11:50:15Z,aviana
+20240006415,1,,Open,2024-06-15T18:06:39Z,system
+20240006415,2,Open,In Analysis,2024-06-16T11:36:38Z,ydasneves
+20240006415,3,In Analysis,Resolved,2024-06-16T20:09:02Z,ydasneves
+20240007064,1,,Open,2024-06-24T23:17:16Z,system
+20240007064,2,Open,In Analysis,2024-06-25T11:22:02Z,ydasneves
+20240007064,3,In Analysis,Resolved,2024-06-28T15:09:46Z,ydasneves
+20240007329,1,,Open,2024-07-02T14:35:44Z,system
+20240007329,2,Open,In Analysis,2024-07-03T16:25:18Z,mpinto
+20240007329,3,In Analysis,Resolved,2024-07-05T12:11:53Z,mpinto
+20240007698,1,,Open,2024-07-05T17:52:03Z,system
+20240007698,2,Open,In Analysis,2024-07-06T12:31:11Z,arocha
+20240007698,3,In Analysis,Resolved,2024-07-11T11:04:42Z,arocha
+20240008437,1,,Open,2024-07-12T02:49:44Z,system
+20240008437,2,Open,In Analysis,2024-07-12T11:32:39Z,fcavalcanti
+20240008437,3,In Analysis,Resolved,2024-07-12T12:32:39Z,fcavalcanti
+20240008656,1,,Open,2024-07-15T00:04:20Z,system
+20240008656,2,Open,In Analysis,2024-07-15T17:10:07Z,lmachado
+20240008656,3,In Analysis,Resolved,2024-07-16T11:07:14Z,lmachado
+20240008753,1,,Open,2024-07-15T20:25:20Z,system
+20240008753,2,Open,In Analysis,2024-07-16T18:41:46Z,fcavalcanti
+20240008753,3,In Analysis,Resolved,2024-07-19T11:45:07Z,fcavalcanti
+20240009724,1,,Open,2024-08-08T21:02:20Z,system
+20240009724,2,Open,In Analysis,2024-08-09T11:46:52Z,cmachado
+20240009724,3,In Analysis,Pending Requester,2024-08-09T16:46:52Z,cmachado
+20240009724,4,Pending Requester,In Analysis,2024-08-10T12:46:52Z,system
+20240009724,5,In Analysis,Resolved,2024-08-11T12:36:16Z,cmachado
+20240010411,1,,Open,2024-08-19T12:47:00Z,system
+20240010411,2,Open,In Analysis,2024-08-19T17:11:51Z,cmachado
+20240010411,3,In Analysis,Resolved,2024-08-19T23:42:30Z,cmachado
+20240010448,1,,Open,2024-08-19T19:35:09Z,system
+20240010448,2,Open,In Analysis,2024-08-20T11:31:32Z,ydasneves
+20240010448,3,In Analysis,Resolved,2024-08-22T11:57:22Z,ydasneves
+20240011479,1,,Open,2024-09-23T12:24:40Z,system
+20240011479,2,Open,In Analysis,2024-09-23T18:15:45Z,cmachado
+20240011479,3,In Analysis,Pending Requester,2024-09-24T01:15:45Z,cmachado
+20240011479,4,Pending Requester,In Analysis,2024-09-24T13:15:45Z,system
+20240011479,5,In Analysis,Resolved,2024-09-24T22:07:50Z,cmachado
+20240011604,1,,Open,2024-09-27T00:40:12Z,system
+20240011604,2,Open,In Analysis,2024-09-27T11:11:15Z,asampaio
+20240011604,3,In Analysis,Resolved,2024-09-29T11:06:19Z,asampaio
+20240011876,1,,Open,2024-10-04T21:55:09Z,system
+20240011876,2,Open,In Analysis,2024-10-05T11:16:38Z,hdapaz
+20240011876,3,In Analysis,Pending Requester,2024-10-05T17:16:38Z,hdapaz
+20240011876,4,Pending Requester,In Analysis,2024-10-06T06:16:38Z,system
+20240011876,5,In Analysis,Resolved,2024-10-06T19:12:36Z,hdapaz
+20240012579,1,,Open,2024-10-14T14:43:48Z,system
+20240012579,2,Open,In Analysis,2024-10-15T11:58:20Z,aviana
+20240012579,3,In Analysis,Resolved,2024-10-16T11:03:22Z,aviana
+20240012858,1,,Open,2024-10-26T14:59:53Z,system
+20240012858,2,Open,In Analysis,2024-10-26T17:48:37Z,ydasneves
+20240012858,3,In Analysis,Pending Requester,2024-10-26T22:48:37Z,ydasneves
+20240012858,4,Pending Requester,In Analysis,2024-10-27T17:48:37Z,system
+20240012858,5,In Analysis,Resolved,2024-10-28T11:35:36Z,ydasneves
+20240013011,1,,Open,2024-10-31T16:00:42Z,system
+20240013011,2,Open,In Analysis,2024-10-31T20:05:47Z,lsilva
+20240013011,3,In Analysis,Pending Requester,2024-10-31T21:05:47Z,lsilva
+20240013011,4,Pending Requester,In Analysis,2024-11-01T05:05:47Z,system
+20240013011,5,In Analysis,Resolved,2024-11-01T17:00:17Z,lsilva
+20240013059,1,,Open,2024-11-03T15:19:56Z,system
+20240013059,2,Open,In Analysis,2024-11-03T22:25:57Z,gfarias
+20240013059,3,In Analysis,Pending Requester,2024-11-04T05:25:57Z,gfarias
+20240013059,4,Pending Requester,In Analysis,2024-11-04T13:25:57Z,system
+20240013059,5,In Analysis,Resolved,2024-11-05T14:01:13Z,gfarias
+20240013121,1,,Open,2024-11-04T12:54:00Z,system
+20240013121,2,Open,In Analysis,2024-11-04T17:16:09Z,cmachado
+20240013121,3,In Analysis,Resolved,2024-11-06T11:25:09Z,cmachado
+20240013154,1,,Open,2024-11-04T23:37:58Z,system
+20240013154,2,Open,In Analysis,2024-11-05T11:42:52Z,gfarias
+20240013154,3,In Analysis,Resolved,2024-11-05T19:37:51Z,gfarias
+20240013208,1,,Open,2024-11-06T11:15:10Z,system
+20240013208,2,Open,In Analysis,2024-11-06T13:40:38Z,asampaio
+20240013208,3,In Analysis,Resolved,2024-11-06T15:30:40Z,asampaio
+20240013240,1,,Open,2024-11-09T00:56:19Z,system
+20240013240,2,Open,In Analysis,2024-11-09T11:13:06Z,rcassiano
+20240013240,3,In Analysis,Resolved,2024-11-09T22:36:34Z,rcassiano
+20240013572,1,,Open,2024-11-22T15:06:40Z,system
+20240013572,2,Open,In Analysis,2024-11-22T20:00:21Z,lsilva
+20240013572,3,In Analysis,Resolved,2024-11-23T11:04:52Z,lsilva
+20240013661,1,,Open,2024-11-24T16:45:17Z,system
+20240013661,2,Open,In Analysis,2024-11-25T11:42:05Z,acasagrande
+20240013661,3,In Analysis,Resolved,2024-11-26T11:49:36Z,acasagrande
+20240013783,1,,Open,2024-11-27T12:25:40Z,system
+20240013783,2,Open,In Analysis,2024-11-27T18:54:30Z,acasagrande
+20240013783,3,In Analysis,Resolved,2024-11-28T11:29:50Z,acasagrande
+20240013869,1,,Open,2024-12-02T20:28:35Z,system
+20240013869,2,Open,In Analysis,2024-12-03T11:30:01Z,lsilva
+20240013869,3,In Analysis,Resolved,2024-12-03T20:02:52Z,lsilva
+20240014141,1,,Open,2024-12-07T12:42:20Z,system
+20240014141,2,Open,In Analysis,2024-12-07T18:26:01Z,asampaio
+20240014141,3,In Analysis,Resolved,2024-12-08T17:34:11Z,asampaio
+20240015635,1,,Open,2024-12-21T18:29:27Z,system
+20240015635,2,Open,In Analysis,2024-12-21T23:10:29Z,acasagrande
+20240015635,3,In Analysis,Cancelled,2024-12-22T11:30:45Z,acasagrande
+20240016637,1,,Open,2024-12-30T15:14:59Z,system
+20240016637,2,Open,In Analysis,2024-12-30T23:41:01Z,ydasneves
+20240016637,3,In Analysis,Cancelled,2025-01-01T13:14:24Z,ydasneves
+20250000664,1,,Open,2025-01-11T17:33:04Z,system
+20250000664,2,Open,In Analysis,2025-01-13T16:45:27Z,gfarias
+20250000664,3,In Analysis,Resolved,2025-01-14T11:13:38Z,gfarias
+20250001771,1,,Open,2025-02-07T15:49:47Z,system
+20250001771,2,Open,In Analysis,2025-02-07T19:47:23Z,gfarias
+20250001771,3,In Analysis,Resolved,2025-02-08T18:13:49Z,gfarias
+20250001803,1,,Open,2025-02-08T11:10:30Z,system
+20250001803,2,Open,In Analysis,2025-02-08T15:18:41Z,acasagrande
+20250001803,3,In Analysis,Resolved,2025-02-09T11:45:39Z,acasagrande
+20250001882,1,,Open,2025-02-09T00:04:33Z,system
+20250001882,2,Open,In Analysis,2025-02-10T11:29:40Z,mcosta
+20250001882,3,In Analysis,Cancelled,2025-02-10T20:31:29Z,mcosta
+20250002669,1,,Open,2025-02-26T00:32:47Z,system
+20250002669,2,Open,In Analysis,2025-02-26T11:04:46Z,cmachado
+20250002669,3,In Analysis,Resolved,2025-02-26T17:28:10Z,cmachado
+20250002783,1,,Open,2025-03-01T22:25:10Z,system
+20250002783,2,Open,In Analysis,2025-03-02T11:39:34Z,rcassiano
+20250002783,3,In Analysis,Pending Requester,2025-03-02T12:39:34Z,rcassiano
+20250002783,4,Pending Requester,In Analysis,2025-03-02T15:39:34Z,system
+20250002783,5,In Analysis,Resolved,2025-03-03T11:22:11Z,rcassiano
+20250003057,1,,Open,2025-03-04T12:42:00Z,system
+20250003057,2,Open,In Analysis,2025-03-04T16:08:23Z,aviana
+20250003057,3,In Analysis,Resolved,2025-03-05T17:43:56Z,aviana
+20250003058,1,,Open,2025-03-04T20:03:31Z,system
+20250003058,2,Open,In Analysis,2025-03-04T23:08:49Z,asampaio
+20250003058,3,In Analysis,Resolved,2025-03-06T11:02:54Z,asampaio
+20250003397,1,,Open,2025-03-17T01:49:33Z,system
+20250003397,2,Open,In Analysis,2025-03-17T11:47:19Z,ccamargo
+20250003397,3,In Analysis,Pending Requester,2025-03-17T18:47:19Z,ccamargo
+20250003397,4,Pending Requester,In Analysis,2025-03-18T03:47:19Z,system
+20250003397,5,In Analysis,Resolved,2025-03-18T12:03:49Z,ccamargo
+20250003642,1,,Open,2025-03-22T13:49:42Z,system
+20250003642,2,Open,In Analysis,2025-03-22T20:35:24Z,cmachado
+20250003642,3,In Analysis,Resolved,2025-03-23T11:32:03Z,cmachado
+20250003682,1,,Open,2025-03-23T00:39:24Z,system
+20250003682,2,Open,In Analysis,2025-03-23T11:06:02Z,ydasneves
+20250003682,3,In Analysis,Pending Requester,2025-03-23T19:06:02Z,ydasneves
+20250003682,4,Pending Requester,In Analysis,2025-03-24T02:06:02Z,system
+20250003682,5,In Analysis,Resolved,2025-03-24T21:45:31Z,ydasneves
+20250004388,1,,Open,2025-04-05T11:13:12Z,system
+20250004388,2,Open,In Analysis,2025-04-05T23:46:52Z,mcosta
+20250004388,3,In Analysis,Resolved,2025-04-07T13:29:03Z,mcosta
+20250004810,1,,Open,2025-04-07T15:42:02Z,system
+20250004810,2,Open,In Analysis,2025-04-07T20:13:18Z,aviana
+20250004810,3,In Analysis,Resolved,2025-04-08T11:47:15Z,aviana
+20250004836,1,,Open,2025-04-07T16:17:41Z,system
+20250004836,2,Open,In Analysis,2025-04-07T22:23:21Z,aviana
+20250004836,3,In Analysis,Pending Requester,2025-04-08T01:23:21Z,aviana
+20250004836,4,Pending Requester,In Analysis,2025-04-08T11:23:21Z,system
+20250004836,5,In Analysis,Resolved,2025-04-09T11:03:38Z,aviana
+20250005141,1,,Open,2025-04-09T10:24:26Z,system
+20250005141,2,Open,In Analysis,2025-04-09T12:18:26Z,aviana
+20250005141,3,In Analysis,Resolved,2025-04-11T11:15:45Z,aviana
+20250006635,1,,Open,2025-05-12T17:29:53Z,system
+20250006635,2,Open,In Analysis,2025-05-13T15:24:33Z,cmachado
+20250006635,3,In Analysis,Resolved,2025-05-13T16:24:33Z,cmachado
+20250006996,1,,Open,2025-05-22T11:59:41Z,system
+20250006996,2,Open,In Analysis,2025-05-22T17:05:31Z,ydasneves
+20250006996,3,In Analysis,Resolved,2025-05-24T11:27:39Z,ydasneves
+20250007697,1,,Open,2025-06-03T23:34:20Z,system
+20250007697,2,Open,In Analysis,2025-06-04T11:24:33Z,hdapaz
+20250007697,3,In Analysis,Resolved,2025-06-06T11:34:19Z,hdapaz
+20250008265,1,,Open,2025-06-10T16:41:53Z,system
+20250008265,2,Open,In Analysis,2025-06-10T23:44:07Z,rcassiano
+20250008265,3,In Analysis,Resolved,2025-06-11T14:30:28Z,rcassiano
+20250008265,4,Resolved,Reopened,2025-06-16T14:30:28Z,system
+20250008265,5,Reopened,In Analysis,2025-06-16T21:30:28Z,rcassiano
+20250008265,6,In Analysis,Resolved,2025-06-17T12:30:28Z,rcassiano
+20250008682,1,,Open,2025-06-12T11:26:58Z,system
+20250008682,2,Open,In Analysis,2025-06-13T11:42:05Z,acasagrande
+20250008682,3,In Analysis,Pending Requester,2025-06-13T18:42:05Z,acasagrande
+20250008682,4,Pending Requester,In Analysis,2025-06-13T21:42:05Z,system
+20250008682,5,In Analysis,Resolved,2025-06-14T11:52:54Z,acasagrande
+20250009068,1,,Open,2025-06-17T01:43:25Z,system
+20250009068,2,Open,In Analysis,2025-06-17T11:37:04Z,ydasneves
+20250009068,3,In Analysis,Resolved,2025-06-18T14:54:15Z,ydasneves
+20250009856,1,,Open,2025-06-30T12:38:00Z,system
+20250009856,2,Open,In Analysis,2025-06-30T16:41:05Z,cmachado
+20250009856,3,In Analysis,Cancelled,2025-07-01T11:40:29Z,cmachado
+20250010007,1,,Open,2025-07-03T17:23:25Z,system
+20250010007,2,Open,In Analysis,2025-07-03T20:26:54Z,cmachado
+20250010007,3,In Analysis,Resolved,2025-07-04T11:09:53Z,cmachado
+20250010850,1,,Open,2025-07-11T13:55:56Z,system
+20250010850,2,Open,In Analysis,2025-07-11T19:09:19Z,ydasneves
+20250010850,3,In Analysis,Resolved,2025-07-21T11:21:58Z,ydasneves
+20250011159,1,,Open,2025-07-13T18:21:41Z,system
+20250011159,2,Open,In Analysis,2025-07-14T11:06:15Z,fcavalcanti
+20250011159,3,In Analysis,Resolved,2025-07-15T11:06:16Z,fcavalcanti
+20250013258,1,,Open,2025-08-13T20:53:08Z,system
+20250013258,2,Open,In Analysis,2025-08-14T11:55:33Z,acasagrande
+20250013258,3,In Analysis,Resolved,2025-08-14T17:16:12Z,acasagrande
+20250013501,1,,Open,2025-08-16T11:10:29Z,system
+20250013501,2,Open,In Analysis,2025-08-16T21:52:23Z,asampaio
+20250013501,3,In Analysis,Pending Requester,2025-08-17T01:52:23Z,asampaio
+20250013501,4,Pending Requester,In Analysis,2025-08-17T17:52:23Z,system
+20250013501,5,In Analysis,Resolved,2025-08-17T20:43:04Z,asampaio
+20250013592,1,,Open,2025-08-18T02:28:36Z,system
+20250013592,2,Open,In Analysis,2025-08-20T17:40:43Z,asampaio
+20250013592,3,In Analysis,Resolved,2025-08-23T21:01:12Z,asampaio
+20250013742,1,,Open,2025-08-19T10:48:25Z,system
+20250013742,2,Open,In Analysis,2025-08-19T14:00:32Z,lsilva
+20250013742,3,In Analysis,Resolved,2025-08-20T11:45:46Z,lsilva
+20250014132,1,,Open,2025-08-25T15:59:15Z,system
+20250014132,2,Open,In Analysis,2025-08-25T21:14:27Z,lvieira
+20250014132,3,In Analysis,Pending Requester,2025-08-26T03:14:27Z,lvieira
+20250014132,4,Pending Requester,In Analysis,2025-08-26T20:14:27Z,system
+20250014132,5,In Analysis,Resolved,2025-08-27T11:15:19Z,lvieira
+20250014182,1,,Open,2025-08-26T00:01:58Z,system
+20250014182,2,Open,In Analysis,2025-08-26T11:34:24Z,asampaio
+20250014182,3,In Analysis,Resolved,2025-08-27T12:37:35Z,asampaio
+20250014865,1,,Open,2025-09-12T11:51:37Z,system
+20250014865,2,Open,In Analysis,2025-09-12T17:36:08Z,bfogaca
+20250014865,3,In Analysis,Resolved,2025-09-14T18:35:23Z,bfogaca
+20250015921,1,,Open,2025-10-02T19:09:19Z,system
+20250015921,2,Open,In Analysis,2025-10-03T11:30:09Z,ydasneves
+20250015921,3,In Analysis,Resolved,2025-10-03T20:25:00Z,ydasneves
+20250016343,1,,Open,2025-10-06T11:01:11Z,system
+20250016343,2,Open,In Analysis,2025-10-06T18:30:48Z,bdacunha
+20250016343,3,In Analysis,Pending Requester,2025-10-06T23:30:48Z,bdacunha
+20250016343,4,Pending Requester,In Analysis,2025-10-07T11:30:48Z,system
+20250016343,5,In Analysis,Cancelled,2025-10-08T11:51:24Z,bdacunha
+20250016398,1,,Open,2025-10-06T12:02:00Z,system
+20250016398,2,Open,In Analysis,2025-10-06T16:25:04Z,fcavalcanti
+20250016398,3,In Analysis,Resolved,2025-10-07T22:21:02Z,fcavalcanti
+20250016703,1,,Open,2025-10-07T19:16:34Z,system
+20250016703,2,Open,In Analysis,2025-10-07T22:37:53Z,aviana
+20250016703,3,In Analysis,Resolved,2025-10-09T15:52:37Z,aviana
+20250016703,4,Resolved,Reopened,2025-10-12T15:52:37Z,system
+20250016703,5,Reopened,In Analysis,2025-10-14T12:52:37Z,aviana
+20250016703,6,In Analysis,Resolved,2025-10-14T15:52:37Z,aviana
+20250017498,1,,Open,2025-10-17T00:57:34Z,system
+20250017498,2,Open,In Analysis,2025-10-17T11:38:18Z,mcosta
+20250017498,3,In Analysis,Resolved,2025-10-17T18:41:00Z,mcosta
+20250017498,4,Resolved,Reopened,2025-10-22T18:41:00Z,system
+20250017498,5,Reopened,In Analysis,2025-10-24T11:41:00Z,mcosta
+20250017498,6,In Analysis,Resolved,2025-10-25T09:41:00Z,mcosta
+20250017717,1,,Open,2025-10-20T17:25:37Z,system
+20250017717,2,Open,In Analysis,2025-10-20T21:54:49Z,bfogaca
+20250017717,3,In Analysis,Resolved,2025-10-27T17:14:17Z,bfogaca
+20250018564,1,,Open,2025-11-14T02:25:30Z,system
+20250018564,2,Open,In Analysis,2025-11-14T17:34:33Z,lmachado
+20250018564,3,In Analysis,Resolved,2025-11-15T11:12:04Z,lmachado
+20250018744,1,,Open,2025-11-19T12:54:17Z,system
+20250018744,2,Open,In Analysis,2025-11-19T19:15:25Z,cmachado
+20250018744,3,In Analysis,Resolved,2025-11-20T22:38:23Z,cmachado
+20250019056,1,,Open,2025-11-23T17:18:00Z,system
+20250019056,2,Open,In Analysis,2025-11-24T11:18:13Z,asampaio
+20250019056,3,In Analysis,Pending Requester,2025-11-24T16:18:13Z,asampaio
+20250019056,4,Pending Requester,In Analysis,2025-11-24T20:18:13Z,system
+20250019056,5,In Analysis,Resolved,2025-11-25T15:17:23Z,asampaio
+20250019415,1,,Open,2025-11-28T14:11:14Z,system
+20250019415,2,Open,In Analysis,2025-11-28T18:00:20Z,cmachado
+20250019415,3,In Analysis,Pending Requester,2025-11-28T21:00:20Z,cmachado
+20250019415,4,Pending Requester,In Analysis,2025-11-29T04:00:20Z,system
+20250019415,5,In Analysis,Resolved,2025-11-30T11:29:53Z,cmachado
+20250019920,1,,Open,2025-12-06T17:14:03Z,system
+20250019920,2,Open,In Analysis,2025-12-07T11:06:17Z,mcosta
+20250019920,3,In Analysis,Resolved,2025-12-07T13:30:42Z,mcosta
+20250020041,1,,Open,2025-12-07T02:51:55Z,system
+20250020041,2,Open,In Analysis,2025-12-07T11:42:56Z,fcavalcanti
+20250020041,3,In Analysis,Resolved,2025-12-08T11:52:54Z,fcavalcanti
+20250020041,4,Resolved,Reopened,2025-12-09T11:52:54Z,system
+20250020041,5,Reopened,In Analysis,2025-12-09T20:52:54Z,fcavalcanti
+20250020041,6,In Analysis,Resolved,2025-12-10T12:52:54Z,fcavalcanti
+20250020220,1,,Open,2025-12-08T12:14:00Z,system
+20250020220,2,Open,In Analysis,2025-12-08T16:39:12Z,fcavalcanti
+20250020220,3,In Analysis,Resolved,2025-12-08T21:06:48Z,fcavalcanti
+20250020353,1,,Open,2025-12-08T16:21:45Z,system
+20250020353,2,Open,In Analysis,2025-12-08T22:36:08Z,lvieira
+20250020353,3,In Analysis,Pending Requester,2025-12-09T06:36:08Z,lvieira
+20250020353,4,Pending Requester,In Analysis,2025-12-09T13:36:08Z,system
+20250020353,5,In Analysis,Cancelled,2025-12-10T22:00:21Z,lvieira
+20250021130,1,,Open,2025-12-17T15:41:22Z,system
+20250021130,2,Open,In Analysis,2025-12-18T23:18:31Z,bdacunha
+20250021130,3,In Analysis,Resolved,2025-12-21T11:15:34Z,bdacunha
+20250022393,1,,Open,2025-12-24T16:28:12Z,system
+20250022393,2,Open,In Analysis,2025-12-25T21:27:35Z,mcosta
+20250022393,3,In Analysis,Pending Requester,2025-12-26T01:27:35Z,mcosta
+20250022393,4,Pending Requester,In Analysis,2025-12-26T08:27:35Z,system
+20250022393,5,In Analysis,Resolved,2025-12-28T11:21:12Z,mcosta
+20250023146,1,,Open,2025-12-28T20:10:49Z,system
+20250023146,2,Open,In Analysis,2025-12-29T12:37:47Z,cmachado
+20250023146,3,In Analysis,Resolved,2025-12-31T11:00:19Z,cmachado
+20250023176,1,,Open,2025-12-28T22:19:30Z,system
+20250023176,2,Open,In Analysis,2025-12-29T11:07:12Z,fcavalcanti
+20250023176,3,In Analysis,Pending Requester,2025-12-29T18:07:12Z,fcavalcanti
+20250023176,4,Pending Requester,In Analysis,2025-12-30T11:07:12Z,system
+20250023176,5,In Analysis,Resolved,2025-12-30T18:02:46Z,fcavalcanti
+20250023204,1,,Open,2025-12-29T00:11:06Z,system
+20250023204,2,Open,In Analysis,2025-12-29T11:54:11Z,acasagrande
+20250023204,3,In Analysis,Resolved,2025-12-29T15:28:56Z,acasagrande
+20250023415,1,,Open,2025-12-30T17:14:35Z,system
+20250023415,2,Open,In Analysis,2025-12-31T11:56:10Z,lvieira
+20250023415,3,In Analysis,Resolved,2026-01-01T22:00:28Z,lvieira
+20260000532,1,,Open,2026-01-05T21:01:45Z,system
+20260000532,2,Open,In Analysis,2026-01-07T17:17:39Z,asampaio
+20260000532,3,In Analysis,Pending Requester,2026-01-08T01:17:39Z,asampaio
+20260000532,4,Pending Requester,In Analysis,2026-01-08T15:17:39Z,system
+20260000532,5,In Analysis,Cancelled,2026-01-12T11:56:10Z,asampaio
+20260000536,1,,Open,2026-01-06T12:27:24Z,system
+20260000536,2,Open,In Analysis,2026-01-07T22:26:44Z,lsilva
+20260000536,3,In Analysis,Resolved,2026-01-10T15:11:06Z,lsilva
+20260000610,1,,Open,2026-01-07T12:42:37Z,system
+20260000610,2,Open,In Analysis,2026-01-08T11:46:51Z,aviana
+20260000610,3,In Analysis,Resolved,2026-01-12T12:47:00Z,aviana
+20260000879,1,,Open,2026-01-11T15:19:56Z,system
+20260000879,2,Open,In Analysis,2026-01-13T11:26:54Z,gfarias
+20260000879,3,In Analysis,Cancelled,2026-01-17T22:27:45Z,gfarias
+20260001470,1,,Open,2026-01-21T00:32:50Z,system
+20260001470,2,Open,In Analysis,2026-01-21T11:36:31Z,acasagrande
+20260001470,3,In Analysis,Resolved,2026-01-22T11:42:21Z,acasagrande
+20260001610,1,,Open,2026-01-24T19:04:46Z,system
+20260001610,2,Open,In Analysis,2026-01-24T22:34:19Z,mcosta
+20260001610,3,In Analysis,Resolved,2026-01-26T12:56:00Z,mcosta
+20260001610,4,Resolved,Reopened,2026-01-28T12:56:00Z,system
+20260001610,5,Reopened,In Analysis,2026-01-29T11:56:00Z,mcosta
+20260001610,6,In Analysis,Resolved,2026-01-29T17:56:00Z,mcosta
+20260002009,1,,Open,2026-02-01T13:59:26Z,system
+20260002009,2,Open,In Analysis,2026-02-01T16:42:53Z,acasagrande
+20260002009,3,In Analysis,Resolved,2026-02-01T21:20:07Z,acasagrande
+20260002060,1,,Open,2026-02-02T12:06:56Z,system
+20260002060,2,Open,In Analysis,2026-02-02T14:32:20Z,ccamargo
+20260002060,3,In Analysis,Cancelled,2026-02-02T18:44:40Z,ccamargo
+20260002903,1,,Open,2026-02-14T18:07:25Z,system
+20260002903,2,Open,In Analysis,2026-02-14T23:17:03Z,jdacosta
+20260002903,3,In Analysis,Cancelled,2026-02-15T15:39:06Z,jdacosta
+20260003014,1,,Open,2026-02-15T19:43:00Z,system
+20260003014,2,Open,In Analysis,2026-02-16T11:02:10Z,arocha
+20260003014,3,In Analysis,Resolved,2026-02-16T22:22:54Z,arocha
+20260003014,4,Resolved,Reopened,2026-02-18T22:22:54Z,system
+20260003014,5,Reopened,In Analysis,2026-02-19T11:22:54Z,arocha
+20260003014,6,In Analysis,Resolved,2026-02-20T05:22:54Z,arocha
+20260003176,1,,Open,2026-02-17T11:55:04Z,system
+20260003176,2,Open,In Analysis,2026-02-17T16:54:25Z,ydasneves
+20260003176,3,In Analysis,Resolved,2026-02-17T21:15:49Z,ydasneves
+20260004501,1,,Open,2026-03-14T01:07:14Z,system
+20260004501,2,Open,In Analysis,2026-03-14T11:47:03Z,cmachado
+20260004501,3,In Analysis,Pending Requester,2026-03-14T13:47:03Z,cmachado
+20260004501,4,Pending Requester,In Analysis,2026-03-14T19:47:03Z,system
+20260004501,5,In Analysis,Resolved,2026-03-15T18:43:36Z,cmachado
+20260004841,1,,Open,2026-03-19T15:21:14Z,system
+20260004841,2,Open,In Analysis,2026-03-19T19:33:12Z,ccamargo
+20260004841,3,In Analysis,Resolved,2026-03-20T15:16:29Z,ccamargo
+20260005683,1,,Open,2026-04-07T21:26:29Z,system
+20260005683,2,Open,In Analysis,2026-04-08T11:55:01Z,hdapaz
+20260005683,3,In Analysis,Resolved,2026-04-08T23:22:54Z,hdapaz
+20260006119,1,,Open,2026-04-10T16:09:58Z,system
+20260006119,2,Open,In Analysis,2026-04-10T19:53:57Z,cmachado
+20260006119,3,In Analysis,Resolved,2026-04-11T11:22:19Z,cmachado
+20260006621,1,,Open,2026-04-18T14:00:27Z,system
+20260006621,2,Open,In Analysis,2026-04-18T23:46:56Z,gfarias
+20260006621,3,In Analysis,Pending Requester,2026-04-19T06:46:56Z,gfarias
+20260006621,4,Pending Requester,In Analysis,2026-04-20T05:46:56Z,system
+20260006621,5,In Analysis,Resolved,2026-04-21T15:41:37Z,gfarias
+20260008077,1,,Open,2026-05-19T12:01:57Z,system
+20260008077,2,Open,In Analysis,2026-05-19T18:32:22Z,bfogaca
+20260008077,3,In Analysis,Pending Requester,2026-05-20T00:32:22Z,bfogaca
+20260008077,4,Pending Requester,In Analysis,2026-05-20T06:32:22Z,system
+20260008077,5,In Analysis,Cancelled,2026-05-20T16:51:24Z,bfogaca
+20260008217,1,,Open,2026-05-20T15:38:33Z,system
+20260008217,2,Open,In Analysis,2026-05-20T19:12:09Z,cmachado
+20260008217,3,In Analysis,Resolved,2026-05-21T11:27:53Z,cmachado
+20260008294,1,,Open,2026-05-21T01:08:44Z,system
+20260008294,2,Open,In Analysis,2026-05-21T11:39:56Z,ydasneves
+20260008294,3,In Analysis,Resolved,2026-05-21T21:10:42Z,ydasneves
+20260008294,4,Resolved,Reopened,2026-05-24T21:10:42Z,system
+20260008294,5,Reopened,In Analysis,2026-05-25T11:10:42Z,ydasneves
+20260008294,6,In Analysis,Resolved,2026-05-26T10:10:42Z,ydasneves
+20260008724,1,,Open,2026-05-26T11:16:33Z,system
+20260008724,2,Open,In Analysis,2026-05-26T20:14:03Z,lsilva
+20260008724,3,In Analysis,Resolved,2026-05-27T16:08:11Z,lsilva
+20260009197,1,,Open,2026-06-07T22:51:25Z,system
+20260009197,2,Open,In Analysis,2026-06-08T12:35:22Z,asampaio
+20260009197,3,In Analysis,Pending Requester,2026-06-08T19:35:22Z,asampaio
+20260009197,4,Pending Requester,In Analysis,2026-06-09T07:35:22Z,system
+20260009197,5,In Analysis,Resolved,2026-06-10T11:11:44Z,asampaio
+20260010015,1,,Open,2026-06-11T14:45:12Z,system
+20260010015,2,Open,In Analysis,2026-06-12T19:03:30Z,fcavalcanti
+20260010015,3,In Analysis,Resolved,2026-06-14T16:24:48Z,fcavalcanti
+20260010174,1,,Open,2026-06-11T18:56:26Z,system
+20260010174,2,Open,In Analysis,2026-06-12T11:21:15Z,aviana
+20260010174,3,In Analysis,Resolved,2026-06-14T11:05:42Z,aviana
+20260010949,1,,Open,2026-06-17T22:24:43Z,system
+20260010949,2,Open,In Analysis,2026-06-18T11:47:56Z,abrito
+20260010949,3,In Analysis,Resolved,2026-06-19T11:34:39Z,abrito
+20260011972,1,,Open,2026-07-04T10:44:56Z,system
+20260011972,2,Open,In Analysis,2026-07-05T11:38:12Z,mcosta
+20260011972,3,In Analysis,Resolved,2026-07-06T11:00:33Z,mcosta
+20260013295,1,,Open,2026-07-11T22:32:57Z,system
+20260013295,2,Open,In Analysis,2026-07-13T11:33:04Z,lvieira
+20260013295,3,In Analysis,Resolved,2026-07-14T12:20:32Z,lvieira
+20260014880,1,,Open,2026-08-01T22:25:34Z,system
+20260014880,2,Open,In Analysis,2026-08-02T11:53:56Z,asampaio
+20260014880,3,In Analysis,Resolved,2026-08-03T19:46:43Z,asampaio
+20260015454,1,,Open,2026-08-07T14:03:42Z,system
+20260015454,2,Open,In Analysis,2026-08-07T20:31:56Z,asampaio
+20260015454,3,In Analysis,Pending Requester,2026-08-07T23:31:56Z,asampaio
+20260015454,4,Pending Requester,In Analysis,2026-08-08T14:31:56Z,system
+20260015454,5,In Analysis,Resolved,2026-08-09T11:40:37Z,asampaio
+20260015922,1,,Open,2026-08-10T18:09:06Z,system
+20260015922,2,Open,In Analysis,2026-08-11T11:22:21Z,asampaio
+20260015922,3,In Analysis,Pending Requester,2026-08-11T14:22:21Z,asampaio
+20260015922,4,Pending Requester,In Analysis,2026-08-12T09:22:21Z,system
+20260015922,5,In Analysis,Resolved,2026-08-14T22:09:15Z,asampaio
+20260015940,1,,Open,2026-08-10T19:29:45Z,system
+20260015940,2,Open,In Analysis,2026-08-11T11:01:23Z,acasagrande
+20260015940,3,In Analysis,Resolved,2026-08-12T11:29:16Z,acasagrande
+20260016422,1,,Open,2026-08-14T23:36:30Z,system
+20260016422,2,Open,In Analysis,2026-08-15T11:01:31Z,sfarias
+20260016422,3,In Analysis,Resolved,2026-08-16T11:45:11Z,sfarias
+20260017256,1,,Open,2026-08-19T21:08:29Z,system
+20260017256,2,Open,In Analysis,2026-08-19T23:35:48Z,bfogaca
+20260017256,3,In Analysis,Resolved,2026-08-21T11:26:00Z,bfogaca
+20260017353,1,,Open,2026-08-21T16:34:10Z,system
+20260017353,2,Open,In Analysis,2026-08-21T21:48:08Z,acasagrande
+20260017353,3,In Analysis,Resolved,2026-08-22T11:47:02Z,acasagrande
+20260019274,1,,Open,2026-09-16T16:57:10Z,system
+20260019274,2,Open,In Analysis,2026-09-16T20:48:57Z,gfarias
+20260019274,3,In Analysis,Pending Requester,2026-09-16T22:48:57Z,gfarias
+20260019274,4,Pending Requester,In Analysis,2026-09-17T06:48:57Z,system
+20260019274,5,In Analysis,Resolved,2026-09-17T17:34:04Z,gfarias
+20260020465,1,,Open,2026-10-02T16:34:42Z,system
+20260020465,2,Open,In Analysis,2026-10-03T11:07:01Z,aviana
+20260020465,3,In Analysis,Pending Requester,2026-10-03T16:07:01Z,aviana
+20260020465,4,Pending Requester,In Analysis,2026-10-04T16:07:01Z,system
+20260020465,5,In Analysis,Resolved,2026-10-05T11:45:03Z,aviana
+20260021125,1,,Open,2026-10-05T16:12:41Z,system
+20260021125,2,Open,In Analysis,2026-10-05T22:25:39Z,lsilva
+20260021125,3,In Analysis,Resolved,2026-10-06T11:11:30Z,lsilva
+20260021160,1,,Open,2026-10-05T21:32:32Z,system
+20260021160,2,Open,In Analysis,2026-10-06T11:40:22Z,msousa
+20260021160,3,In Analysis,Resolved,2026-10-07T11:03:24Z,msousa
+20260021904,1,,Open,2026-10-07T17:34:23Z,system
+20260021904,2,Open,In Analysis,2026-10-08T11:24:55Z,lmachado
+20260021904,3,In Analysis,Resolved,2026-10-09T11:37:16Z,lmachado
+20260022332,1,,Open,2026-10-08T12:23:07Z,system
+20260022332,2,Open,In Analysis,2026-10-09T11:29:40Z,fcavalcanti
+20260022332,3,In Analysis,Resolved,2026-10-09T18:27:21Z,fcavalcanti
+20260023152,1,,Open,2026-10-13T11:11:41Z,system
+20260023152,2,Open,In Analysis,2026-10-13T17:44:18Z,ydasneves
+20260023152,3,In Analysis,Resolved,2026-10-14T12:04:00Z,ydasneves
+20260023294,1,,Open,2026-10-13T23:16:31Z,system
+20260023294,2,Open,In Analysis,2026-10-14T11:51:32Z,mpinto
+20260023294,3,In Analysis,Resolved,2026-10-14T13:35:38Z,mpinto
+20260023316,1,,Open,2026-10-14T12:41:01Z,system
+20260023316,2,Open,In Analysis,2026-10-14T22:43:31Z,bfogaca
+20260023316,3,In Analysis,Resolved,2026-10-15T11:28:18Z,bfogaca
+20260023316,4,Resolved,Reopened,2026-10-16T11:28:18Z,system
+20260023316,5,Reopened,In Analysis,2026-10-17T21:28:18Z,bfogaca
+20260023316,6,In Analysis,Resolved,2026-10-18T16:28:18Z,bfogaca
+20260024278,1,,Open,2026-10-24T00:37:16Z,system
+20260024278,2,Open,In Analysis,2026-10-24T11:44:53Z,asampaio
+20260024278,3,In Analysis,Resolved,2026-10-25T11:48:38Z,asampaio
+20260024855,1,,Open,2026-10-31T22:00:27Z,system

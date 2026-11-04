@@ -1,0 +1,738 @@
+Interaction_ID,Protocol,Author_Type,Author,Message,Is_Internal_Note,Created_At
+500045,20220001006,Requester,Ester Cavalcanti da Luz,I have a question about the academic calendar.,False,2022-03-16T22:17:45Z
+500048,20220001006,Analyst,mpinto,Request received and under analysis.,False,2022-03-17T11:21:33Z
+500053,20220001067,Requester,Maria Júlia Eloah Rios,I need the syllabus package for a credit transfer.,False,2022-03-19T02:42:24Z
+500054,20220001067,Analyst,gfarias,Request received and under analysis.,False,2022-03-19T11:40:49Z
+500068,20220001006,System,system,Protocol closed as Resolved.,False,2022-03-20T11:12:28Z
+500071,20220001067,System,system,Protocol closed as Resolved.,False,2022-03-20T11:40:54Z
+500091,20220001067,Requester,Maria Júlia Eloah Rios,The issue was not solved.,False,2022-03-24T11:40:54Z
+500102,20220001067,System,system,Protocol closed as Resolved.,False,2022-03-25T19:40:54Z
+500167,20220001266,Requester,Maria Vitória Zoe Sousa Araújo,I missed the exam and need a second-call date. My RA is 01193-2.,False,2022-04-08T01:25:43Z
+500178,20220001266,Analyst,fcavalcanti,Request received and under analysis.,False,2022-04-08T11:41:20Z
+500188,20220001266,System,system,Protocol closed as Resolved.,False,2022-04-08T17:42:03Z
+500430,20220001849,Requester,Maria Vitória Zoe Sousa Araújo,I need an enrollment certificate for my internship.,False,2022-05-23T15:59:39Z
+500433,20220001849,Analyst,gfarias,Request received and under analysis.,False,2022-05-23T19:05:10Z
+500437,20220001849,System,system,Protocol closed as Cancelled.,False,2022-05-24T22:24:05Z
+500438,20220001874,Requester,Raul João Guilherme Viana Martins,"My payment slip expired, please send a new one.",False,2022-05-25T00:57:08Z
+500440,20220001874,Analyst,ydasneves,Request received and under analysis.,False,2022-05-25T11:16:15Z
+500445,20220001874,System,system,Protocol closed as Resolved.,False,2022-05-25T21:29:40Z
+500629,20220002359,Requester,João Guilherme Martins Casa Grande,I need an enrollment certificate for my internship.,False,2022-06-14T15:40:16Z
+500631,20220002359,Analyst,gfarias,Request received and under analysis.,False,2022-06-14T20:56:52Z
+500634,20220002359,Analyst,gfarias,Please send a copy of your ID document.,False,2022-06-14T22:56:52Z
+500639,20220002359,Requester,João Guilherme Martins Casa Grande,Document attached.,False,2022-06-15T07:56:52Z
+500646,20220002359,System,system,Protocol closed as Resolved.,False,2022-06-15T15:46:46Z
+500681,20220002450,Requester,Ester Cavalcanti da Luz,I have a question about the academic calendar.,False,2022-06-23T22:14:45Z
+500682,20220002450,Analyst,mpinto,Request received and under analysis.,False,2022-06-24T11:09:06Z
+500685,20220002450,System,system,Protocol closed as Resolved.,False,2022-06-25T11:04:45Z
+500718,20220002557,Requester,Maria Vitória Zoe Sousa Araújo,"My payment slip expired, please send a new one.",False,2022-06-28T20:58:19Z
+500724,20220002557,Analyst,ydasneves,Request received and under analysis.,False,2022-06-29T11:28:19Z
+500727,20220002557,Analyst,ydasneves,Checked the student record in SAG.,True,2022-06-29T11:58:19Z
+500730,20220002557,System,system,Protocol closed as Resolved.,False,2022-06-29T17:29:20Z
+500790,20220002789,Requester,Raul João Guilherme Viana Martins,I disagree with my final grade and request a review.,False,2022-07-06T17:30:07Z
+500800,20220002789,Analyst,arocha,Request received and under analysis.,False,2022-07-07T11:14:24Z
+500801,20220002789,Analyst,arocha,Checked the student record in SAG.,True,2022-07-07T11:44:24Z
+500814,20220002789,Analyst,arocha,Please send a copy of your ID document.,False,2022-07-07T17:14:24Z
+500834,20220002789,Requester,Raul João Guilherme Viana Martins,Document attached.,False,2022-07-08T15:14:24Z
+500848,20220002789,System,system,Protocol closed as Resolved.,False,2022-07-09T16:57:17Z
+501527,20220004776,Requester,Nicolas Gael Sales Oliveira,"My payment slip expired, please send a new one.",False,2022-10-22T16:06:52Z
+501528,20220004776,Analyst,ydasneves,Request received and under analysis.,False,2022-10-22T19:28:37Z
+501530,20220004776,System,system,Protocol closed as Resolved.,False,2022-10-23T11:41:55Z
+501532,20220004787,Requester,Maria Vitória Zoe Sousa Araújo,"My payment slip expired, please send a new one.",False,2022-10-23T12:34:26Z
+501534,20220004787,Analyst,ydasneves,Request received and under analysis.,False,2022-10-23T16:23:38Z
+501536,20220004787,Analyst,ydasneves,Checked the student record in SAG.,True,2022-10-23T16:53:38Z
+501539,20220004787,System,system,Protocol closed as Resolved.,False,2022-10-24T11:55:49Z
+501627,20220005049,Requester,Olivia Sá da Conceição,I need the syllabus package for a credit transfer.,False,2022-11-07T00:06:10Z
+501628,20220005049,Analyst,gfarias,Request received and under analysis.,False,2022-11-07T11:00:37Z
+501631,20220005049,Analyst,gfarias,Please send a copy of your ID document.,False,2022-11-07T13:00:37Z
+501639,20220005049,Requester,Olivia Sá da Conceição,Document attached.,False,2022-11-08T12:00:37Z
+501658,20220005049,System,system,Protocol closed as Resolved.,False,2022-11-09T15:59:06Z
+501785,20220005574,Requester,João Guilherme Martins Casa Grande,I need an enrollment certificate for my internship.,False,2022-11-26T15:49:26Z
+501793,20220005574,Analyst,gfarias,Request received and under analysis.,False,2022-11-26T22:13:42Z
+501796,20220005574,Analyst,gfarias,Checked the student record in SAG.,True,2022-11-26T22:43:42Z
+501804,20220005574,System,system,Protocol closed as Resolved.,False,2022-11-27T12:11:36Z
+501853,20220005760,Requester,Elisa Heloísa Pastor,I would like to apply for a discount.,False,2022-11-30T22:04:39Z
+501856,20220005760,Analyst,ydasneves,Request received and under analysis.,False,2022-12-01T14:50:17Z
+501859,20220005760,Analyst,ydasneves,Please send a copy of your ID document.,False,2022-12-01T18:50:17Z
+501861,20220005760,Requester,Elisa Heloísa Pastor,Document attached.,False,2022-12-02T07:50:17Z
+501872,20220005760,System,system,Protocol closed as Resolved.,False,2022-12-03T11:55:02Z
+501890,20220005842,Requester,Mariah Araújo Ferreira,I would like to apply for a discount.,False,2022-12-05T12:40:00Z
+501897,20220005842,Analyst,ydasneves,Request received and under analysis.,False,2022-12-06T11:56:05Z
+501902,20220005895,Requester,Maria Júlia Eloah Rios,I missed the exam and need a second-call date.,False,2022-12-06T16:36:21Z
+501903,20220005895,Analyst,aviana,Request received and under analysis.,False,2022-12-06T21:59:03Z
+501905,20220005936,Requester,Marcelo da Paz Montenegro,I missed the exam and need a second-call date.,False,2022-12-07T02:19:45Z
+501909,20220005936,Analyst,aviana,Request received and under analysis.,False,2022-12-07T11:46:41Z
+501918,20220005936,Analyst,aviana,Checked the student record in SAG.,True,2022-12-07T12:16:41Z
+501936,20220005895,System,system,Protocol closed as Resolved.,False,2022-12-08T11:38:16Z
+501955,20220005936,System,system,Protocol closed as Cancelled.,False,2022-12-08T23:29:32Z
+501969,20220006181,Requester,Olivia Sá da Conceição,I missed the exam and need a second-call date.,False,2022-12-09T15:42:19Z
+501982,20220006181,Analyst,aviana,Request received and under analysis.,False,2022-12-09T22:02:46Z
+501989,20220005842,System,system,Protocol closed as Resolved.,False,2022-12-10T11:02:44Z
+502001,20220006181,System,system,Protocol closed as Resolved.,False,2022-12-10T11:53:06Z
+502029,20220005895,Requester,Maria Júlia Eloah Rios,The issue was not solved.,False,2022-12-12T11:38:16Z
+502054,20220005895,System,system,Protocol closed as Resolved.,False,2022-12-15T11:38:16Z
+502113,20220006577,Requester,Maria Liz Vargas Rios,I disagree with my final grade and request a review.,False,2022-12-21T15:05:55Z
+502117,20220006577,Analyst,lmachado,Request received and under analysis.,False,2022-12-22T11:12:29Z
+502142,20220006577,System,system,Protocol closed as Resolved.,False,2022-12-23T14:14:19Z
+502289,20230000406,Requester,Raul João Guilherme Viana Martins,When will my diploma be available?,False,2023-01-08T14:02:13Z
+502303,20230000406,Analyst,ccamargo,Request received and under analysis.,False,2023-01-10T11:56:56Z
+502307,20230000406,Analyst,ccamargo,Checked the student record in SAG.,True,2023-01-10T12:26:56Z
+502325,20230000406,System,system,Protocol closed as Resolved.,False,2023-01-11T21:27:42Z
+502390,20230000823,Requester,Maria Vitória Zoe Sousa Araújo,I would like to lock my enrollment for the next term. RA: 011932.,False,2023-01-16T15:42:44Z
+502406,20230000823,Analyst,aviana,Request received and under analysis.,False,2023-01-16T20:42:16Z
+502407,20230000823,Analyst,aviana,Checked the student record in SAG.,True,2023-01-16T21:12:16Z
+502410,20230000823,System,system,Protocol closed as Resolved.,False,2023-01-16T21:42:16Z
+502496,20230001148,Requester,Maria Liz Vargas Rios,Please migrate me to the new curriculum.,False,2023-01-25T21:51:15Z
+502501,20230001148,Analyst,lmachado,Request received and under analysis.,False,2023-01-26T13:12:43Z
+502517,20230001148,System,system,Protocol closed as Resolved.,False,2023-01-27T19:55:00Z
+502533,20230001148,Requester,Maria Liz Vargas Rios,The issue was not solved.,False,2023-01-29T19:55:00Z
+502548,20230001148,System,system,Protocol closed as Resolved.,False,2023-01-30T23:55:00Z
+502587,20230001419,Requester,Ester Cavalcanti da Luz,I cannot log in to the LMS. My RA is 01170-3.,False,2023-02-03T14:13:53Z
+502599,20230001419,Analyst,fgarcia,Request received and under analysis.,False,2023-02-03T19:28:29Z
+502603,20230001419,Analyst,fgarcia,Please send a copy of your ID document.,False,2023-02-03T21:28:29Z
+502622,20230001419,Requester,Ester Cavalcanti da Luz,Document attached.,False,2023-02-04T20:28:29Z
+502626,20230001419,System,system,Protocol closed as Resolved.,False,2023-02-05T11:15:33Z
+502734,20230001770,Requester,Mathias Ravy Moraes,I cannot log in to the LMS.,False,2023-02-12T18:15:43Z
+502741,20230001770,Analyst,sfarias,Request received and under analysis.,False,2023-02-13T11:06:05Z
+502747,20230001770,Analyst,sfarias,Please send a copy of your ID document.,False,2023-02-13T18:06:05Z
+502771,20230001770,Requester,Mathias Ravy Moraes,Document attached.,False,2023-02-14T16:06:05Z
+502773,20230001770,System,system,Protocol closed as Resolved.,False,2023-02-15T11:45:40Z
+502779,20230001842,Requester,João Guilherme Martins Casa Grande,"My payment slip expired, please send a new one.",False,2023-02-15T15:18:12Z
+502783,20230001842,Analyst,ydasneves,Request received and under analysis.,False,2023-02-15T17:57:47Z
+502790,20230001842,System,system,Protocol closed as Resolved.,False,2023-02-15T21:35:52Z
+502898,20230002046,Requester,Ana Moura,I have a question about the academic calendar.,False,2023-03-11T13:34:51Z
+502899,20230002046,Analyst,mpinto,Request received and under analysis.,False,2023-03-11T20:14:19Z
+502902,20230002046,System,system,Protocol closed as Resolved.,False,2023-03-12T11:32:08Z
+502922,20230002140,Requester,Nicolas Gael Sales Oliveira,I have a question about the academic calendar.,False,2023-03-17T14:31:31Z
+502928,20230002140,Analyst,rcassiano,Request received and under analysis.,False,2023-03-18T11:33:19Z
+502940,20230002140,System,system,Protocol closed as Resolved.,False,2023-03-19T13:13:44Z
+503026,20230002425,Requester,Ayla Araújo,I have a question about the academic calendar.,False,2023-04-04T00:28:17Z
+503034,20230002425,Analyst,bdacunha,Request received and under analysis.,False,2023-04-04T19:00:14Z
+503051,20230002425,System,system,Protocol closed as Resolved.,False,2023-04-05T17:53:45Z
+503626,20230003896,Requester,Mariah Araújo Ferreira,I would like to apply for a discount.,False,2023-06-02T16:55:04Z
+503629,20230003896,Analyst,ydasneves,Request received and under analysis.,False,2023-06-03T11:12:08Z
+503642,20230003896,System,system,Protocol closed as Resolved.,False,2023-06-04T11:33:04Z
+503660,20230003953,Requester,Pedro Henrique Fernandes Novaes,I would like to apply for a discount.,False,2023-06-05T16:18:33Z
+503665,20230003953,Analyst,ydasneves,Request received and under analysis.,False,2023-06-06T11:11:01Z
+503668,20230003896,Requester,Mariah Araújo Ferreira,The issue was not solved.,False,2023-06-06T11:33:04Z
+503670,20230003953,Analyst,ydasneves,Checked the student record in SAG.,True,2023-06-06T11:41:01Z
+503680,20230003896,System,system,Protocol closed as Resolved.,False,2023-06-07T21:33:04Z
+503682,20230003953,System,system,Protocol closed as Resolved.,False,2023-06-07T22:16:51Z
+503927,20230004612,Requester,Nicolas Gael Sales Oliveira,"My payment slip expired, please send a new one.",False,2023-06-22T16:19:46Z
+503935,20230004612,Analyst,ydasneves,Request received and under analysis.,False,2023-06-22T21:10:41Z
+503953,20230004612,System,system,Protocol closed as Resolved.,False,2023-06-23T14:55:32Z
+504069,20230005032,Requester,Ester Cavalcanti da Luz,I disagree with my final grade and request a review.,False,2023-07-06T01:08:33Z
+504088,20230005032,Analyst,mpinto,Request received and under analysis.,False,2023-07-07T11:08:07Z
+504092,20230005032,Analyst,mpinto,Please send a copy of your ID document.,False,2023-07-07T13:08:07Z
+504106,20230005032,Requester,Ester Cavalcanti da Luz,Document attached.,False,2023-07-08T09:08:07Z
+504139,20230005032,System,system,Protocol closed as Resolved.,False,2023-07-10T11:17:47Z
+504203,20230005366,Requester,Maria Liz Vargas Rios,I disagree with my final grade and request a review.,False,2023-07-13T17:39:42Z
+504231,20230005366,Analyst,lmachado,Request received and under analysis.,False,2023-07-14T23:40:45Z
+504234,20230005493,Requester,João Guilherme Martins Casa Grande,I disagree with my final grade and request a review.,False,2023-07-15T00:36:55Z
+504242,20230005366,Analyst,lmachado,Please send a copy of your ID document.,False,2023-07-15T07:40:45Z
+504261,20230005366,Requester,Maria Liz Vargas Rios,Document attached.,False,2023-07-15T17:40:45Z
+504278,20230005493,Analyst,mcosta,Request received and under analysis.,False,2023-07-16T11:46:27Z
+504287,20230005366,System,system,Protocol closed as Resolved.,False,2023-07-17T16:26:48Z
+504294,20230005493,System,system,Protocol closed as Resolved.,False,2023-07-18T16:15:30Z
+504309,20230005607,Requester,Ayla Araújo,"My payment slip expired, please send a new one.",False,2023-07-23T23:10:59Z
+504311,20230005607,Analyst,ydasneves,Request received and under analysis.,False,2023-07-24T11:11:45Z
+504320,20230005607,System,system,Protocol closed as Resolved.,False,2023-07-24T21:11:37Z
+504425,20230006015,Requester,Ester Cavalcanti da Luz,"My payment slip expired, please send a new one.",False,2023-08-06T23:29:53Z
+504432,20230006015,Analyst,ydasneves,Request received and under analysis.,False,2023-08-07T11:25:25Z
+504455,20230006015,System,system,Protocol closed as Resolved.,False,2023-08-08T11:53:18Z
+504582,20230006383,Requester,João Guilherme Martins Casa Grande,"My payment slip expired, please send a new one.",False,2023-08-18T02:44:38Z
+504586,20230006383,Analyst,ydasneves,Request received and under analysis.,False,2023-08-18T11:11:14Z
+504603,20230006383,System,system,Protocol closed as Resolved.,False,2023-08-19T11:10:45Z
+505101,20230007735,Requester,Nicolas Gael Sales Oliveira,I need an enrollment certificate for my internship.,False,2023-10-05T23:28:09Z
+505116,20230007735,Analyst,ccamargo,Request received and under analysis.,False,2023-10-06T11:25:02Z
+505119,20230007735,Analyst,ccamargo,Checked the student record in SAG.,True,2023-10-06T11:55:02Z
+505130,20230007735,Analyst,ccamargo,Please send a copy of your ID document.,False,2023-10-06T16:25:02Z
+505135,20230007759,Requester,Pedro Henrique Fernandes Novaes,I missed the exam and need a second-call date. My RA is 01215-7.,False,2023-10-06T17:11:16Z
+505142,20230007819,Requester,João Guilherme Martins Casa Grande,I missed the exam and need a second-call date.,False,2023-10-06T19:08:08Z
+505149,20230007735,Requester,Nicolas Gael Sales Oliveira,Document attached.,False,2023-10-07T04:25:02Z
+505152,20230007735,System,system,Protocol closed as Resolved.,False,2023-10-07T11:07:53Z
+505158,20230007759,Analyst,mpinto,Request received and under analysis.,False,2023-10-07T11:37:37Z
+505165,20230007819,Analyst,mpinto,Request received and under analysis.,False,2023-10-07T11:51:29Z
+505175,20230007819,Analyst,mpinto,Please send a copy of your ID document.,False,2023-10-07T17:51:29Z
+505178,20230007819,Requester,João Guilherme Martins Casa Grande,Document attached.,False,2023-10-08T02:51:29Z
+505187,20230007819,System,system,Protocol closed as Resolved.,False,2023-10-08T11:56:13Z
+505192,20230007759,System,system,Protocol closed as Resolved.,False,2023-10-08T17:55:22Z
+505506,20230008587,Requester,Maria Júlia Eloah Rios,Please send me a printed transcript.,False,2023-11-10T12:58:08Z
+505507,20230008587,Analyst,gfarias,Request received and under analysis.,False,2023-11-10T17:03:26Z
+505508,20230008587,Analyst,gfarias,Please send a copy of your ID document.,False,2023-11-10T20:03:26Z
+505511,20230008587,Requester,Maria Júlia Eloah Rios,Document attached.,False,2023-11-11T11:03:26Z
+505514,20230008587,System,system,Protocol closed as Resolved.,False,2023-11-12T11:35:50Z
+505786,20230009297,Requester,Ayla Araújo,"My payment slip expired, please send a new one.",False,2023-11-30T18:20:57Z
+505793,20230009297,Analyst,ydasneves,Request received and under analysis.,False,2023-12-01T11:37:21Z
+505806,20230009297,System,system,Protocol closed as Resolved.,False,2023-12-02T11:37:48Z
+505866,20230009489,Requester,Fernando da Luz,I would like to apply for a discount.,False,2023-12-06T21:20:39Z
+505898,20230009489,Analyst,ydasneves,Request received and under analysis.,False,2023-12-08T11:12:04Z
+505918,20230009489,System,system,Protocol closed as Resolved.,False,2023-12-09T11:30:47Z
+505940,20230009769,Requester,Mathias Ravy Moraes,I missed the exam and need a second-call date.,False,2023-12-10T10:38:17Z
+505941,20230009770,Requester,Mathias Ravy Moraes,I missed the exam and need a second-call date.,False,2023-12-10T10:56:57Z
+505943,20230009489,Requester,Fernando da Luz,The issue was not solved.,False,2023-12-10T11:30:47Z
+505957,20230009770,Analyst,hdapaz,Request received and under analysis.,False,2023-12-10T16:07:02Z
+505975,20230009769,Analyst,rcassiano,Request received and under analysis.,False,2023-12-11T11:27:39Z
+505978,20230009769,Analyst,rcassiano,Checked the student record in SAG.,True,2023-12-11T11:57:39Z
+505980,20230009770,System,system,Protocol closed as Resolved.,False,2023-12-11T12:49:57Z
+505996,20230009489,System,system,Protocol closed as Resolved.,False,2023-12-12T06:30:47Z
+506004,20230009769,System,system,Protocol closed as Cancelled.,False,2023-12-12T18:17:32Z
+506078,20230009770,Requester,Mathias Ravy Moraes,The issue was not solved.,False,2023-12-16T12:49:57Z
+506118,20230010219,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2023-12-18T23:12:16Z
+506121,20230010230,Requester,Maria Liz Vargas Rios,I disagree with my final grade and request a review.,False,2023-12-18T23:31:52Z
+506127,20230009770,System,system,Protocol closed as Resolved.,False,2023-12-19T07:49:57Z
+506129,20230010230,Analyst,arocha,Request received and under analysis.,False,2023-12-19T11:24:39Z
+506131,20230010219,Analyst,cmachado,Request received and under analysis.,False,2023-12-19T11:51:38Z
+506144,20230010219,System,system,Protocol closed as Resolved.,False,2023-12-19T21:55:51Z
+506318,20230010230,System,system,Protocol closed as Resolved.,False,2023-12-24T22:16:14Z
+506333,20230010784,Requester,Ayla Araújo,"My payment slip expired, please send a new one.",False,2023-12-25T11:26:44Z
+506347,20230010784,Analyst,cmachado,Request received and under analysis.,False,2023-12-25T16:38:11Z
+506368,20230010784,System,system,Protocol closed as Resolved.,False,2023-12-26T11:41:46Z
+506426,20230011067,Requester,Maria Liz Vargas Rios,I disagree with my final grade and request a review. Registration 11932.,False,2023-12-29T02:08:55Z
+506437,20230011067,Analyst,lmachado,Request received and under analysis.,False,2023-12-29T18:21:35Z
+506478,20230011067,System,system,Protocol closed as Resolved.,False,2024-01-01T11:50:35Z
+506480,20240000283,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2024-01-01T12:36:00Z
+506486,20240000283,Analyst,cmachado,Request received and under analysis.,False,2024-01-01T22:57:33Z
+506490,20240000283,System,system,Protocol closed as Resolved.,False,2024-01-02T14:15:19Z
+506495,20230011067,Requester,Maria Liz Vargas Rios,The issue was not solved.,False,2024-01-03T11:50:35Z
+506504,20240000305,Requester,Melina Costela Freitas,I want to renegotiate my outstanding debt.,False,2024-01-03T19:11:05Z
+506510,20240000305,Analyst,cmachado,Request received and under analysis.,False,2024-01-04T11:40:31Z
+506512,20240000305,System,system,Protocol closed as Resolved.,False,2024-01-04T19:44:00Z
+506515,20230011067,System,system,Protocol closed as Resolved.,False,2024-01-05T01:50:35Z
+506552,20240000465,Requester,João Guilherme Martins Casa Grande,Please migrate me to the new curriculum.,False,2024-01-10T23:45:54Z
+506559,20240000465,Analyst,mcosta,Request received and under analysis.,False,2024-01-11T11:36:11Z
+506625,20240000465,System,system,Protocol closed as Resolved.,False,2024-01-15T12:43:00Z
+506644,20240000768,Requester,Marcelo da Paz Montenegro,I would like to lock my enrollment for the next term.,False,2024-01-16T13:08:59Z
+506646,20240000768,Analyst,fcavalcanti,Request received and under analysis.,False,2024-01-16T16:50:45Z
+506648,20240000768,System,system,Protocol closed as Resolved.,False,2024-01-16T17:50:45Z
+506682,20240000844,Requester,Camila Ana Lívia da Mota Silva,I would like to apply for a discount.,False,2024-01-18T21:33:06Z
+506689,20240000844,Analyst,cmachado,Request received and under analysis.,False,2024-01-19T15:35:14Z
+506695,20240000844,Analyst,cmachado,Checked the student record in SAG.,True,2024-01-19T16:05:14Z
+506703,20240000844,Analyst,cmachado,Please send a copy of your ID document.,False,2024-01-19T20:35:14Z
+506718,20240000844,Requester,Camila Ana Lívia da Mota Silva,Document attached.,False,2024-01-20T18:35:14Z
+506729,20240000844,System,system,Protocol closed as Resolved.,False,2024-01-22T11:29:25Z
+506770,20240001095,Requester,Fernando da Luz,"My payment slip expired, please send a new one. Registration 11932.",False,2024-01-23T17:17:35Z
+506775,20240001095,Analyst,cmachado,Request received and under analysis.,False,2024-01-23T19:05:08Z
+506841,20240001095,System,system,Protocol closed as Resolved.,False,2024-01-28T11:49:17Z
+506877,20240001410,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one. Registration 180823.",False,2024-02-01T13:26:06Z
+506890,20240001410,Analyst,cmachado,Request received and under analysis.,False,2024-02-01T19:54:41Z
+506933,20240001410,System,system,Protocol closed as Resolved.,False,2024-02-03T11:48:20Z
+506966,20240001659,Requester,Mariah Araújo Ferreira,I want to renegotiate my outstanding debt.,False,2024-02-05T19:13:32Z
+506973,20240001659,Analyst,cmachado,Request received and under analysis.,False,2024-02-06T11:16:33Z
+506989,20240001659,System,system,Protocol closed as Resolved.,False,2024-02-07T13:18:00Z
+507149,20240002194,Requester,Nicolas Gael Sales Oliveira,"My payment slip expired, please send a new one.",False,2024-02-16T17:36:49Z
+507152,20240002194,Analyst,cmachado,Request received and under analysis.,False,2024-02-16T21:23:39Z
+507155,20240002194,System,system,Protocol closed as Cancelled.,False,2024-02-17T11:09:48Z
+507256,20240002513,Requester,Mathias Ravy Moraes,I need an enrollment certificate for my internship.,False,2024-03-02T11:13:44Z
+507266,20240002513,Analyst,ccamargo,Request received and under analysis.,False,2024-03-02T17:35:25Z
+507267,20240002513,Analyst,ccamargo,Checked the student record in SAG.,True,2024-03-02T18:05:25Z
+507270,20240002513,Analyst,ccamargo,Please send a copy of your ID document.,False,2024-03-02T20:35:25Z
+507274,20240002513,Requester,Mathias Ravy Moraes,Document attached.,False,2024-03-03T04:35:25Z
+507280,20240002513,System,system,Protocol closed as Resolved.,False,2024-03-04T11:57:38Z
+507482,20240003086,Requester,Maria Liz Vargas Rios,I have a question about the academic calendar.,False,2024-03-26T11:32:00Z
+507494,20240003086,Analyst,arocha,Request received and under analysis.,False,2024-03-27T11:26:21Z
+507495,20240003086,System,system,Protocol closed as Resolved.,False,2024-03-27T23:12:48Z
+507547,20240003086,Requester,Maria Liz Vargas Rios,The issue was not solved.,False,2024-03-30T23:12:48Z
+507564,20240003086,System,system,Protocol closed as Resolved.,False,2024-04-01T02:12:48Z
+507570,20240003370,Requester,Evelyn Ferreira,I have a question about the academic calendar.,False,2024-04-01T11:31:24Z
+507597,20240003370,Analyst,fcavalcanti,Request received and under analysis.,False,2024-04-02T11:27:39Z
+507616,20240003370,System,system,Protocol closed as Resolved.,False,2024-04-02T23:52:17Z
+507784,20240004071,Requester,Pedro Henrique Fernandes Novaes,I have a question about the academic calendar.,False,2024-04-10T12:24:30Z
+507794,20240004071,Analyst,mpinto,Request received and under analysis.,False,2024-04-10T21:51:01Z
+507795,20240004071,Analyst,mpinto,Please send a copy of your ID document.,False,2024-04-11T02:51:01Z
+507801,20240004071,Requester,Pedro Henrique Fernandes Novaes,Document attached.,False,2024-04-11T11:51:01Z
+507807,20240004071,System,system,Protocol closed as Resolved.,False,2024-04-11T20:47:36Z
+507934,20240004378,Requester,Elisa Heloísa Pastor,I need an enrollment certificate for my internship.,False,2024-04-22T02:15:18Z
+507937,20240004378,Analyst,lcasagrande,Request received and under analysis.,False,2024-04-22T11:09:25Z
+507940,20240004378,Analyst,lcasagrande,Checked the student record in SAG.,True,2024-04-22T11:39:25Z
+507956,20240004378,Analyst,lcasagrande,Please send a copy of your ID document.,False,2024-04-22T19:09:25Z
+507965,20240004378,Requester,Elisa Heloísa Pastor,Document attached.,False,2024-04-23T06:09:25Z
+507982,20240004378,System,system,Protocol closed as Resolved.,False,2024-04-24T11:03:38Z
+508116,20240004914,Requester,Fernando da Luz,"My payment slip expired, please send a new one.",False,2024-05-08T13:21:33Z
+508119,20240004914,Analyst,cmachado,Request received and under analysis.,False,2024-05-09T11:45:12Z
+508133,20240004914,System,system,Protocol closed as Resolved.,False,2024-05-12T11:32:33Z
+508360,20240005575,Requester,Evelyn Ferreira,I have a question about the academic calendar.,False,2024-06-01T14:44:48Z
+508365,20240005575,Analyst,aviana,Request received and under analysis.,False,2024-06-01T21:08:06Z
+508366,20240005592,Requester,Nicolas Gael Sales Oliveira,I need an enrollment certificate for my internship.,False,2024-06-02T23:49:40Z
+508367,20240005592,Analyst,gfarias,Request received and under analysis.,False,2024-06-03T11:06:51Z
+508370,20240005575,System,system,Protocol closed as Resolved.,False,2024-06-03T13:41:18Z
+508383,20240005649,Requester,Elisa Heloísa Pastor,I have a question about the academic calendar.,False,2024-06-03T21:39:15Z
+508388,20240005649,Analyst,fcavalcanti,Request received and under analysis.,False,2024-06-04T11:13:04Z
+508397,20240005592,System,system,Protocol closed as Resolved.,False,2024-06-05T11:14:59Z
+508407,20240005649,System,system,Protocol closed as Resolved.,False,2024-06-06T11:11:06Z
+508559,20240006122,Requester,Olivia Sá da Conceição,I missed the exam and need a second-call date. My RA is 01175-4.,False,2024-06-10T17:45:43Z
+508577,20240006122,Analyst,aviana,Request received and under analysis.,False,2024-06-11T11:57:18Z
+508582,20240006122,Analyst,aviana,Please send a copy of your ID document.,False,2024-06-11T12:57:18Z
+508615,20240006122,Requester,Olivia Sá da Conceição,Document attached.,False,2024-06-12T06:57:18Z
+508650,20240006122,System,system,Protocol closed as Resolved.,False,2024-06-13T11:50:15Z
+508693,20240006415,Requester,Nicolas Gael Sales Oliveira,"My payment slip expired, please send a new one.",False,2024-06-15T18:06:39Z
+508698,20240006415,Analyst,ydasneves,Request received and under analysis.,False,2024-06-16T11:36:38Z
+508711,20240006415,System,system,Protocol closed as Resolved.,False,2024-06-16T20:09:02Z
+508876,20240007064,Requester,Emilly Nascimento Cavalcanti,I would like to apply for a discount.,False,2024-06-24T23:17:16Z
+508878,20240007064,Analyst,ydasneves,Request received and under analysis.,False,2024-06-25T11:22:02Z
+508918,20240007064,System,system,Protocol closed as Resolved.,False,2024-06-28T15:09:46Z
+508965,20240007329,Requester,João Guilherme Martins Casa Grande,I disagree with my final grade and request a review.,False,2024-07-02T14:35:44Z
+508999,20240007329,Analyst,mpinto,Request received and under analysis.,False,2024-07-03T16:25:18Z
+509051,20240007329,System,system,Protocol closed as Resolved.,False,2024-07-05T12:11:53Z
+509063,20240007698,Requester,Maria Liz Vargas Rios,I disagree with my final grade and request a review.,False,2024-07-05T17:52:03Z
+509098,20240007698,Analyst,arocha,Request received and under analysis.,False,2024-07-06T12:31:11Z
+509278,20240007698,System,system,Protocol closed as Resolved.,False,2024-07-11T11:04:42Z
+509309,20240008437,Requester,Maria Vitória Zoe Sousa Araújo,I want to come back and reactivate my enrollment.,False,2024-07-12T02:49:44Z
+509316,20240008437,Analyst,fcavalcanti,Request received and under analysis.,False,2024-07-12T11:32:39Z
+509324,20240008437,System,system,Protocol closed as Resolved.,False,2024-07-12T12:32:39Z
+509419,20240008656,Requester,Maria Liz Vargas Rios,I disagree with my final grade and request a review.,False,2024-07-15T00:04:20Z
+509448,20240008656,Analyst,lmachado,Request received and under analysis.,False,2024-07-15T17:10:07Z
+509453,20240008656,Analyst,lmachado,Checked the student record in SAG.,True,2024-07-15T17:40:07Z
+509464,20240008753,Requester,Luiz Miguel Davi Lucas Ferreira,I disagree with my final grade and request a review.,False,2024-07-15T20:25:20Z
+509473,20240008656,System,system,Protocol closed as Resolved.,False,2024-07-16T11:07:14Z
+509493,20240008753,Analyst,fcavalcanti,Request received and under analysis.,False,2024-07-16T18:41:46Z
+509525,20240008753,System,system,Protocol closed as Resolved.,False,2024-07-19T11:45:07Z
+509790,20240009724,Requester,João Guilherme Martins Casa Grande,"My payment slip expired, please send a new one.",False,2024-08-08T21:02:20Z
+509797,20240009724,Analyst,cmachado,Request received and under analysis.,False,2024-08-09T11:46:52Z
+509801,20240009724,Analyst,cmachado,Please send a copy of your ID document.,False,2024-08-09T16:46:52Z
+509811,20240009724,Requester,João Guilherme Martins Casa Grande,Document attached.,False,2024-08-10T12:46:52Z
+509835,20240009724,System,system,Protocol closed as Resolved.,False,2024-08-11T12:36:16Z
+510028,20240010411,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2024-08-19T12:47:00Z
+510030,20240010411,Analyst,cmachado,Request received and under analysis.,False,2024-08-19T17:11:51Z
+510035,20240010411,Analyst,cmachado,Checked the student record in SAG.,True,2024-08-19T17:41:51Z
+510039,20240010448,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2024-08-19T19:35:09Z
+510040,20240010411,System,system,Protocol closed as Resolved.,False,2024-08-19T23:42:30Z
+510049,20240010448,Analyst,ydasneves,Request received and under analysis.,False,2024-08-20T11:31:32Z
+510107,20240010448,System,system,Protocol closed as Resolved.,False,2024-08-22T11:57:22Z
+510399,20240011479,Requester,Emilly Nascimento Cavalcanti,"My payment slip expired, please send a new one.",False,2024-09-23T12:24:40Z
+510400,20240011479,Analyst,cmachado,Request received and under analysis.,False,2024-09-23T18:15:45Z
+510402,20240011479,Analyst,cmachado,Please send a copy of your ID document.,False,2024-09-24T01:15:45Z
+510404,20240011479,Requester,Emilly Nascimento Cavalcanti,Document attached.,False,2024-09-24T13:15:45Z
+510413,20240011479,System,system,Protocol closed as Resolved.,False,2024-09-24T22:07:50Z
+510431,20240011604,Requester,Ester Cavalcanti da Luz,I need an enrollment certificate for my internship.,False,2024-09-27T00:40:12Z
+510435,20240011604,Analyst,asampaio,Request received and under analysis.,False,2024-09-27T11:11:15Z
+510459,20240011604,System,system,Protocol closed as Resolved.,False,2024-09-29T11:06:19Z
+510515,20240011876,Requester,Mathias Ravy Moraes,I missed the exam and need a second-call date.,False,2024-10-04T21:55:09Z
+510526,20240011876,Analyst,hdapaz,Request received and under analysis.,False,2024-10-05T11:16:38Z
+510539,20240011876,Analyst,hdapaz,Please send a copy of your ID document.,False,2024-10-05T17:16:38Z
+510556,20240011876,Requester,Mathias Ravy Moraes,Document attached.,False,2024-10-06T06:16:38Z
+510578,20240011876,System,system,Protocol closed as Resolved.,False,2024-10-06T19:12:36Z
+510779,20240012579,Requester,Camila Ana Lívia da Mota Silva,I have a question about the academic calendar.,False,2024-10-14T14:43:48Z
+510789,20240012579,Analyst,aviana,Request received and under analysis.,False,2024-10-15T11:58:20Z
+510803,20240012579,System,system,Protocol closed as Resolved.,False,2024-10-16T11:03:22Z
+510885,20240012858,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2024-10-26T14:59:53Z
+510887,20240012858,Analyst,ydasneves,Request received and under analysis.,False,2024-10-26T17:48:37Z
+510890,20240012858,Analyst,ydasneves,Checked the student record in SAG.,True,2024-10-26T18:18:37Z
+510892,20240012858,Analyst,ydasneves,Please send a copy of your ID document.,False,2024-10-26T22:48:37Z
+510896,20240012858,Requester,Mariah Araújo Ferreira,Document attached.,False,2024-10-27T17:48:37Z
+510902,20240012858,System,system,Protocol closed as Resolved.,False,2024-10-28T11:35:36Z
+510952,20240013011,Requester,Mathias Ravy Moraes,I need an enrollment certificate for my internship.,False,2024-10-31T16:00:42Z
+510954,20240013011,Analyst,lsilva,Request received and under analysis.,False,2024-10-31T20:05:47Z
+510957,20240013011,Analyst,lsilva,Please send a copy of your ID document.,False,2024-10-31T21:05:47Z
+510959,20240013011,Requester,Mathias Ravy Moraes,Document attached.,False,2024-11-01T05:05:47Z
+510966,20240013011,System,system,Protocol closed as Resolved.,False,2024-11-01T17:00:17Z
+510974,20240013059,Requester,Fernando da Luz,I need an enrollment certificate for my internship.,False,2024-11-03T15:19:56Z
+510976,20240013059,Analyst,gfarias,Request received and under analysis.,False,2024-11-03T22:25:57Z
+510979,20240013059,Analyst,gfarias,Please send a copy of your ID document.,False,2024-11-04T05:25:57Z
+510983,20240013121,Requester,Maria Liz Vargas Rios,"My payment slip expired, please send a new one.",False,2024-11-04T12:54:00Z
+510985,20240013059,Requester,Fernando da Luz,Document attached.,False,2024-11-04T13:25:57Z
+510988,20240013121,Analyst,cmachado,Request received and under analysis.,False,2024-11-04T17:16:09Z
+510991,20240013154,Requester,João Guilherme Martins Casa Grande,Please send me a printed transcript.,False,2024-11-04T23:37:58Z
+510992,20240013154,Analyst,gfarias,Request received and under analysis.,False,2024-11-05T11:42:52Z
+510995,20240013059,System,system,Protocol closed as Resolved.,False,2024-11-05T14:01:13Z
+511005,20240013154,System,system,Protocol closed as Resolved.,False,2024-11-05T19:37:51Z
+511013,20240013208,Requester,Luiz Miguel Davi Lucas Ferreira,I need an enrollment certificate for my internship.,False,2024-11-06T11:15:10Z
+511014,20240013121,System,system,Protocol closed as Resolved.,False,2024-11-06T11:25:09Z
+511015,20240013208,Analyst,asampaio,Request received and under analysis.,False,2024-11-06T13:40:38Z
+511020,20240013208,System,system,Protocol closed as Resolved.,False,2024-11-06T15:30:40Z
+511033,20240013240,Requester,Mathias Ravy Moraes,I have a question about the academic calendar. My RA is 01175-4.,False,2024-11-09T00:56:19Z
+511034,20240013240,Analyst,rcassiano,Request received and under analysis.,False,2024-11-09T11:13:06Z
+511039,20240013240,System,system,Protocol closed as Resolved.,False,2024-11-09T22:36:34Z
+511149,20240013572,Requester,Emilly Nascimento Cavalcanti,I need an enrollment certificate for my internship.,False,2024-11-22T15:06:40Z
+511151,20240013572,Analyst,lsilva,Request received and under analysis.,False,2024-11-22T20:00:21Z
+511153,20240013572,System,system,Protocol closed as Resolved.,False,2024-11-23T11:04:52Z
+511167,20240013661,Requester,Ayla Araújo,"My payment slip expired, please send a new one.",False,2024-11-24T16:45:17Z
+511182,20240013661,Analyst,acasagrande,Request received and under analysis.,False,2024-11-25T11:42:05Z
+511211,20240013661,System,system,Protocol closed as Resolved.,False,2024-11-26T11:49:36Z
+511224,20240013783,Requester,Olivia Sá da Conceição,"My payment slip expired, please send a new one.",False,2024-11-27T12:25:40Z
+511229,20240013783,Analyst,acasagrande,Request received and under analysis.,False,2024-11-27T18:54:30Z
+511233,20240013783,Analyst,acasagrande,Checked the student record in SAG.,True,2024-11-27T19:24:30Z
+511251,20240013783,System,system,Protocol closed as Resolved.,False,2024-11-28T11:29:50Z
+511268,20240013869,Requester,Fernando da Luz,I need an enrollment certificate for my internship.,False,2024-12-02T20:28:35Z
+511271,20240013869,Analyst,lsilva,Request received and under analysis.,False,2024-12-03T11:30:01Z
+511274,20240013869,System,system,Protocol closed as Resolved.,False,2024-12-03T20:02:52Z
+511352,20240014141,Requester,Fernando da Luz,I need an enrollment certificate for my internship.,False,2024-12-07T12:42:20Z
+511366,20240014141,Analyst,asampaio,Request received and under analysis.,False,2024-12-07T18:26:01Z
+511367,20240014141,Analyst,asampaio,Checked the student record in SAG.,True,2024-12-07T18:56:01Z
+511430,20240014141,System,system,Protocol closed as Resolved.,False,2024-12-08T17:34:11Z
+511861,20240015635,Requester,Ayla Araújo,"My payment slip expired, please send a new one.",False,2024-12-21T18:29:27Z
+511868,20240015635,Analyst,acasagrande,Request received and under analysis.,False,2024-12-21T23:10:29Z
+511879,20240015635,System,system,Protocol closed as Cancelled.,False,2024-12-22T11:30:45Z
+512220,20240016637,Requester,Camila Ana Lívia da Mota Silva,I would like to apply for a discount. RA: 012815.,False,2024-12-30T15:14:59Z
+512233,20240016637,Analyst,ydasneves,Request received and under analysis.,False,2024-12-30T23:41:01Z
+512271,20240016637,System,system,Protocol closed as Cancelled.,False,2025-01-01T13:14:24Z
+512384,20250000664,Requester,João Guilherme Martins Casa Grande,When will my diploma be available?,False,2025-01-11T17:33:04Z
+512400,20250000664,Analyst,gfarias,Request received and under analysis.,False,2025-01-13T16:45:27Z
+512410,20250000664,System,system,Protocol closed as Resolved.,False,2025-01-14T11:13:38Z
+512765,20250001771,Requester,Camila Ana Lívia da Mota Silva,I need an enrollment certificate for my internship.,False,2025-02-07T15:49:47Z
+512775,20250001771,Analyst,gfarias,Request received and under analysis.,False,2025-02-07T19:47:23Z
+512779,20250001803,Requester,Nicolas Gael Sales Oliveira,"My payment slip expired, please send a new one.",False,2025-02-08T11:10:30Z
+512786,20250001803,Analyst,acasagrande,Request received and under analysis.,False,2025-02-08T15:18:41Z
+512791,20250001803,Analyst,acasagrande,Checked the student record in SAG.,True,2025-02-08T15:48:41Z
+512792,20250001771,System,system,Protocol closed as Resolved.,False,2025-02-08T18:13:49Z
+512798,20250001882,Requester,João Guilherme Martins Casa Grande,I have a question about the academic calendar.,False,2025-02-09T00:04:33Z
+512801,20250001803,System,system,Protocol closed as Resolved.,False,2025-02-09T11:45:39Z
+512816,20250001882,Analyst,mcosta,Request received and under analysis.,False,2025-02-10T11:29:40Z
+512829,20250001882,System,system,Protocol closed as Cancelled.,False,2025-02-10T20:31:29Z
+513096,20250002669,Requester,Ayla Araújo,"My payment slip expired, please send a new one.",False,2025-02-26T00:32:47Z
+513101,20250002669,Analyst,cmachado,Request received and under analysis.,False,2025-02-26T11:04:46Z
+513111,20250002669,Analyst,cmachado,Checked the student record in SAG.,True,2025-02-26T11:34:46Z
+513119,20250002669,System,system,Protocol closed as Resolved.,False,2025-02-26T17:28:10Z
+513152,20250002783,Requester,Nicolas Gael Sales Oliveira,I have a question about the academic calendar.,False,2025-03-01T22:25:10Z
+513163,20250002783,Analyst,rcassiano,Request received and under analysis.,False,2025-03-02T11:39:34Z
+513165,20250002783,Analyst,rcassiano,Please send a copy of your ID document.,False,2025-03-02T12:39:34Z
+513167,20250002783,Requester,Nicolas Gael Sales Oliveira,Document attached.,False,2025-03-02T15:39:34Z
+513183,20250002783,System,system,Protocol closed as Resolved.,False,2025-03-03T11:22:11Z
+513217,20250003057,Requester,Elisa Heloísa Pastor,I have a question about the academic calendar.,False,2025-03-04T12:42:00Z
+513221,20250003057,Analyst,aviana,Request received and under analysis.,False,2025-03-04T16:08:23Z
+513224,20250003057,Analyst,aviana,Checked the student record in SAG.,True,2025-03-04T16:38:23Z
+513227,20250003058,Requester,Camila Ana Lívia da Mota Silva,I need an enrollment certificate for my internship.,False,2025-03-04T20:03:31Z
+513228,20250003058,Analyst,asampaio,Request received and under analysis.,False,2025-03-04T23:08:49Z
+513229,20250003058,Analyst,asampaio,Checked the student record in SAG.,True,2025-03-04T23:38:49Z
+513237,20250003057,System,system,Protocol closed as Resolved.,False,2025-03-05T17:43:56Z
+513244,20250003058,System,system,Protocol closed as Resolved.,False,2025-03-06T11:02:54Z
+513350,20250003397,Requester,Ester Cavalcanti da Luz,I need an enrollment certificate for my internship.,False,2025-03-17T01:49:33Z
+513353,20250003397,Analyst,ccamargo,Request received and under analysis.,False,2025-03-17T11:47:19Z
+513363,20250003397,Analyst,ccamargo,Please send a copy of your ID document.,False,2025-03-17T18:47:19Z
+513375,20250003397,Requester,Ester Cavalcanti da Luz,Document attached.,False,2025-03-18T03:47:19Z
+513383,20250003397,System,system,Protocol closed as Resolved.,False,2025-03-18T12:03:49Z
+513437,20250003642,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2025-03-22T13:49:42Z
+513439,20250003642,Analyst,cmachado,Request received and under analysis.,False,2025-03-22T20:35:24Z
+513441,20250003682,Requester,Ayla Araújo,"My payment slip expired, please send a new one.",False,2025-03-23T00:39:24Z
+513445,20250003682,Analyst,ydasneves,Request received and under analysis.,False,2025-03-23T11:06:02Z
+513448,20250003642,System,system,Protocol closed as Resolved.,False,2025-03-23T11:32:03Z
+513452,20250003682,Analyst,ydasneves,Please send a copy of your ID document.,False,2025-03-23T19:06:02Z
+513463,20250003682,Requester,Ayla Araújo,Document attached.,False,2025-03-24T02:06:02Z
+513487,20250003682,System,system,Protocol closed as Resolved.,False,2025-03-24T21:45:31Z
+513688,20250004388,Requester,Pedro Henrique Fernandes Novaes,I have a question about the academic calendar.,False,2025-04-05T11:13:12Z
+513695,20250004388,Analyst,mcosta,Request received and under analysis.,False,2025-04-05T23:46:52Z
+513698,20250004388,Analyst,mcosta,Checked the student record in SAG.,True,2025-04-06T00:16:52Z
+513755,20250004388,System,system,Protocol closed as Resolved.,False,2025-04-07T13:29:03Z
+513769,20250004810,Requester,Maria Vitória Zoe Sousa Araújo,I missed the exam and need a second-call date.,False,2025-04-07T15:42:02Z
+513771,20250004836,Requester,Leandro Diego Cirino Azevedo,I missed the exam and need a second-call date.,False,2025-04-07T16:17:41Z
+513783,20250004810,Analyst,aviana,Request received and under analysis.,False,2025-04-07T20:13:18Z
+513793,20250004836,Analyst,aviana,Request received and under analysis.,False,2025-04-07T22:23:21Z
+513801,20250004836,Analyst,aviana,Please send a copy of your ID document.,False,2025-04-08T01:23:21Z
+513818,20250004836,Requester,Leandro Diego Cirino Azevedo,Document attached.,False,2025-04-08T11:23:21Z
+513825,20250004810,System,system,Protocol closed as Resolved.,False,2025-04-08T11:47:15Z
+513872,20250005141,Requester,Maria Vitória Zoe Sousa Araújo,I missed the exam and need a second-call date.,False,2025-04-09T10:24:26Z
+513877,20250004836,System,system,Protocol closed as Resolved.,False,2025-04-09T11:03:38Z
+513901,20250005141,Analyst,aviana,Request received and under analysis.,False,2025-04-09T12:18:26Z
+514009,20250005141,System,system,Protocol closed as Resolved.,False,2025-04-11T11:15:45Z
+514512,20250006635,Requester,Olivia Sá da Conceição,I want to renegotiate my outstanding debt.,False,2025-05-12T17:29:53Z
+514531,20250006635,Analyst,cmachado,Request received and under analysis.,False,2025-05-13T15:24:33Z
+514532,20250006635,System,system,Protocol closed as Resolved.,False,2025-05-13T16:24:33Z
+514647,20250006996,Requester,Emilly Nascimento Cavalcanti,"My payment slip expired, please send a new one.",False,2025-05-22T11:59:41Z
+514653,20250006996,Analyst,ydasneves,Request received and under analysis.,False,2025-05-22T17:05:31Z
+514677,20250006996,System,system,Protocol closed as Resolved.,False,2025-05-24T11:27:39Z
+514857,20250007697,Requester,Nicolas Gael Sales Oliveira,I have a question about the academic calendar.,False,2025-06-03T23:34:20Z
+514858,20250007697,Analyst,hdapaz,Request received and under analysis.,False,2025-06-04T11:24:33Z
+514890,20250007697,System,system,Protocol closed as Resolved.,False,2025-06-06T11:34:19Z
+515043,20250008265,Requester,Nicolas Gael Sales Oliveira,I missed the exam and need a second-call date.,False,2025-06-10T16:41:53Z
+515062,20250008265,Analyst,rcassiano,Request received and under analysis.,False,2025-06-10T23:44:07Z
+515098,20250008265,System,system,Protocol closed as Resolved.,False,2025-06-11T14:30:28Z
+515160,20250008682,Requester,Mathias Ravy Moraes,"My payment slip expired, please send a new one.",False,2025-06-12T11:26:58Z
+515211,20250008682,Analyst,acasagrande,Request received and under analysis.,False,2025-06-13T11:42:05Z
+515231,20250008682,Analyst,acasagrande,Please send a copy of your ID document.,False,2025-06-13T18:42:05Z
+515238,20250008682,Requester,Mathias Ravy Moraes,Document attached.,False,2025-06-13T21:42:05Z
+515253,20250008682,System,system,Protocol closed as Resolved.,False,2025-06-14T11:52:54Z
+515296,20250008265,Requester,Nicolas Gael Sales Oliveira,The issue was not solved.,False,2025-06-16T14:30:28Z
+515317,20250009068,Requester,Ester Cavalcanti da Luz,"My payment slip expired, please send a new one.",False,2025-06-17T01:43:25Z
+515328,20250009068,Analyst,ydasneves,Request received and under analysis.,False,2025-06-17T11:37:04Z
+515333,20250008265,System,system,Protocol closed as Resolved.,False,2025-06-17T12:30:28Z
+515348,20250009068,System,system,Protocol closed as Resolved.,False,2025-06-18T14:54:15Z
+515559,20250009856,Requester,Luiz Miguel Davi Lucas Ferreira,"My payment slip expired, please send a new one.",False,2025-06-30T12:38:00Z
+515564,20250009856,Analyst,cmachado,Request received and under analysis.,False,2025-06-30T16:41:05Z
+515567,20250009856,Analyst,cmachado,Checked the student record in SAG.,True,2025-06-30T17:11:05Z
+515579,20250009856,System,system,Protocol closed as Cancelled.,False,2025-07-01T11:40:29Z
+515607,20250010007,Requester,Maria Vitória Zoe Sousa Araújo,"My payment slip expired, please send a new one.",False,2025-07-03T17:23:25Z
+515611,20250010007,Analyst,cmachado,Request received and under analysis.,False,2025-07-03T20:26:54Z
+515625,20250010007,System,system,Protocol closed as Resolved.,False,2025-07-04T11:09:53Z
+515896,20250010850,Requester,Lara Fonseca Martins,I would like to apply for a discount.,False,2025-07-11T13:55:56Z
+515916,20250010850,Analyst,ydasneves,Request received and under analysis.,False,2025-07-11T19:09:19Z
+516003,20250011159,Requester,Camila Ana Lívia da Mota Silva,I disagree with my final grade and request a review. Registration 12815.,False,2025-07-13T18:21:41Z
+516026,20250011159,Analyst,fcavalcanti,Request received and under analysis.,False,2025-07-14T11:06:15Z
+516125,20250011159,System,system,Protocol closed as Resolved.,False,2025-07-15T11:06:16Z
+516341,20250010850,System,system,Protocol closed as Resolved.,False,2025-07-21T11:21:58Z
+516866,20250013258,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2025-08-13T20:53:08Z
+516874,20250013258,Analyst,acasagrande,Request received and under analysis.,False,2025-08-14T11:55:33Z
+516886,20250013258,System,system,Protocol closed as Resolved.,False,2025-08-14T17:16:12Z
+516950,20250013501,Requester,Emilly Nascimento Cavalcanti,I need an enrollment certificate for my internship.,False,2025-08-16T11:10:29Z
+516958,20250013501,Analyst,asampaio,Request received and under analysis.,False,2025-08-16T21:52:23Z
+516960,20250013501,Analyst,asampaio,Please send a copy of your ID document.,False,2025-08-17T01:52:23Z
+516972,20250013501,Requester,Emilly Nascimento Cavalcanti,Document attached.,False,2025-08-17T17:52:23Z
+516981,20250013501,System,system,Protocol closed as Resolved.,False,2025-08-17T20:43:04Z
+516989,20250013592,Requester,Mathias Ravy Moraes,When will my diploma be available?,False,2025-08-18T02:28:36Z
+517017,20250013742,Requester,Evelyn Ferreira,I need an enrollment certificate for my internship.,False,2025-08-19T10:48:25Z
+517033,20250013742,Analyst,lsilva,Request received and under analysis.,False,2025-08-19T14:00:32Z
+517054,20250013742,System,system,Protocol closed as Resolved.,False,2025-08-20T11:45:46Z
+517075,20250013592,Analyst,asampaio,Request received and under analysis.,False,2025-08-20T17:40:43Z
+517132,20250013592,System,system,Protocol closed as Resolved.,False,2025-08-23T21:01:12Z
+517153,20250014132,Requester,Ayla Araújo,I have a question about the academic calendar.,False,2025-08-25T15:59:15Z
+517167,20250014132,Analyst,lvieira,Request received and under analysis.,False,2025-08-25T21:14:27Z
+517171,20250014182,Requester,João Guilherme Martins Casa Grande,I need an enrollment certificate for my internship.,False,2025-08-26T00:01:58Z
+517172,20250014132,Analyst,lvieira,Please send a copy of your ID document.,False,2025-08-26T03:14:27Z
+517174,20250014182,Analyst,asampaio,Request received and under analysis.,False,2025-08-26T11:34:24Z
+517183,20250014132,Requester,Ayla Araújo,Document attached.,False,2025-08-26T20:14:27Z
+517189,20250014132,System,system,Protocol closed as Resolved.,False,2025-08-27T11:15:19Z
+517198,20250014182,System,system,Protocol closed as Resolved.,False,2025-08-27T12:37:35Z
+517428,20250014865,Requester,Fernando da Luz,"My payment slip expired, please send a new one.",False,2025-09-12T11:51:37Z
+517437,20250014865,Analyst,bfogaca,Request received and under analysis.,False,2025-09-12T17:36:08Z
+517438,20250014865,Analyst,bfogaca,Checked the student record in SAG.,True,2025-09-12T18:06:08Z
+517453,20250014865,System,system,Protocol closed as Resolved.,False,2025-09-14T18:35:23Z
+517874,20250015921,Requester,Fernando da Luz,I want to renegotiate my outstanding debt.,False,2025-10-02T19:09:19Z
+517892,20250015921,Analyst,ydasneves,Request received and under analysis.,False,2025-10-03T11:30:09Z
+517911,20250015921,System,system,Protocol closed as Resolved.,False,2025-10-03T20:25:00Z
+518016,20250016343,Requester,Fernando da Luz,I missed the exam and need a second-call date. RA: 011932.,False,2025-10-06T11:01:11Z
+518038,20250016398,Requester,Ana Beatriz Júlia da Conceição Barros,I missed the exam and need a second-call date.,False,2025-10-06T12:02:00Z
+518061,20250016398,Analyst,fcavalcanti,Request received and under analysis.,False,2025-10-06T16:25:04Z
+518076,20250016343,Analyst,bdacunha,Request received and under analysis.,False,2025-10-06T18:30:48Z
+518093,20250016343,Analyst,bdacunha,Please send a copy of your ID document.,False,2025-10-06T23:30:48Z
+518117,20250016343,Requester,Fernando da Luz,Document attached.,False,2025-10-07T11:30:48Z
+518158,20250016703,Requester,Emilly Nascimento Cavalcanti,I missed the exam and need a second-call date. RA: 013226.,False,2025-10-07T19:16:34Z
+518169,20250016398,System,system,Protocol closed as Resolved.,False,2025-10-07T22:21:02Z
+518171,20250016703,Analyst,aviana,Request received and under analysis.,False,2025-10-07T22:37:53Z
+518194,20250016343,System,system,Protocol closed as Cancelled.,False,2025-10-08T11:51:24Z
+518271,20250016703,System,system,Protocol closed as Resolved.,False,2025-10-09T15:52:37Z
+518347,20250016703,Requester,Emilly Nascimento Cavalcanti,The issue was not solved.,False,2025-10-12T15:52:37Z
+518388,20250016703,System,system,Protocol closed as Resolved.,False,2025-10-14T15:52:37Z
+518424,20250017498,Requester,João Guilherme Martins Casa Grande,I want to cancel my enrollment.,False,2025-10-17T00:57:34Z
+518438,20250017498,Analyst,mcosta,Request received and under analysis.,False,2025-10-17T11:38:18Z
+518448,20250017498,System,system,Protocol closed as Resolved.,False,2025-10-17T18:41:00Z
+518499,20250017717,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2025-10-20T17:25:37Z
+518507,20250017717,Analyst,bfogaca,Request received and under analysis.,False,2025-10-20T21:54:49Z
+518510,20250017717,Analyst,bfogaca,Checked the student record in SAG.,True,2025-10-20T22:24:49Z
+518556,20250017498,Requester,João Guilherme Martins Casa Grande,The issue was not solved.,False,2025-10-22T18:41:00Z
+518609,20250017498,System,system,Protocol closed as Resolved.,False,2025-10-25T09:41:00Z
+518661,20250017717,System,system,Protocol closed as Resolved.,False,2025-10-27T17:14:17Z
+518877,20250018564,Requester,Bruna Isis Cirino,I have a question about the academic calendar.,False,2025-11-14T02:25:30Z
+518892,20250018564,Analyst,lmachado,Request received and under analysis.,False,2025-11-14T17:34:33Z
+518895,20250018564,Analyst,lmachado,Checked the student record in SAG.,True,2025-11-14T18:04:33Z
+518911,20250018564,System,system,Protocol closed as Resolved.,False,2025-11-15T11:12:04Z
+518948,20250018744,Requester,Evelyn Ferreira,"My payment slip expired, please send a new one.",False,2025-11-19T12:54:17Z
+518955,20250018744,Analyst,cmachado,Request received and under analysis.,False,2025-11-19T19:15:25Z
+518988,20250018744,System,system,Protocol closed as Resolved.,False,2025-11-20T22:38:23Z
+519045,20250019056,Requester,Emilly Nascimento Cavalcanti,Please send me a printed transcript.,False,2025-11-23T17:18:00Z
+519070,20250019056,Analyst,asampaio,Request received and under analysis.,False,2025-11-24T11:18:13Z
+519077,20250019056,Analyst,asampaio,Checked the student record in SAG.,True,2025-11-24T11:48:13Z
+519083,20250019056,Analyst,asampaio,Please send a copy of your ID document.,False,2025-11-24T16:18:13Z
+519087,20250019056,Requester,Emilly Nascimento Cavalcanti,Document attached.,False,2025-11-24T20:18:13Z
+519106,20250019056,System,system,Protocol closed as Resolved.,False,2025-11-25T15:17:23Z
+519175,20250019415,Requester,Maria Vitória Zoe Sousa Araújo,"My payment slip expired, please send a new one.",False,2025-11-28T14:11:14Z
+519180,20250019415,Analyst,cmachado,Request received and under analysis.,False,2025-11-28T18:00:20Z
+519190,20250019415,Analyst,cmachado,Please send a copy of your ID document.,False,2025-11-28T21:00:20Z
+519194,20250019415,Requester,Maria Vitória Zoe Sousa Araújo,Document attached.,False,2025-11-29T04:00:20Z
+519245,20250019415,System,system,Protocol closed as Resolved.,False,2025-11-30T11:29:53Z
+519381,20250019920,Requester,Ester Cavalcanti da Luz,I missed the exam and need a second-call date.,False,2025-12-06T17:14:03Z
+519398,20250020041,Requester,Lara Fonseca Martins,I missed the exam and need a second-call date.,False,2025-12-07T02:51:55Z
+519402,20250019920,Analyst,mcosta,Request received and under analysis.,False,2025-12-07T11:06:17Z
+519407,20250020041,Analyst,fcavalcanti,Request received and under analysis.,False,2025-12-07T11:42:56Z
+519413,20250019920,System,system,Protocol closed as Resolved.,False,2025-12-07T13:30:42Z
+519449,20250020041,System,system,Protocol closed as Resolved.,False,2025-12-08T11:52:54Z
+519450,20250020220,Requester,Evelyn Ferreira,I missed the exam and need a second-call date.,False,2025-12-08T12:14:00Z
+519470,20250020353,Requester,Fernando da Luz,I missed the exam and need a second-call date.,False,2025-12-08T16:21:45Z
+519473,20250020220,Analyst,fcavalcanti,Request received and under analysis.,False,2025-12-08T16:39:12Z
+519505,20250020220,System,system,Protocol closed as Resolved.,False,2025-12-08T21:06:48Z
+519516,20250020353,Analyst,lvieira,Request received and under analysis.,False,2025-12-08T22:36:08Z
+519525,20250020353,Analyst,lvieira,Please send a copy of your ID document.,False,2025-12-09T06:36:08Z
+519550,20250020041,Requester,Lara Fonseca Martins,The issue was not solved.,False,2025-12-09T11:52:54Z
+519561,20250020353,Requester,Fernando da Luz,Document attached.,False,2025-12-09T13:36:08Z
+519620,20250020041,System,system,Protocol closed as Resolved.,False,2025-12-10T12:52:54Z
+519665,20250020353,System,system,Protocol closed as Cancelled.,False,2025-12-10T22:00:21Z
+519867,20250021130,Requester,Fernando da Luz,I disagree with my final grade and request a review.,False,2025-12-17T15:41:22Z
+519906,20250021130,Analyst,bdacunha,Request received and under analysis.,False,2025-12-18T23:18:31Z
+520029,20250021130,System,system,Protocol closed as Resolved.,False,2025-12-21T11:15:34Z
+520260,20250022393,Requester,Ester Cavalcanti da Luz,I disagree with my final grade and request a review.,False,2025-12-24T16:28:12Z
+520321,20250022393,Analyst,mcosta,Request received and under analysis.,False,2025-12-25T21:27:35Z
+520328,20250022393,Analyst,mcosta,Please send a copy of your ID document.,False,2025-12-26T01:27:35Z
+520332,20250022393,Requester,Ester Cavalcanti da Luz,Document attached.,False,2025-12-26T08:27:35Z
+520499,20250022393,System,system,Protocol closed as Resolved.,False,2025-12-28T11:21:12Z
+520549,20250023146,Requester,Benjamim Cassiano,I would like to apply for a discount.,False,2025-12-28T20:10:49Z
+520560,20250023176,Requester,Maria Vitória Zoe Sousa Araújo,I disagree with my final grade and request a review. RA: 011932.,False,2025-12-28T22:19:30Z
+520568,20250023204,Requester,Maria Vitória Zoe Sousa Araújo,"My payment slip expired, please send a new one.",False,2025-12-29T00:11:06Z
+520587,20250023176,Analyst,fcavalcanti,Request received and under analysis.,False,2025-12-29T11:07:12Z
+520604,20250023204,Analyst,acasagrande,Request received and under analysis.,False,2025-12-29T11:54:11Z
+520609,20250023146,Analyst,cmachado,Request received and under analysis.,False,2025-12-29T12:37:47Z
+520623,20250023204,System,system,Protocol closed as Resolved.,False,2025-12-29T15:28:56Z
+520627,20250023176,Analyst,fcavalcanti,Please send a copy of your ID document.,False,2025-12-29T18:07:12Z
+520669,20250023176,Requester,Maria Vitória Zoe Sousa Araújo,Document attached.,False,2025-12-30T11:07:12Z
+520700,20250023415,Requester,Fernando da Luz,I disagree with my final grade and request a review.,False,2025-12-30T17:14:35Z
+520706,20250023176,System,system,Protocol closed as Resolved.,False,2025-12-30T18:02:46Z
+520723,20250023146,System,system,Protocol closed as Resolved.,False,2025-12-31T11:00:19Z
+520749,20250023415,Analyst,lvieira,Request received and under analysis.,False,2025-12-31T11:56:10Z
+520791,20250023415,System,system,Protocol closed as Resolved.,False,2026-01-01T22:00:28Z
+520835,20260000532,Requester,Pedro Henrique Fernandes Novaes,When will my diploma be available? Registration 12157.,False,2026-01-05T21:01:45Z
+520841,20260000536,Requester,Maria Júlia Eloah Rios,When will my diploma be available?,False,2026-01-06T12:27:24Z
+520864,20260000610,Requester,Leandro Diego Cirino Azevedo,I would like to transfer to another course or modality.,False,2026-01-07T12:42:37Z
+520873,20260000532,Analyst,asampaio,Request received and under analysis.,False,2026-01-07T17:17:39Z
+520881,20260000536,Analyst,lsilva,Request received and under analysis.,False,2026-01-07T22:26:44Z
+520884,20260000536,Analyst,lsilva,Checked the student record in SAG.,True,2026-01-07T22:56:44Z
+520888,20260000532,Analyst,asampaio,Please send a copy of your ID document.,False,2026-01-08T01:17:39Z
+520902,20260000610,Analyst,aviana,Request received and under analysis.,False,2026-01-08T11:46:51Z
+520904,20260000610,Analyst,aviana,Checked the student record in SAG.,True,2026-01-08T12:16:51Z
+520908,20260000532,Requester,Pedro Henrique Fernandes Novaes,Document attached.,False,2026-01-08T15:17:39Z
+520950,20260000536,System,system,Protocol closed as Resolved.,False,2026-01-10T15:11:06Z
+520981,20260000879,Requester,Ayla Araújo,When will my diploma be available?,False,2026-01-11T15:19:56Z
+521002,20260000532,System,system,Protocol closed as Cancelled.,False,2026-01-12T11:56:10Z
+521010,20260000610,System,system,Protocol closed as Resolved.,False,2026-01-12T12:47:00Z
+521041,20260000879,Analyst,gfarias,Request received and under analysis.,False,2026-01-13T11:26:54Z
+521140,20260000879,System,system,Protocol closed as Cancelled.,False,2026-01-17T22:27:45Z
+521203,20260001470,Requester,Letícia Ana Beatriz Pereira Pacheco,I would like to apply for a discount.,False,2026-01-21T00:32:50Z
+521211,20260001470,Analyst,acasagrande,Request received and under analysis.,False,2026-01-21T11:36:31Z
+521233,20260001470,System,system,Protocol closed as Resolved.,False,2026-01-22T11:42:21Z
+521266,20260001610,Requester,João Miguel Murilo Porto Macedo,I would like to lock my enrollment for the next term.,False,2026-01-24T19:04:46Z
+521268,20260001610,Analyst,mcosta,Request received and under analysis.,False,2026-01-24T22:34:19Z
+521271,20260001610,Analyst,mcosta,Checked the student record in SAG.,True,2026-01-24T23:04:19Z
+521288,20260001610,System,system,Protocol closed as Resolved.,False,2026-01-26T12:56:00Z
+521325,20260001610,Requester,João Miguel Murilo Porto Macedo,The issue was not solved.,False,2026-01-28T12:56:00Z
+521342,20260001610,System,system,Protocol closed as Resolved.,False,2026-01-29T17:56:00Z
+521409,20260002009,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2026-02-01T13:59:26Z
+521413,20260002009,Analyst,acasagrande,Request received and under analysis.,False,2026-02-01T16:42:53Z
+521419,20260002009,System,system,Protocol closed as Resolved.,False,2026-02-01T21:20:07Z
+521435,20260002060,Requester,Lara Fonseca Martins,I need an enrollment certificate for my internship.,False,2026-02-02T12:06:56Z
+521457,20260002060,Analyst,ccamargo,Request received and under analysis.,False,2026-02-02T14:32:20Z
+521472,20260002060,System,system,Protocol closed as Cancelled.,False,2026-02-02T18:44:40Z
+521745,20260002903,Requester,Leandro Diego Cirino Azevedo,I cannot log in to the LMS.,False,2026-02-14T18:07:25Z
+521758,20260002903,Analyst,jdacosta,Request received and under analysis.,False,2026-02-14T23:17:03Z
+521762,20260002903,Analyst,jdacosta,Checked the student record in SAG.,True,2026-02-14T23:47:03Z
+521777,20260002903,System,system,Protocol closed as Cancelled.,False,2026-02-15T15:39:06Z
+521793,20260003014,Requester,Bruna Isis Cirino,I have a question about the academic calendar.,False,2026-02-15T19:43:00Z
+521810,20260003014,Analyst,arocha,Request received and under analysis.,False,2026-02-16T11:02:10Z
+521819,20260003014,Analyst,arocha,Checked the student record in SAG.,True,2026-02-16T11:32:10Z
+521854,20260003014,System,system,Protocol closed as Resolved.,False,2026-02-16T22:22:54Z
+521865,20260003176,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2026-02-17T11:55:04Z
+521881,20260003176,Analyst,ydasneves,Request received and under analysis.,False,2026-02-17T16:54:25Z
+521889,20260003176,System,system,Protocol closed as Resolved.,False,2026-02-17T21:15:49Z
+521925,20260003014,Requester,Bruna Isis Cirino,The issue was not solved.,False,2026-02-18T22:22:54Z
+521969,20260003014,System,system,Protocol closed as Resolved.,False,2026-02-20T05:22:54Z
+522382,20260004501,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2026-03-14T01:07:14Z
+522383,20260004501,Analyst,cmachado,Request received and under analysis.,False,2026-03-14T11:47:03Z
+522384,20260004501,Analyst,cmachado,Checked the student record in SAG.,True,2026-03-14T12:17:03Z
+522386,20260004501,Analyst,cmachado,Please send a copy of your ID document.,False,2026-03-14T13:47:03Z
+522391,20260004501,Requester,Mariah Araújo Ferreira,Document attached.,False,2026-03-14T19:47:03Z
+522408,20260004501,System,system,Protocol closed as Resolved.,False,2026-03-15T18:43:36Z
+522519,20260004841,Requester,Fernando Pedro Lucas Albuquerque,I need an enrollment certificate for my internship.,False,2026-03-19T15:21:14Z
+522532,20260004841,Analyst,ccamargo,Request received and under analysis.,False,2026-03-19T19:33:12Z
+522550,20260004841,System,system,Protocol closed as Resolved.,False,2026-03-20T15:16:29Z
+522855,20260005683,Requester,Nicolas Gael Sales Oliveira,I missed the exam and need a second-call date. My RA is 01215-7.,False,2026-04-07T21:26:29Z
+522873,20260005683,Analyst,hdapaz,Request received and under analysis.,False,2026-04-08T11:55:01Z
+522931,20260005683,System,system,Protocol closed as Resolved.,False,2026-04-08T23:22:54Z
+523035,20260006119,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one. Registration 180823.",False,2026-04-10T16:09:58Z
+523057,20260006119,Analyst,cmachado,Request received and under analysis.,False,2026-04-10T19:53:57Z
+523079,20260006119,System,system,Protocol closed as Resolved.,False,2026-04-11T11:22:19Z
+523250,20260006621,Requester,Ana Beatriz Júlia da Conceição Barros,I need an enrollment certificate for my internship.,False,2026-04-18T14:00:27Z
+523255,20260006621,Analyst,gfarias,Request received and under analysis.,False,2026-04-18T23:46:56Z
+523259,20260006621,Analyst,gfarias,Please send a copy of your ID document.,False,2026-04-19T06:46:56Z
+523267,20260006621,Requester,Ana Beatriz Júlia da Conceição Barros,Document attached.,False,2026-04-20T05:46:56Z
+523316,20260006621,System,system,Protocol closed as Resolved.,False,2026-04-21T15:41:37Z
+523768,20260008077,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2026-05-19T12:01:57Z
+523780,20260008077,Analyst,bfogaca,Request received and under analysis.,False,2026-05-19T18:32:22Z
+523798,20260008077,Analyst,bfogaca,Please send a copy of your ID document.,False,2026-05-20T00:32:22Z
+523799,20260008077,Requester,Mariah Araújo Ferreira,Document attached.,False,2026-05-20T06:32:22Z
+523825,20260008217,Requester,Lara Fonseca Martins,"My payment slip expired, please send a new one. My RA is 18223-0.",False,2026-05-20T15:38:33Z
+523826,20260008077,System,system,Protocol closed as Cancelled.,False,2026-05-20T16:51:24Z
+523832,20260008217,Analyst,cmachado,Request received and under analysis.,False,2026-05-20T19:12:09Z
+523833,20260008217,Analyst,cmachado,Checked the student record in SAG.,True,2026-05-20T19:42:09Z
+523842,20260008294,Requester,Evelyn Ferreira,"My payment slip expired, please send a new one.",False,2026-05-21T01:08:44Z
+523846,20260008217,System,system,Protocol closed as Resolved.,False,2026-05-21T11:27:53Z
+523852,20260008294,Analyst,ydasneves,Request received and under analysis.,False,2026-05-21T11:39:56Z
+523878,20260008294,System,system,Protocol closed as Resolved.,False,2026-05-21T21:10:42Z
+523968,20260008294,Requester,Evelyn Ferreira,The issue was not solved.,False,2026-05-24T21:10:42Z
+523998,20260008294,System,system,Protocol closed as Resolved.,False,2026-05-26T10:10:42Z
+524000,20260008724,Requester,Ana Beatriz Júlia da Conceição Barros,Please send me a printed transcript.,False,2026-05-26T11:16:33Z
+524015,20260008724,Analyst,lsilva,Request received and under analysis.,False,2026-05-26T20:14:03Z
+524027,20260008724,System,system,Protocol closed as Resolved.,False,2026-05-27T16:08:11Z
+524168,20260009197,Requester,Benjamim Cassiano,Please send me a printed transcript.,False,2026-06-07T22:51:25Z
+524184,20260009197,Analyst,asampaio,Request received and under analysis.,False,2026-06-08T12:35:22Z
+524187,20260009197,Analyst,asampaio,Checked the student record in SAG.,True,2026-06-08T13:05:22Z
+524202,20260009197,Analyst,asampaio,Please send a copy of your ID document.,False,2026-06-08T19:35:22Z
+524217,20260009197,Requester,Benjamim Cassiano,Document attached.,False,2026-06-09T07:35:22Z
+524292,20260009197,System,system,Protocol closed as Resolved.,False,2026-06-10T11:11:44Z
+524400,20260010015,Requester,Camila Ana Lívia da Mota Silva,I missed the exam and need a second-call date.,False,2026-06-11T14:45:12Z
+524430,20260010174,Requester,Leandro Diego Cirino Azevedo,I missed the exam and need a second-call date.,False,2026-06-11T18:56:26Z
+524469,20260010174,Analyst,aviana,Request received and under analysis.,False,2026-06-12T11:21:15Z
+524515,20260010015,Analyst,fcavalcanti,Request received and under analysis.,False,2026-06-12T19:03:30Z
+524519,20260010015,Analyst,fcavalcanti,Checked the student record in SAG.,True,2026-06-12T19:33:30Z
+524626,20260010174,System,system,Protocol closed as Resolved.,False,2026-06-14T11:05:42Z
+524651,20260010015,System,system,Protocol closed as Resolved.,False,2026-06-14T16:24:48Z
+524762,20260010949,Requester,Leandro Diego Cirino Azevedo,I am not satisfied with the service I received.,False,2026-06-17T22:24:43Z
+524774,20260010949,Analyst,abrito,Request received and under analysis.,False,2026-06-18T11:47:56Z
+524785,20260010949,System,system,Protocol closed as Resolved.,False,2026-06-19T11:34:39Z
+525159,20260011972,Requester,Benjamim Cassiano,I disagree with my final grade and request a review.,False,2026-07-04T10:44:56Z
+525205,20260011972,Analyst,mcosta,Request received and under analysis.,False,2026-07-05T11:38:12Z
+525252,20260011972,System,system,Protocol closed as Resolved.,False,2026-07-06T11:00:33Z
+525620,20260013295,Requester,Letícia Ana Beatriz Pereira Pacheco,I disagree with my final grade and request a review.,False,2026-07-11T22:32:57Z
+525682,20260013295,Analyst,lvieira,Request received and under analysis.,False,2026-07-13T11:33:04Z
+525695,20260013295,Analyst,lvieira,Checked the student record in SAG.,True,2026-07-13T12:03:04Z
+525775,20260013295,System,system,Protocol closed as Resolved.,False,2026-07-14T12:20:32Z
+526261,20260014880,Requester,Nicolas Gael Sales Oliveira,When will my diploma be available?,False,2026-08-01T22:25:34Z
+526302,20260014880,Analyst,asampaio,Request received and under analysis.,False,2026-08-02T11:53:56Z
+526305,20260014880,Analyst,asampaio,Checked the student record in SAG.,True,2026-08-02T12:23:56Z
+526335,20260014880,System,system,Protocol closed as Resolved.,False,2026-08-03T19:46:43Z
+526474,20260015454,Requester,Camila Ana Lívia da Mota Silva,Please send me a printed transcript.,False,2026-08-07T14:03:42Z
+526487,20260015454,Analyst,asampaio,Request received and under analysis.,False,2026-08-07T20:31:56Z
+526501,20260015454,Analyst,asampaio,Please send a copy of your ID document.,False,2026-08-07T23:31:56Z
+526515,20260015454,Requester,Camila Ana Lívia da Mota Silva,Document attached.,False,2026-08-08T14:31:56Z
+526565,20260015454,System,system,Protocol closed as Resolved.,False,2026-08-09T11:40:37Z
+526611,20260015922,Requester,Ester Cavalcanti da Luz,When will my diploma be available?,False,2026-08-10T18:09:06Z
+526619,20260015940,Requester,Evelyn Ferreira,"My payment slip expired, please send a new one.",False,2026-08-10T19:29:45Z
+526631,20260015940,Analyst,acasagrande,Request received and under analysis.,False,2026-08-11T11:01:23Z
+526635,20260015922,Analyst,asampaio,Request received and under analysis.,False,2026-08-11T11:22:21Z
+526653,20260015922,Analyst,asampaio,Please send a copy of your ID document.,False,2026-08-11T14:22:21Z
+526663,20260015922,Requester,Ester Cavalcanti da Luz,Document attached.,False,2026-08-12T09:22:21Z
+526670,20260015940,System,system,Protocol closed as Resolved.,False,2026-08-12T11:29:16Z
+526775,20260015922,System,system,Protocol closed as Resolved.,False,2026-08-14T22:09:15Z
+526781,20260016422,Requester,Ester Cavalcanti da Luz,I cannot log in to the LMS.,False,2026-08-14T23:36:30Z
+526787,20260016422,Analyst,sfarias,Request received and under analysis.,False,2026-08-15T11:01:31Z
+526793,20260016422,Analyst,sfarias,Checked the student record in SAG.,True,2026-08-15T11:31:31Z
+526845,20260016422,System,system,Protocol closed as Resolved.,False,2026-08-16T11:45:11Z
+527067,20260017256,Requester,Emilly Nascimento Cavalcanti,"My payment slip expired, please send a new one.",False,2026-08-19T21:08:29Z
+527075,20260017256,Analyst,bfogaca,Request received and under analysis.,False,2026-08-19T23:35:48Z
+527129,20260017256,System,system,Protocol closed as Resolved.,False,2026-08-21T11:26:00Z
+527138,20260017353,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2026-08-21T16:34:10Z
+527155,20260017353,Analyst,acasagrande,Request received and under analysis.,False,2026-08-21T21:48:08Z
+527166,20260017353,System,system,Protocol closed as Resolved.,False,2026-08-22T11:47:02Z
+527843,20260019274,Requester,Maria Júlia Eloah Rios,I need an enrollment certificate for my internship.,False,2026-09-16T16:57:10Z
+527846,20260019274,Analyst,gfarias,Request received and under analysis.,False,2026-09-16T20:48:57Z
+527854,20260019274,Analyst,gfarias,Please send a copy of your ID document.,False,2026-09-16T22:48:57Z
+527857,20260019274,Requester,Maria Júlia Eloah Rios,Document attached.,False,2026-09-17T06:48:57Z
+527867,20260019274,System,system,Protocol closed as Resolved.,False,2026-09-17T17:34:04Z
+528334,20260020465,Requester,Ana Beatriz Júlia da Conceição Barros,I have a question about the academic calendar.,False,2026-10-02T16:34:42Z
+528355,20260020465,Analyst,aviana,Request received and under analysis.,False,2026-10-03T11:07:01Z
+528366,20260020465,Analyst,aviana,Please send a copy of your ID document.,False,2026-10-03T16:07:01Z
+528390,20260020465,Requester,Ana Beatriz Júlia da Conceição Barros,Document attached.,False,2026-10-04T16:07:01Z
+528459,20260020465,System,system,Protocol closed as Resolved.,False,2026-10-05T11:45:03Z
+528500,20260021125,Requester,Elisa Heloísa Pastor,I need an enrollment certificate for my internship.,False,2026-10-05T16:12:41Z
+528516,20260021160,Requester,Maria Vitória Zoe Sousa Araújo,I cannot log in to the LMS.,False,2026-10-05T21:32:32Z
+528529,20260021125,Analyst,lsilva,Request received and under analysis.,False,2026-10-05T22:25:39Z
+528567,20260021125,System,system,Protocol closed as Resolved.,False,2026-10-06T11:11:30Z
+528582,20260021160,Analyst,msousa,Request received and under analysis.,False,2026-10-06T11:40:22Z
+528593,20260021160,Analyst,msousa,Checked the student record in SAG.,True,2026-10-06T12:10:22Z
+528683,20260021160,System,system,Protocol closed as Resolved.,False,2026-10-07T11:03:24Z
+528749,20260021904,Requester,Fernando Pedro Lucas Albuquerque,I missed the exam and need a second-call date.,False,2026-10-07T17:34:23Z
+528810,20260021904,Analyst,lmachado,Request received and under analysis.,False,2026-10-08T11:24:55Z
+528860,20260022332,Requester,Evelyn Ferreira,I missed the exam and need a second-call date. RA: 180823.,False,2026-10-08T12:23:07Z
+528982,20260022332,Analyst,fcavalcanti,Request received and under analysis.,False,2026-10-09T11:29:40Z
+528991,20260021904,System,system,Protocol closed as Resolved.,False,2026-10-09T11:37:16Z
+529021,20260022332,System,system,Protocol closed as Resolved.,False,2026-10-09T18:27:21Z
+529160,20260023152,Requester,Emilly Nascimento Cavalcanti,I want to renegotiate my outstanding debt. My RA is 01322-6.,False,2026-10-13T11:11:41Z
+529191,20260023152,Analyst,ydasneves,Request received and under analysis.,False,2026-10-13T17:44:18Z
+529207,20260023294,Requester,Benjamim Cassiano,I have a question about the academic calendar.,False,2026-10-13T23:16:31Z
+529220,20260023294,Analyst,mpinto,Request received and under analysis.,False,2026-10-14T11:51:32Z
+529223,20260023152,System,system,Protocol closed as Resolved.,False,2026-10-14T12:04:00Z
+529225,20260023294,Analyst,mpinto,Checked the student record in SAG.,True,2026-10-14T12:21:32Z
+529227,20260023316,Requester,Mariah Araújo Ferreira,"My payment slip expired, please send a new one.",False,2026-10-14T12:41:01Z
+529232,20260023294,System,system,Protocol closed as Resolved.,False,2026-10-14T13:35:38Z
+529244,20260023316,Analyst,bfogaca,Request received and under analysis.,False,2026-10-14T22:43:31Z
+529245,20260023316,Analyst,bfogaca,Checked the student record in SAG.,True,2026-10-14T23:13:31Z
+529253,20260023316,System,system,Protocol closed as Resolved.,False,2026-10-15T11:28:18Z
+529307,20260023316,Requester,Mariah Araújo Ferreira,The issue was not solved.,False,2026-10-16T11:28:18Z
+529420,20260023316,System,system,Protocol closed as Resolved.,False,2026-10-18T16:28:18Z
+529580,20260024278,Requester,Elisa Heloísa Pastor,Please send me a printed transcript.,False,2026-10-24T00:37:16Z
+529588,20260024278,Analyst,asampaio,Request received and under analysis.,False,2026-10-24T11:44:53Z
+529608,20260024278,System,system,Protocol closed as Resolved.,False,2026-10-25T11:48:38Z
+529782,20260024855,Requester,Leandro Diego Cirino Azevedo,I need an enrollment certificate for my internship.,False,2026-10-31T22:00:27Z
