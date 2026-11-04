@@ -113,16 +113,25 @@ Toda rodada do teste (inclusive abortada ou repetida por vazamento) é contada e
 
 ## 17. Escopo e limites do scorer
 O scorer é determinístico: fatos exigidos (do oráculo) com fronteiras de palavra e
-multiplicidade, datas por extenso normalizadas, **fato negado na mesma oração não conta**
-("não está ativa" não satisfaz "ativa"), padrões `forbidden` (regex) e ferramentas, rascunho e
-recusa (prefixo fixo; recusa com valor em R$ ou data inventados reprova). O `forbidden`
-automático do `build.py` inclui: status trocado (alunos com 1 matrícula), valores exclusivos da
-outra matrícula da pessoa e valores monetários/datas onde o gabarito é "nada".
-Leniência residual declarada: (a) negação fora da oração do fato ou parafraseada
-("deixou de estar ativa") pode passar; (b) fatos soltos corretos ao lado de afirmações extras
-erradas não detectadas pelos padrões passam; (c) o `forbidden` é estrito demais quando o
-agente cita legitimamente a outra matrícula (reprova). A validação 24/6 (seção 12) mede (a) e
-(b) como VPP/VPN; a seção 8 propaga essa incerteza.
+multiplicidade, datas por extenso normalizadas, padrões `forbidden`, ferramentas, rascunho e
+recusa (prefixo fixo; recusa com valor em R$ ou data inventados reprova).
+- **Negação local:** um fato só não conta (ou um `forbidden:fato` só não dispara) se houver
+  negação (não, nunca, nem, jamais, nenhum/a) nas até 3 palavras imediatamente antes dele, dentro
+  da mesma oração; oração termina em `. , ; : ! ?`, quebra de linha ou em " e ", " mas ",
+  " porém ", " porque ". Assim "não está mais ativa" reprova "ativa", e "não há pendências e
+  sua matrícula está ativa" passa.
+- **`forbidden` automático** (`build.py`): status trocado (só aluno com 1 matrícula; guardado
+  pela mesma negação local, então "está ativa, não trancada" passa) e valores monetários/datas
+  onde o gabarito é "nada". Valores exclusivos da outra matrícula da pessoa só são proibidos em
+  templates com `escopo: uma_matricula` (nenhum hoje: regra desligada), para não reprovar
+  respostas corretas que listam as duas matrículas.
+Leniência residual, nas duas direções (o 24/6 da seção 12 mede ambas como VPP/VPN):
+- *Falso passa:* negação a mais de 3 palavras do fato ou parafraseada ("deixou de estar
+  ativa"); afirmação extra errada não coberta por padrão (inclusive valores da outra matrícula
+  citados como se fossem desta); o `forbidden` de status não pega paráfrases do status.
+- *Falso reprova:* negação dentro da janela mas com sentido positivo ("não deixa de estar
+  ativa"); regex livre `forbidden` estrito demais; agente que pede para escolher a matrícula
+  em vez de responder (seção 16).
 
 ## 18. Nota datada sobre o carimbo
 2026-11-04: o carimbo OpenTimestamps (`dataset.sha256.ots`) está **pendente por decisão do

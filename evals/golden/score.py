@@ -71,7 +71,8 @@ def normalize(text: str) -> str:
 
 
 _NEG = re.compile(r"\b(?:não|nao|nunca|nem|jamais|nenhum|nenhuma)\b")
-_CLAUSE = re.compile(r"[.,;:!?\n]")
+_CLAUSE = re.compile(r"[.,;:!?\n]|\s(?:e|mas|porém|porque)\s")
+NEG_WINDOW = 3  # a negação vale só nas 3 palavras logo antes do fato ("não está mais ativa")
 _REFUSAL_INVENTED = re.compile(r"r\$\s*\d|\b\d{2}/\d{2}/\d{4}\b")
 
 
@@ -80,13 +81,16 @@ def fact_rx(fact: str) -> str:
     return rf"(?<![\w.,/$]){re.escape(fact.lower())}(?![\w/]|[.,]\d)"
 
 
-def _count(fact: str, text: str) -> int:
-    """Ocorrências do fato que não estão negadas na mesma oração ("não está ativa" não conta)."""
+def _hits(fact: str, text: str) -> int:
+    """Ocorrências do fato sem negação na janela local (NEG_WINDOW palavras, mesma oração)."""
     n = 0
     for m in re.finditer(fact_rx(fact), text):
-        clause = _CLAUSE.split(text[: m.start()])[-1]
-        n += not _NEG.search(clause)
+        words = re.findall(r"\w+", _CLAUSE.split(text[: m.start()])[-1])[-NEG_WINDOW:]
+        n += not _NEG.search(" ".join(words))
     return n
+
+
+_count = _hits
 
 
 def _score_turn(c: Check, t: TurnRecord) -> list[str]:
@@ -108,7 +112,11 @@ def _score_turn(c: Check, t: TurnRecord) -> list[str]:
     for f, n in need.items():
         if _count(f, text) < n:
             out.append(f"fato ausente: {f}")
-    out += [f"proibido presente: {f}" for f in c.forbidden if re.search(f, text)]
+    for f in c.forbidden:
+        # "fact:x" = fato proibido (só vale sem negação local); senão, regex livre
+        hit = _hits(f[5:], text) if f.startswith("fact:") else re.search(f, text)
+        if hit:
+            out.append(f"proibido presente: {f}")
     if c.expect_refusal and _REFUSAL_INVENTED.search(text):
         out.append("recusa com conteúdo inventado")
     if not t.answer.strip():

@@ -3,6 +3,7 @@ import json
 import random
 import subprocess
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -255,7 +256,27 @@ def test_mutated_categorical_and_multiturn_fail() -> None:
 
 def test_wrong_status_and_other_enrollment_forbidden() -> None:
     items, raw = _items()
-    t = next(i for i in items if i.id == "ac-01@g1")  # 1 matrícula ativa
-    assert any("trancada" in f for f in t.steps[0].forbidden)
-    t3 = next(i for i in items if i.id == "fi-01@g3")  # 2 matrículas: valores da outra proibidos
-    assert t3.steps[0].forbidden != ()
+    by_id = {i.id: i for i in items}
+    t1 = by_id["ac-01@g1"]  # 1 matrícula ativa
+    assert any("trancada" in f for f in t1.steps[0].forbidden)
+    (good,) = build.ideal_turns(t1, raw)
+    for extra in (" Não está trancada.", " Não está cancelada nem inativa."):
+        ok = replace(good, answer=good.answer + extra)
+        assert score_item(t1, [ok]).passed, extra
+    bad = replace(good, answer=good.answer.replace("ativa", "trancada"))
+    assert not score_item(t1, [bad]).passed
+    # 2 matrículas: resposta correta que lista as duas passa (regra da outra matrícula desligada)
+    t3 = by_id["fi-01@g3"]
+    other_enr = ["UniSaoPaulo", "181544"]
+    other = o.ideal_answer({"oracle_fn": "oracle_financial", "args": {"enr": other_enr}}, raw)[0]
+    (g3,) = build.ideal_turns(t3, raw)
+    both = replace(g3, answer=f"{g3.answer} Na outra matrícula: {other}")
+    assert score_item(t3, [both]).passed
+    # com `escopo: uma_matricula` os valores exclusivos da outra matrícula viram proibidos
+    tpl = {**next(t for t in build.load_templates(GOLD / "templates.yaml") if t["id"] == "ac-01"),
+           "escopo": "uma_matricula"}  # fmt: skip
+    (scoped,) = build.build_items([tpl], [], {"g3": ENR["g3"]}, raw)
+    (mine,) = build.ideal_turns(scoped, raw)
+    theirs = o.ideal_answer({"oracle_fn": "oracle_courses", "args": {"enr": other_enr}}, raw)[0]
+    assert score_item(scoped, [mine]).passed
+    assert not score_item(scoped, [replace(mine, answer=f"{mine.answer} {theirs}")]).passed

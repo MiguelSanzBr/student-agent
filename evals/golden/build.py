@@ -69,10 +69,11 @@ _EMPTY_FORBIDS = {
     "oracle_protocols": r"prt-\d",
     "oracle_forecast": r"\b\d{4}/[12]\b",
 }
-_NOT_ACTIVE = r"(?<!não )(?<!não está )(?<!\w)ativa(?!\w)"
 
 
-def _auto_forbidden(fns: Sequence[str], args: Mapping[str, Any], enr: Enr, raw: o.Raw) -> list[str]:
+def _auto_forbidden(
+    fns: Sequence[str], args: Mapping[str, Any], enr: Enr, raw: o.Raw, *, one_enrollment: bool
+) -> list[str]:
     """Padrões de resposta obviamente errada, derivados do oráculo: status trocado (só para quem
     tem 1 matrícula), valores exclusivos de outra matrícula da pessoa e valores onde não há nada."""
     own = o.enrollments(raw)[enr]
@@ -84,17 +85,17 @@ def _auto_forbidden(fns: Sequence[str], args: Mapping[str, Any], enr: Enr, raw: 
         mine = o.ideal_answer({"oracle_fn": fn, "args": args}, raw)[1]
         if not mine and fn in _EMPTY_FORBIDS:
             out.append(_EMPTY_FORBIDS[fn])
-        for k in others:
+        for k in others if one_enrollment else ():
             theirs = o.ideal_answer({"oracle_fn": fn, "args": {**args, "enr": list(k)}}, raw)[1]
             out += [fact_rx(f) for f in theirs if f not in mine and re.search(r"\d.*[,/]|R\$", f)]
         if fn == "oracle_courses" and not others:
             status = own["ENROLLMENT_STATUS"]
             wrong = [w for st, w in o.ENROLLMENT_STATUS_PT.items() if st != status]
-            out += [fact_rx(w) for w in wrong]
+            out += [f"fact:{w}" for w in wrong]
             if status == "ACTIVE":
-                out.append(fact_rx("inativa"))
+                out.append("fact:inativa")
             else:
-                out.append(_NOT_ACTIVE)
+                out.append("fact:ativa")
     return out
 
 
@@ -104,7 +105,14 @@ def _check(t: Mapping[str, Any], enr: Enr, raw: o.Raw) -> Check:
     args = {**t.get("args", {}), "enr": list(enr)}
     oracle = t.get("required") == "oracle"
     required = tuple(_facts(fns, args, raw)[1]) if oracle else ()
-    forbidden = (*t.get("forbidden", ()), *(_auto_forbidden(fns, args, enr, raw) if oracle else ()))
+    forbidden = (
+        *t.get("forbidden", ()),
+        *(
+            _auto_forbidden(fns, args, enr, raw, one_enrollment=t.get("escopo") == "uma_matricula")
+            if oracle
+            else ()
+        ),
+    )
     return Check(
         text=t["text"], expected_tools=tuple(t.get("expected_tools", ())), required=required,
         forbidden=tuple(dict.fromkeys(forbidden)), expect_draft=bool(t.get("expect_draft")),

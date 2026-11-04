@@ -115,3 +115,28 @@ def test_refusal_with_invented_content_fails() -> None:
     it = item(chk(expect_refusal=True))
     assert not score_item(it, [turn(f"{REFUSAL_PREFIX} A mensalidade é R$ 10,00.")]).passed
     assert not score_item(it, [turn(f"{REFUSAL_PREFIX} Vence em 05/11/2026.")]).passed
+
+
+def test_negation_window_is_local() -> None:
+    cases = [
+        (("ativa",), "Você não tem faturas vencidas e sua matrícula está ativa."),
+        (("ativa",), "Não há pendências e sua matrícula está ativa."),
+        (("R$ 10,00",), "Você não pagou março e deve R$ 10,00."),
+        (("ativa",), "Não tem pendência mas está ativa."),
+    ]
+    for req, ans in cases:
+        assert score_item(item(chk(required=req)), [turn(ans)]).passed, ans
+    it = item(chk(required=("ativa",)))
+    for ans in ("não está ativa", "Não está mais ativa.", "nunca foi ativa", "não foi ativa"):
+        assert not score_item(it, [turn(ans)]).passed, ans
+
+
+def test_forbidden_fact_is_negation_guarded() -> None:
+    it = item(chk(forbidden=("fact:trancada", "fact:cancelada")))
+    for ans in ("Está ativa, não trancada.", "A matrícula não está cancelada."):
+        assert score_item(it, [turn(ans)]).passed, ans
+    assert not score_item(it, [turn("Sua matrícula está trancada.")]).passed
+    inactive = item(chk(forbidden=("fact:ativa",)))
+    assert score_item(inactive, [turn("Ela não está mais ativa.")]).passed
+    assert not score_item(inactive, [turn("Ela está ativa.")]).passed
+    assert score_item(inactive, [turn("Ela está inativa.")]).passed
