@@ -88,7 +88,7 @@ async def test_records_financeiro_total(pool, loaded_db) -> None:  # type: ignor
 async def test_golden9_breakdown(pool, loaded_db, raw) -> None:  # type: ignore[no-untyped-def]
     out = await H["get_financial_summary"](await _ctx(pool, loaded_db, 9), {})
     want = sorted(o.oracle_financial(raw, e).total_para_quitar for e in _enrs(9))
-    got = [r for r in out.records if r.kind == "financeiro"]
+    got = [r for r in out.records if r.kind == "financeiro" and r.id != "total"]
     assert len(got) == 2
     assert sorted(r.fields["total_para_quitar"] for r in got) == sorted(fmt_brl(w) for w in want)
     assert out.data["total_geral"] == fmt_brl(sum(want))
@@ -124,7 +124,7 @@ async def test_golden6_active_agreement(pool, loaded_db) -> None:  # type: ignor
 async def test_cap_20(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]
     out = await H["list_invoices"](await _ctx(pool, loaded_db, 4), {})
     assert len(out.data["faturas"]) == 20 and out.data["total"] > 20
-    assert len(out.records) == 20
+    assert len([r for r in out.records if not r.id.startswith("lista-")]) == 20
 
 
 async def test_reference_date(pool, loaded_db, raw) -> None:  # type: ignore[no-untyped-def]

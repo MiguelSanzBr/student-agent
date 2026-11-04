@@ -177,7 +177,7 @@ async def test_accesses_in_period(make_ctx: Any, raw: o.Raw) -> None:
     out = await _lms(await make_ctx(2), period="2025/2")
     assert out.data["acessos_no_periodo"] == want and out.data["periodo"] == "2025/2"
     rec = _fact(out, "lms")[0]
-    assert (rec.id, rec.aliases, rec.fields["acessos"]) == ("2025/2", ("2025/2",), str(want))
+    assert (rec.id, rec.aliases[0], rec.fields["acessos"]) == ("2025/2", "2025/2", str(want))
 
 
 async def test_period_invalid(make_ctx: Any) -> None:
@@ -280,7 +280,9 @@ async def test_get_catalog_subjects_calculo(make_ctx: Any) -> None:
     out = await _cat(await make_ctx(1), "disciplina", query="calculo")
     names = [d["disciplina"] for d in out.data["disciplinas"]]
     assert names and all("calculo" in unicodedata_norm(n) for n in names)
-    assert out.data["total"] == len(names) and {r.kind for r in out.records} == {"disciplina"}
+    assert out.data["total"] == len(names) and {
+        r.kind for r in out.records if r.id != "consulta"
+    } == {"disciplina"}
 
 
 def unicodedata_norm(s: str) -> str:

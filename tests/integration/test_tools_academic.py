@@ -350,7 +350,7 @@ async def test_retake_older_attempts_have_records(pool, loaded_db: Loaded) -> No
     assert old.fields["media_final"] == "4,5" and old.fields["frequencia"] == "70,0%"
     latest = find_entity(idx, "Introdução à Contabilidade")
     assert latest is not None and latest.id == "CON0103" and latest.fields["semestre"] != "2021/1"
-    assert len(out.records) == len(rows)  # um registro por tentativa
+    assert len([r for r in out.records if r.kind == "disciplina"]) == len(rows)  # 1 por tentativa
 
 
 async def test_no_empty_string_fields(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]

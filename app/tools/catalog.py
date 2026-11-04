@@ -42,12 +42,21 @@ def _page(items: list[Any], what: str, query: str | None) -> dict[str, Any]:
     return out
 
 
+def _recap(data: Mapping[str, Any], records: list[EntityRecord]) -> list[EntityRecord]:
+    """Total e aviso de corte (números do `data`) como registro; lista vazia não vira "total: 0"."""
+    if data["total"]:
+        f = {k: str(data[k]) for k in ("total", "aviso_limite") if k in data}
+        return [*records, EntityRecord("curso", "consulta", ("resultado da consulta",), f)]
+    return records
+
+
 def _disciplina(row: tuple[Any, ...]) -> tuple[dict[str, Any], EntityRecord]:
     code, name, hours, credits, semester, mandatory = row
     inside = semester is not None
     d: dict[str, Any] = {"disciplina": name, "horas": int(hours), "creditos": int(credits),
                          "na_sua_matriz": inside}  # fmt: skip
-    f = {"na_sua_matriz": "sim" if inside else "não", "horas": str(int(hours))}
+    f = {"na_sua_matriz": "sim" if inside else "não", "horas": str(int(hours)),
+         "creditos": str(int(credits))}  # fmt: skip
     if inside:
         d["semestre"], d["obrigatoria"] = int(semester), bool(mandatory)
         f["semestre"] = str(int(semester))
@@ -75,9 +84,8 @@ async def get_catalog(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
             items.append({"servico": s.name_pt, "rotulo_na_interface": s.ui_label,
                           "o_agente_abre_o_pedido": s.mode == "agent", **rec.fields})  # fmt: skip
             records.append(rec)
-        return ToolOutput(
-            {**data, "servicos": items, **_page(codes, "serviço", query)}, tuple(records)
-        )
+        out = {**data, "servicos": items, **_page(codes, "serviço", query)}
+        return ToolOutput(out, tuple(_recap(out, records)))
 
     async with ctx.db() as conn:
         if kind in ("curso", "preco"):
@@ -149,6 +157,7 @@ async def get_catalog(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
                         "av2": fmt_date(t[4]),
                         "inicio": fmt_date(t[1]),
                         "fim": fmt_date(t[2]),
+                        "atual": "sim" if t[5] else "não",
                     },
                 )  # fmt: skip
                 for t in terms[:MAX_ITEMS]
@@ -164,7 +173,12 @@ async def get_catalog(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
                 ],  # fmt: skip
                 **_page(us, "unidade", query),
             }
-    return ToolOutput(data, tuple(records))
+            records = [  # kind "curso": o domínio catálogo da guarda não tem "unidade" próprio
+                EntityRecord("curso", f"unidade-{u['unidade']}", (u["unidade"],),
+                             {"tipo": u["tipo"], "uf": u["uf"]})
+                for u in data["unidades"]
+            ]  # fmt: skip
+    return ToolOutput(data, tuple(_recap(data, records)))
 
 
 TOOLS: tuple[Tool, ...] = (

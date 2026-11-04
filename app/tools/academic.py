@@ -92,6 +92,12 @@ def _enrollment_record(idx: str, label: str, fields: Mapping[str, str]) -> Entit
     return EntityRecord("matricula", idx, (label, f"matrícula {idx}"), fields)
 
 
+def _summary_record(idx: str, aliases: tuple[str, ...], fields: Mapping[str, Any]) -> EntityRecord:
+    """Resumo da matrícula (totais, contagens, previsão): id = índice, alias próprio (não colide
+    com o registro do perfil) e só texto: é o que a guarda casa com a resposta."""
+    return EntityRecord("matricula", idx, aliases, {k: str(v) for k, v in fields.items()})
+
+
 def _others(ctx: ToolContext, chosen: str) -> tuple[list[dict[str, str]], list[EntityRecord]]:
     data, recs = [], []
     for e in ctx.scope.enrollments:
@@ -154,9 +160,18 @@ async def get_academic_profile(ctx: ToolContext, args: Mapping[str, Any]) -> Too
          "entrega": _pt("delivery", x["delivery"])}
         for x in docs
     ]  # fmt: skip
-    records = [
-        _enrollment_record(ref.index, ref.label, {k: v for k, v in d.items() if isinstance(v, str)})
-    ]
+    fields = {k: v for k, v in d.items() if isinstance(v, str)}
+    for n, h in enumerate(d["historico"], 1):  # evidência do histórico de situação
+        fields[f"historico_{n}"] = "; ".join(
+            [
+                h["data"],
+                h["semestre"],
+                *([h["de"] + " ->"] if "de" in h else []),
+                h["para"],
+                h["motivo"],
+            ]
+        )
+    records = [_enrollment_record(ref.index, ref.label, fields)]
     records += [
         EntityRecord("documento", x["document_id"], (doc["tipo"],),
                      {"emitido_em": doc["emitido_em"], "entrega": doc["entrega"]})
@@ -226,6 +241,12 @@ async def list_course_results(ctx: ToolContext, args: Mapping[str, Any]) -> Tool
         d["aviso"] = " ".join(notes)
     if len(ctx.scope.enrollments) > 1:
         d["matricula"] = ref.label
+    if rows:  # sem linhas a ausência segue pela cobertura/filtros (nunca "total: 0" como registro)
+        recap = {
+            "total": d["total"],
+            **({"aviso_limite": d["aviso_limite"]} if len(rows) > len(shown) else {}),
+        }  # noqa: E501
+        records.insert(0, _summary_record(ref.index, ("resultados da matrícula",), recap))
     return ToolOutput(d, tuple(records))
 
 
@@ -275,6 +296,11 @@ async def get_curriculum_progress(ctx: ToolContext, args: Mapping[str, Any]) -> 
         d["previsao"] = graduation_forecast(prog, term)
     if len(ctx.scope.enrollments) > 1:
         d["matricula"] = ref.label
+    # o resumo (cumpridas/matriz, horas, conclusão, previsão) é evidência: vai antes das pendentes
+    summary = {k: v for k, v in d.items() if k != "pendentes"}
+    records.insert(
+        0, _summary_record(ref.index, ("progresso na matriz", "matriz curricular"), summary)
+    )
     return ToolOutput(d, tuple(records))
 
 

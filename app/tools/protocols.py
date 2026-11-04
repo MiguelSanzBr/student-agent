@@ -70,8 +70,26 @@ def _row(
 
 
 def _record(r: Mapping[str, str]) -> EntityRecord:
-    f = {k: r[k] for k in ("servico", "status", "aberto_em", "prazo")}
+    f = {k: r[k] for k in ("servico", "status", "aberto_em", "prazo", "solicitante")}
     return EntityRecord("protocolo", r["protocolo"], (r["protocolo"],), f)
+
+
+def _with_details(row: Mapping[str, str], data: Mapping[str, Any]) -> EntityRecord:
+    """Protocolo + histórico, documentos e fatura vinculada como campos (evidência do `data`).
+    Mensagens: só autor e momento. O texto fica fora: pode ter vindo de fora (não confiável) e
+    não pode virar evidência (telefone/e-mail injetado passaria na guarda)."""
+    rec, f = _record(row), dict(_record(row).fields)
+    for n, h in enumerate(data.get("historico", ()), 1):
+        f[f"historico_{n}"] = (
+            f"{h['de']} -> {h['para']}; {h['em']}" if h["de"] else f"{h['para']}; {h['em']}"
+        )  # noqa: E501
+    for n, m in enumerate(data.get("mensagens", ()), 1):
+        f[f"mensagem_{n}"] = f"{m['autor']}; {m['em']}"
+    for n, x in enumerate(data.get("documentos", ()), 1):
+        f[f"documento_{n}"] = f"{x['tipo']}; {x['emitido_em']}; {x['entrega']}"
+    if v := data.get("fatura_vinculada"):
+        f["fatura_vinculada"] = "; ".join(v.values())
+    return EntityRecord(rec.kind, rec.id, rec.aliases, f)
 
 
 def _secretary(r: tuple[Any, ...]) -> dict[str, str]:
@@ -102,9 +120,10 @@ async def _list(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
         if since is not None:
             data["nota_cobertura"] = coverage_note("secretaria", since)
         return ToolOutput(data)
+    total = EntityRecord("protocolo", "lista", ("lista de protocolos",), {"total": str(len(rows))})
     return ToolOutput(
         {"protocolos": [{k: v for k, v in r.items()} for r in rows]},
-        tuple(_record(r) for r in rows),
+        (*(_record(r) for r in rows), total),
     )
 
 
@@ -156,7 +175,7 @@ async def _get(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
                     "fatura": i, "competencia": comp, "vencimento": fmt_date(due),
                     "status": onto.label_pt("invoice_status", st), "valor": fmt_brl(net),
                 }  # fmt: skip
-    return ToolOutput(data, (_record(row),), untrusted=untrusted)
+    return ToolOutput(data, (_with_details(row, data),), untrusted=untrusted)
 
 
 def _allowed(ctx: ToolContext) -> str | None:
@@ -281,7 +300,12 @@ async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     }  # fmt: skip
     if code == "GEN-090":
         data["orientacao"] = f"{svc.ui_label}: prazo de {orientation(code)['prazo']}."
-    return ToolOutput(data, (service_record(code),), draft=card)
+    svc_rec = service_record(
+        code
+    )  # `prazo` do registro é o SLA ("2 dias"); a data limite vai junto
+    svc_rec = EntityRecord(svc_rec.kind, svc_rec.id, svc_rec.aliases,
+                           {**svc_rec.fields, "data_limite": due})  # fmt: skip
+    return ToolOutput(data, (svc_rec,), draft=card)
 
 
 TOOLS: tuple[Tool, ...] = (

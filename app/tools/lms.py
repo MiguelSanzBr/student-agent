@@ -80,7 +80,9 @@ async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOut
             data["mensagem"] = (
                 "Esta matrícula não tem conta no AVA (ambiente virtual de aprendizagem)."
             )
-            return ToolOutput(data, (cobertura,))
+            return ToolOutput(
+                data, (EntityRecord("lms", label, (label,), {"matricula": ref.label}), cobertura)
+            )
         before = end < since
         if before or start < since:
             data["cobertura"] = coverage_note("lms", since)
@@ -156,11 +158,15 @@ async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOut
     if cut:
         data["aviso_limite"] = "Mostrando " + " e ".join(cut) + "."
     f = {
+        "matricula": ref.label, "total_disciplinas": str(len(rooms)),
+        "total_provas": str(len(items)),
         "ultimo_acesso": data["ultimo_acesso"],
         "simulados_abertos": str(s.simulados_abertos),
         "simulados_com_tentativa_restante": str(s.simulados_com_tentativa_restante),
         "pendentes": str(s.pendentes), "tentativas_nao_oficiais": str(len(attempts)),
     }  # fmt: skip
+    if "aviso_limite" in data:
+        f["aviso_limite"] = data["aviso_limite"]
     if n_logins:  # nunca "0": sem acessos (ou antes da cobertura) a chave some
         f["acessos"] = str(n_logins)
     if nxt:
@@ -169,7 +175,8 @@ async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOut
             "proxima_tipo": nxt.kind,
             "proxima_fonte": nxt.source,
         }
-    lms_rec = EntityRecord("lms", label, (label,), f)
+    # as disciplinas do AVA são alias do registro: a guarda só deixa citar disciplina com registro
+    lms_rec = EntityRecord("lms", label, (label, *data["disciplinas"]), f)
     return ToolOutput(data, (lms_rec, cobertura, *recs))
 
 

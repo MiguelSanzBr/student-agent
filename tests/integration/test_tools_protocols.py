@@ -107,7 +107,7 @@ async def test_sibling_absent(pool, loaded_db) -> None:  # type: ignore[no-untyp
     out = await _run("list_protocols", ctx)
     numbers = {p["protocolo"] for p in out.data["protocolos"]}
     assert "20230003896" in numbers and "20220005842" not in numbers
-    assert {r.id for r in out.records if r.kind == "protocolo"} == numbers
+    assert {r.id for r in out.records if r.kind == "protocolo" and r.id != "lista"} == numbers
 
 
 async def test_invoice_link(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]

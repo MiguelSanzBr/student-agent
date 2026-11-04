@@ -80,7 +80,7 @@ async def _summary(
         "financeiro",
         e.index,
         (f"matrícula {e.index}",),
-        {k: str(v) for k, v in d.items() if k != "dias_para_proximo_vencimento"},
+        {k: str(v) for k, v in d.items() if v is not None},  # sem próximo vencimento: sem dias
     )
     descontos, drecs = [], []
     for n, (_, typ, rate, vfrom, vto) in enumerate(disc, 1):  # id bruto do banco não sai
@@ -110,7 +110,13 @@ async def get_financial_summary(ctx: ToolContext, args: Mapping[str, Any]) -> To
         rows.append({"matrícula": i, **d})
         recs += [rec, *drecs]
         total += due
-    return ToolOutput({"matriculas": rows, "total_geral": fmt_brl(total)}, tuple(recs))
+    geral = EntityRecord(
+        "financeiro",
+        "total",
+        ("total geral", "todas as matrículas"),
+        {"total_geral": fmt_brl(total)},
+    )  # sem o campo total_para_quitar: não entra no total ancorado por matrícula
+    return ToolOutput({"matriculas": rows, "total_geral": fmt_brl(total)}, (geral, *recs))
 
 
 async def list_invoices(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
@@ -148,14 +154,22 @@ async def list_invoices(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput
                 "fatura",
                 i.id,
                 (i.id, i.competence),
-                {k: it[k] for k in ("status", "vencimento", "saldo", "para_quitar") if k in it},
+                {
+                    k: it[k]
+                    for k in ("status", "vencimento", "saldo", "para_quitar", "valor")
+                    if k in it
+                },
             )
         )
     data: dict[str, Any] = {"faturas": items, "total": len(rows)}
     if not rows:
         data["mensagem"] = EMPTY
+    if rows:  # lista vazia segue pela mensagem/filtros, nunca como "total: 0" de registro
+        recap = {"total": str(len(rows))}
+        recs.insert(0, EntityRecord("fatura", f"lista-{e.index}", ("lista de faturas",), recap))
     if period and since and period < since.strftime("%Y-%m"):
         data["nota"] = coverage_note("financeiro", since)
+        recs.append(EntityRecord("cobertura", "financeiro", (), {"desde": fmt_date(since)}))
     return ToolOutput(data, tuple(recs))
 
 
@@ -182,6 +196,13 @@ async def list_agreements(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutp
             EntityRecord("acordo", aid, (aid,), {k: str(v) for k, v in it.items() if k != "acordo"})
         )
     data: dict[str, Any] = {"acordos": items, "total": len(rows)}
+    if rows:
+        recs.insert(
+            0,
+            EntityRecord(
+                "acordo", f"lista-{e.index}", ("lista de acordos",), {"total": str(len(rows))}
+            ),
+        )
     if not rows:
         data["mensagem"] = EMPTY
     return ToolOutput(data, tuple(recs))
