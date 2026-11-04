@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import re
-from collections import deque
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
 
@@ -10,17 +9,14 @@ from google import genai
 from google.genai import errors, types
 
 from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
+from app.agent.retry import BACKOFF_S, RetryBudget
 from app.config import AppSettings
-from app.obs.metrics import METRICS
 from app.tools.base import ToolSpec
 from core.clock import monotonic
 
 log = logging.getLogger(__name__)
 THINKING_LEVEL = "MINIMAL"  # nível do portão (spec §6.5); medição real pendente: sem GEMINI_API_KEY
 MAX_OUTPUT_TOKENS = 2048  # resposta ≤ 2000 caracteres + raciocínio mínimo; a confirmar no spike
-RETRY_FRACTION, RETRY_FLOOR_PER_MIN = 0.10, 3
-BACKOFF_S = 0.3  # sem RetryInfo
-MIN_CALL_S = 0.5  # sobra mínima para valer a pena uma nova tentativa
 
 
 async def _sleep(s: float) -> None:
@@ -125,14 +121,7 @@ class GeminiProvider:
         self, settings: AppSettings, *, client_factory: Callable[[], genai.Client] | None = None
     ) -> None:
         self._client = (client_factory or (lambda: _default_client(settings)))()
-        self._calls: deque[float] = deque()
-        self._retries: deque[float] = deque()
-
-    def _may_retry(self, now: float) -> bool:
-        for q in (self._calls, self._retries):
-            while q and now - q[0] > 60:
-                q.popleft()
-        return len(self._retries) < max(RETRY_FLOOR_PER_MIN, RETRY_FRACTION * len(self._calls))
+        self._budget = RetryBudget()
 
     async def generate(
         self, *, model: str, system: str, messages: Sequence[Message],
@@ -158,8 +147,8 @@ class GeminiProvider:
                     retry_options=types.HttpRetryOptions(attempts=1),
                 ),
             )  # fmt: skip
-            if not retried:  # o teto de 10% é sobre chamadas, não sobre tentativas
-                self._calls.append(monotonic())
+            if not retried:
+                self._budget.call()
             try:
                 resp = await self._client.aio.models.generate_content(
                     model=model, contents=contents, config=cfg
@@ -173,11 +162,10 @@ class GeminiProvider:
                 delay = _retry_info_s(e) if code == 429 else None
                 delay = BACKOFF_S if delay is None else delay
                 now = monotonic()
-                if retried or deadline - now < delay + MIN_CALL_S or not self._may_retry(now):
+                if retried or not self._budget.worth_retry(now, deadline, delay):
                     raise LLMUnavailable(reason) from e
                 retried = True
-                self._retries.append(now)
-                METRICS["agent_llm_retries_total"].inc()  # type: ignore[union-attr]
+                self._budget.retried(now)
                 await _sleep(delay)
             except (TimeoutError, httpx.TimeoutException) as e:
                 raise LLMUnavailable("timeout") from e

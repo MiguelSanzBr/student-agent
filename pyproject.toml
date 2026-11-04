@@ -23,6 +23,8 @@ dependencies = [
   "arize-phoenix-otel==0.17.2",
   "arize-phoenix-client==3.6.0",
   "opentelemetry-exporter-otlp-proto-http==1.45.2",
+  "anthropic>=2.4.0",
+  "openai>=3.45.0",
 ]
 
 [dependency-groups]
