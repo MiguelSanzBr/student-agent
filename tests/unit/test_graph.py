@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
@@ -156,6 +157,7 @@ def _env(app_secrets: object) -> None:
     calls_made.clear()
 
 
+COBERTURA = "Não há dados do AVA antes de 15/01/2023."
 OK = f"Você deve {TOTAL} no total."
 
 
@@ -491,7 +493,7 @@ async def test_progress_and_first_event_ms() -> None:
      [_tool("get_lms_activity", ToolOutput({"mensagem": "Nenhum registro encontrado."}), "lms")],
      "vazio", "lms"),
     ([R(None, C("get_lms_activity")), R("Não há dados do AVA nesse período.")],
-     [_tool("get_lms_activity", ToolOutput({"cobertura": "AVA desde 15/01/2023"}), "lms")],
+     [_tool("get_lms_activity", ToolOutput({"cobertura": COBERTURA}), "lms")],
      "fora_cobertura", "lms"),
 ])  # fmt: skip
 async def test_answer_kind_and_domain(script: list[LLMResponse], tl: list[Tool] | None,
@@ -531,3 +533,175 @@ async def test_system_and_tools_identical_across_students_and_channels() -> None
     assert a.calls[0].system == b.calls[0].system
     assert a.calls[0].tools == b.calls[0].tools and len(a.calls[0].tools) == 4
     assert replace(a.calls[0], deadline=0).system.count(AppSettings().prompt_canary) == 1
+
+
+# ---- fix round 1 ----
+TOKEN_ID = "DRAFT-ID-7f3a"
+
+
+def _all_json(msgs: Sequence[Message]) -> str:
+    return json.dumps(
+        [(m.text, m.tool_result, [(c.name, dict(c.args)) for c in m.tool_calls]) for m in msgs],
+        ensure_ascii=False, default=str,
+    )  # fmt: skip
+
+
+async def test_draft_token_and_id_never_in_any_message() -> None:
+    d = DraftCard(TOKEN_ID, "SECRET-TOKEN", DraftKey("DOC-002", None), "Histórico escolar impresso",
+                  None, "R$ 20,00", "05/11/2026", "", "aviso", "conv", "1")  # fmt: skip
+    llm = ScriptedLLM([R(None, C("draft_protocol", {"service_code": "x"})), R(OK)])
+    r = await run(llm, tl=tools(d))
+    scanned = [_all_json(c.messages) for c in llm.calls] + [_all_json(r.new_messages)]
+    assert len(scanned) == 3
+    for blob in scanned:
+        assert "SECRET-TOKEN" not in blob and TOKEN_ID not in blob
+    assert r.draft is not None and r.draft.draft_id == TOKEN_ID
+
+
+async def test_chain_r2_built_from_r1() -> None:
+    r1 = await run(ScriptedLLM([R(None, C("get_protocol")), R(OK)]))
+    assert r1.became_tainted
+    conv = Conversation((r1.new_messages,), r1.became_tainted, False, False)
+    r2 = await run(ScriptedLLM([R(None, C("draft_protocol", {"service_code": "x"})), R(None)]),
+                   conv=conv, text="abre o histórico")  # fmt: skip
+    assert r2.draft is None and TAINT_NO_DRAFT in r2.answer and not r2.became_tainted
+    assert calls_made.get("draft_protocol") is None
+
+
+def test_merge_keeps_colliding_records() -> None:
+    a = EntityRecord("disciplina", "CALC1", ("Cálculo I",), {"resultado": "aprovado"})
+    b = EntityRecord("disciplina", "CALC1", ("Cálculo I",), {"resultado": "reprovado"})
+    out = g._merge([a, b, a])
+    assert list(out.values()) == [a, b] and len(out) == 2
+    assert next(iter(out)) == "disciplina:CALC1" and "disciplina:CALC1#1" in out
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="guard (T21): com 2 registros de mesmo alias, nem a "
+    "afirmação certa de cada um passa (ver relatório)",
+)
+async def test_colliding_records_both_anchor_claims() -> None:
+    def rec(res: str) -> Tool:
+        return _tool(
+            "list_course_results",
+            ToolOutput(
+                {"x": res},
+                (EntityRecord("disciplina", "CALC1", ("Cálculo I",), {"resultado": res}),),
+            ),
+            "academico",
+        )
+
+    first, second = rec("aprovado"), rec("reprovado")
+    seq = iter([first, second])
+
+    async def h(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+        return await next(seq).handler(ctx, args)
+
+    tl = [Tool(first.spec, h, "academico")]
+    llm = ScriptedLLM([R(None, C("list_course_results", i="a"), C("list_course_results", i="b")),
+                       R("Em Cálculo I o resultado foi reprovado."),
+                       R("Em Cálculo I o resultado foi reprovado.")])  # fmt: skip
+    r = await run(llm, tl=tl)
+    assert r.guard == "pass" and len(g._merge(list(r.records))) == 2
+
+
+@pytest.mark.parametrize("key", ["nota", "aviso", "cobertura", "nota_cobertura"])
+async def test_fora_cobertura_real_keys(key: str) -> None:
+    from app.rules.coverage import coverage_note
+
+    note = coverage_note("financeiro", date(2023, 1, 15)) + " Outro texto."
+    tl = [_tool("get_lms_activity", ToolOutput({key: note, "itens": []}), "lms")]
+    llm = ScriptedLLM([R(None, C("get_lms_activity")), R("Não tenho dados desse período.")])
+    r = await run(llm, tl=tl)
+    assert r.answer_kind == "fora_cobertura"
+
+
+async def test_not_coverage_when_no_note() -> None:
+    tl = [_tool("get_lms_activity", ToolOutput({"nota": "Vencimento dia 10", "itens": [1]}), "lms")]
+    r = await run(ScriptedLLM([R(None, C("get_lms_activity")), R("Nada a declarar aqui.")]), tl=tl)
+    assert r.answer_kind == "resposta"
+
+
+async def test_handler_failure_logged_by_type_and_traced(caplog: pytest.LogCaptureFixture) -> None:
+    async def boom(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+        raise RuntimeError("cpf 123.456.789-00")
+
+    tl = [Tool(_spec("get_financial_summary"), boom, "financeiro")]
+    with caplog.at_level("WARNING"):
+        r = await run(ScriptedLLM([R(None, C("get_financial_summary")), R(OK)]), tl=tl)
+    assert "get_financial_summary" in caplog.text and "RuntimeError" in caplog.text
+    assert "123.456" not in caplog.text
+    assert r.tool_calls[0].returned_records == -1 and r.tools_class == "1"
+
+
+async def test_tools_class_counts_only_executed() -> None:
+    llm = ScriptedLLM([R(None, C("get_financial_summary", {"enrollment": "9"}), C("hack")), R(OK)])
+    r = await run(llm)
+    assert r.tools_class == "card" and calls_made.get("get_financial_summary") is None
+
+
+async def test_abort_keeps_became_tainted() -> None:
+    def boom(_: Sequence[Message]) -> LLMResponse:
+        raise LLMUnavailable("server")
+
+    r = await run(ScriptedLLM([R(None, C("get_protocol")), boom]))
+    assert r.status == "llm_unavailable" and r.became_tainted
+
+
+async def test_draft_with_rest_rejected_twice_appends_fallback() -> None:
+    llm = ScriptedLLM([R(None, C("draft_protocol", {"service_code": "x"})),
+                       R("Você deve R$ 1,00."), R("Você deve R$ 2,00.")])  # fmt: skip
+    r = await run(llm)
+    fixed = DRAFT_SHOWN_TEMPLATE.format(servico="Histórico escolar impresso", para_matricula="")
+    assert r.answer.startswith(fixed) and "Não consegui montar" in r.answer
+    assert r.guard == "fallback" and r.draft_only is False and "R$ 1,00" not in r.answer
+
+
+async def test_deadline_expires_mid_tools() -> None:
+    async def slow(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+        await asyncio.sleep(1)
+        return ToolOutput({})
+
+    tl = [Tool(_spec("get_financial_summary"), slow, "financeiro")]
+    llm = ScriptedLLM([R(None, C("get_financial_summary")), R(OK)])
+    r = await run(llm, tl=tl, deadline=monotonic() + 0.05)
+    assert r.status == "budget_exceeded" and r.llm_calls == 1 and len(llm.calls) == 1
+
+
+async def test_deadline_expires_after_draft(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = [100.0]
+    monkeypatch.setattr(g, "monotonic", lambda: now[0])
+
+    async def late_draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+        now[0] += 100
+        return ToolOutput({"rascunho_exibido": True}, draft=DRAFT())
+
+    tl = [Tool(_spec("draft_protocol"), late_draft, "protocolos", read_only=False)]
+    llm = ScriptedLLM([R(None, C("draft_protocol", {"service_code": "x"})), R(OK)])
+    r = await run(llm, tl=tl, deadline=150.0)
+    want = DRAFT_SHOWN_TEMPLATE.format(servico="Histórico escolar impresso", para_matricula="")
+    assert r.status == "budget_exceeded" and r.draft is not None and r.answer == want
+    assert len(llm.calls) == 1
+
+
+async def test_cancelled_error_propagates() -> None:
+    started = asyncio.Event()
+
+    class Hang(ScriptedLLM):
+        async def generate(self, **kw: Any) -> LLMResponse:
+            started.set()
+            await asyncio.sleep(30)
+            raise AssertionError
+
+    task = asyncio.create_task(run(Hang([])))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+def test_history_zero_turns_returns_nothing() -> None:
+    conv = Conversation(((Message("user", "a"),),), False, False, False)
+    assert g._history(conv, "m", 0) == []
+    assert len(g._history(conv, "m", 5)) == 1

@@ -25,3 +25,7 @@ graph TD;
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc
 ```
+
+Notas de projeto:
+- O grafo é compilado uma vez (`build_graph()`); llm, ferramentas, prompt, prazo e limites do turno vão em `config["configurable"]["env"]`.
+- A chamada do "resto" depois de um rascunho (REST_INSTRUCTION) mantém as ferramentas declaradas (decisão revisada): o LLM pode ainda chamar uma ferramenta para responder o resto da mensagem. Só a última rodada e o retry do guard vão sem ferramentas.
