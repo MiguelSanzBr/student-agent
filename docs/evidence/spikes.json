@@ -43,7 +43,7 @@
     "flush": "BatchSpanProcessor.force_flush(2000) em asyncio.to_thread, timeout 2,5 s: ok",
     "persistencia": "span e anotação sobreviveram a docker restart com volume em PHOENIX_WORKING_DIR=/mnt/data"
   },
-  "gemini": "pendente: sem GEMINI_API_KEY",
+  "gemini": "pendente: sem GEMINI_API_KEY (testes escritos, não executados)",
   "slo_targets_proposal": {
     "status": "PRIORS (sem amostras medidas): substituir pelos lognormais ajustados no portão (Gemini pendente)",
     "priors": {
@@ -121,7 +121,7 @@
             "p90": 4.73,
             "p95": 6.0,
             "p99": 7.25,
-            "ttfe_p95": 5.5
+            "ttfe_p95": 6.0
           },
           "1": {
             "p50": 4.91,
@@ -190,6 +190,7 @@
         "graph_budget_s": 25.22
       }
     },
-    "quotas_rpm_tpm_rpd": "pendente: sem GEMINI_API_KEY / página de cotas"
+    "quotas_rpm_tpm_rpd": "pendente: sem GEMINI_API_KEY / página de cotas",
+    "modelo_padrao": "gemini-3.8-flash"
   }
 }

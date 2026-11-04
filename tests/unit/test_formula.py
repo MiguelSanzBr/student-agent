@@ -55,3 +55,15 @@ def test_target_is_max_initial_predicted():
 
 def test_budget_is_p99_2plus_times_1_2():
     assert graph_budget_s({"2+": ClassQuantiles(1, 2, 3, 10.0, 1)}) == pytest.approx(12.0)
+
+
+def test_card_ttfe_follows_final_p95_target():
+    pred = {"card": ClassQuantiles(3.0, 4.7, 5.5, 7.25, 5.5)}
+    t = targets({"card": {"p95": 6.0}}, pred)
+    assert t["card"]["p95"] == 6.0 and t["card"]["ttfe_p95"] == 6.0
+
+
+@pytest.mark.parametrize("bad", [[], [1.0], [1.0, 0.0], [1.0, -2.0]])
+def test_fit_lognormal_rejects_bad_samples(bad):
+    with pytest.raises(ValueError, match="amostras"):
+        fit_lognormal(bad)

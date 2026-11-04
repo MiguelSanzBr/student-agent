@@ -143,7 +143,7 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     llm_backend: Literal["aistudio", "vertex"] = "aistudio"
     gcp_project: str | None = None
     gcp_location: str = "global"
-    llm_model: str = "gemini-3.5-flash"
+    llm_model: str = "gemini-3.8-flash"
     llm_fallback_model: str = "gemini-3.5-flash-lite"
     api_port: int = 8000
     dev_login: bool = False

@@ -179,9 +179,8 @@ def test_a2a_exceptions_leak_message_and_log(caplog):
         for r in caplog.records
         if "segredo" in r.getMessage() or (r.exc_info and "segredo" in str(r.exc_info[1]))
     ]
-    assert any(n.startswith("a2a") for n, _, _ in texts), (
-        texts
-    )  # loggers do SDK registram o segredo
+    # o SDK registra o segredo em ERROR com traceback (logger.exception)
+    assert any(n.startswith("a2a") and lvl == "ERROR" and exc for n, lvl, exc in texts), texts
     # Silenciar o logger "a2a" (e filhos) esconde tudo isso?
     caplog.clear()
     logging.getLogger("a2a").setLevel(logging.CRITICAL + 1)
@@ -383,3 +382,199 @@ def test_gemini_latency_gate(model):
         answer.append(time.monotonic() - t0)
     with open(f"docs/evidence/gemini_samples_{model}.json", "w") as f:
         json.dump({"emit_s": emit, "answer_s": answer}, f)
+
+
+# ---- Gemini: demais itens do portão (escritos, NÃO executados: sem GEMINI_API_KEY) ----
+OBS = "docs/evidence/gemini_observations.json"
+
+
+def _note(key, value):
+    """Acumula observações do spike em docs/evidence/gemini_observations.json."""
+    import json
+
+    try:
+        with open(OBS) as f:
+            d = json.load(f)
+    except FileNotFoundError:
+        d = {}
+    d[key] = value
+    with open(OBS, "w") as f:
+        json.dump(d, f, indent=2, ensure_ascii=False)
+
+
+def _cfg(thinking="MINIMAL", tools=True, **kw):
+    from google.genai import types as T
+
+    return T.GenerateContentConfig(
+        system_instruction="Você é o atendimento ao aluno. Responda em português.",
+        tools=[T.Tool(function_declarations=[TOOL])] if tools else None,
+        thinking_config=T.ThinkingConfig(thinking_level=thinking),
+        **kw,
+    )
+
+
+def _ask_tool(c, model):
+    """Pede a ficha e devolve (histórico até o functionCall, parte functionCall)."""
+    from google.genai import types as T
+
+    user = T.Content(role="user", parts=[T.Part(text="Qual a minha ficha? matrícula 1")])
+    r = c.models.generate_content(model=model, contents=[user], config=_cfg())
+    content = r.candidates[0].content
+    fc = next(p for p in content.parts if p.function_call)
+    return [user, content], fc
+
+
+def _fn_response(fc):
+    from google.genai import types as T
+
+    return T.Content(
+        role="user",
+        parts=[T.Part.from_function_response(name=fc.function_call.name, response={"nome": "Ana"})],
+    )
+
+
+@needs_key
+@pytest.mark.parametrize("model", MODELS)
+def test_gemini_strict_schema_enum_no_additional_properties(model):
+    import json
+
+    import jsonschema
+
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {"enrollment": {"type": "string", "enum": ["1", "2", "3"]}},
+        "required": ["enrollment"],
+    }
+    r = _gen().models.generate_content(
+        model=model,
+        contents="Matrícula 2.",
+        config=_cfg(
+            tools=False, response_mime_type="application/json", response_json_schema=schema
+        ),
+    )
+    out = json.loads(r.text)
+    jsonschema.validate(out, schema)
+    assert out["enrollment"] in {"1", "2", "3"}
+
+
+@needs_key
+@pytest.mark.parametrize("model", MODELS)
+def test_gemini_two_turns_thought_signature_roundtrip(model):
+    c = _gen()
+    hist, fc = _ask_tool(c, model)
+    _note(f"{model}.signature_on_function_call", fc.thought_signature is not None)
+    r = c.models.generate_content(model=model, contents=[*hist, _fn_response(fc)], config=_cfg())
+    assert r.text  # 2ª volta aceita com a assinatura devolvida
+
+
+@needs_key
+def test_gemini_cached_tokens_second_student_same_prefix():
+    model = MODELS[0]
+    c = _gen()
+    prefix = (
+        "Regras do atendimento ao aluno. " * 700
+    )  # prefixo longo e idêntico (> mínimo do cache)
+    cached = 0
+    for i, student in enumerate(["aluno A (matrícula 1)", "aluno B (matrícula 2)", "aluno C"]):
+        cfg = _cfg(tools=False)
+        cfg.system_instruction = prefix
+        r = c.models.generate_content(model=model, contents=f"Sou o {student}. Oi.", config=cfg)
+        if i:  # a 2ª requisição em diante, de outro aluno, tem de reaproveitar o prefixo
+            cached = max(cached, r.usage_metadata.cached_content_token_count or 0)
+    _note("cached_content_token_count_2nd_student", cached)
+    assert cached > 0
+
+
+@needs_key
+@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("level", ["MINIMAL", "LOW"])
+def test_gemini_max_output_tokens_vs_thinking(model, level):
+    r = _gen().models.generate_content(
+        model=model,
+        contents="Explique em 3 frases o que é uma matrícula trancada.",
+        config=_cfg(thinking=level, tools=False, max_output_tokens=64),
+    )
+    u = r.usage_metadata
+    _note(
+        f"{model}.max_output_tokens=64.{level}",
+        {
+            "finish_reason": str(r.candidates[0].finish_reason),
+            "thoughts": u.thoughts_token_count,
+            "output": u.candidates_token_count,
+            "texto_vazio": not (r.text or "").strip(),
+        },
+    )
+    assert u.candidates_token_count is not None
+
+
+@needs_key
+def test_gemini_model_switch_carries_other_models_signature():
+    c = _gen()
+    res = {}
+    for a, b in [(MODELS[0], MODELS[1]), (MODELS[1], MODELS[0])]:
+        hist, fc = _ask_tool(c, a)
+        try:
+            r = c.models.generate_content(
+                model=b, contents=[*hist, _fn_response(fc)], config=_cfg()
+            )
+            res[f"{a}->{b}"] = "aceito" if r.text else "vazio"
+        except Exception as e:  # registrar o erro exato é o objetivo do spike
+            res[f"{a}->{b}"] = f"{type(e).__name__}: {e}"[:300]
+    _note("model_switch_with_foreign_signature", res)
+    assert all(v == "aceito" for v in res.values()), res
+
+
+@needs_key
+@pytest.mark.parametrize("model", MODELS)
+def test_gemini_synthetic_get_student_card_call(model):
+    """functionCall sintético no histórico: precisa estar declarada? exige assinatura?"""
+    from google.genai import types as T
+
+    c = _gen()
+    fc = T.FunctionCall(name="get_student_card", args={"enrollment": "1"})
+    hist = [
+        T.Content(role="user", parts=[T.Part(text="Qual a minha ficha?")]),
+        T.Content(role="model", parts=[T.Part(function_call=fc)]),  # sem thought_signature
+        T.Content(
+            role="user",
+            parts=[T.Part.from_function_response(name=fc.name, response={"nome": "Ana"})],
+        ),
+    ]
+    res = {}
+    for declared in (True, False):
+        try:
+            r = c.models.generate_content(model=model, contents=hist, config=_cfg(tools=declared))
+            res[f"declarada={declared}"] = "aceito" if r.text else "vazio"
+        except Exception as e:
+            res[f"declarada={declared}"] = f"{type(e).__name__}: {e}"[:300]
+    _note(f"{model}.synthetic_function_call_without_signature", res)
+    assert "aceito" in res.values(), res  # ao menos uma variante é aceita
+
+
+@pytest.mark.skip(reason="manual: ler RPM/TPM/RPD na página de cotas do projeto")
+def test_gemini_quotas_manual():
+    """Manual: AI Studio -> Rate limits (ou Cloud Console -> Quotas) do projeto da chave.
+    Por modelo (gemini-3.5-flash-lite, gemini-3.8-flash) anotar RPM, TPM e RPD em slo_targets.yaml
+    (`quotas`) e em docs/evidence/spikes.md. Não há API para ler as cotas."""
+
+
+VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")
+
+
+@pytest.mark.skipif(not VERTEX_PROJECT, reason="pendente: sem projeto GCP (GOOGLE_CLOUD_PROJECT)")
+def test_vertex_global_five_calls():
+    import time
+
+    from google import genai
+
+    c = genai.Client(vertexai=True, project=VERTEX_PROJECT, location="global")
+    lat = []
+    for _ in range(5):
+        t0 = time.monotonic()
+        r = c.models.generate_content(
+            model=MODELS[0], contents="Diga oi.", config=_cfg(tools=False)
+        )
+        lat.append(round(time.monotonic() - t0, 3))
+        assert r.text
+    _note("vertex_global_latency_s", lat)

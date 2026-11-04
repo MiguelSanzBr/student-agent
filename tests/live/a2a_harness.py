@@ -5,7 +5,11 @@ import logging
 import httpx
 from a2a.auth.user import User
 from a2a.client import ClientConfig, ClientFactory
-from a2a.helpers.proto_helpers import new_task_from_user_message, new_text_message
+from a2a.helpers.proto_helpers import (
+    new_task_from_user_message,
+    new_text_message,
+    new_text_part,
+)
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.context import ServerCallContext
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -55,8 +59,6 @@ class Exec(AgentExecutor):
         text = context.get_user_input()
         msg = context.message
         if context.current_task is None:
-            from a2a.server.events import Event  # noqa: F401
-
             await event_queue.enqueue_event(new_task_from_user_message(msg))
         u = TaskUpdater(event_queue, context.task_id, context.context_id)
         if text == "boom":
@@ -73,9 +75,7 @@ class Exec(AgentExecutor):
                 metadata={"retry_after_s": 7},
             )
             return
-        await u.add_artifact(
-            [__import__("a2a.helpers.proto_helpers", fromlist=["x"]).new_text_part(f"eco:{text}")]
-        )
+        await u.add_artifact([new_text_part(f"eco:{text}")])
         await u.complete()
 
     async def cancel(self, context, event_queue) -> None:

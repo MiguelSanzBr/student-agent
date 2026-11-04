@@ -45,7 +45,10 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "-m \"not live\""
-markers = ["live: chama o Gemini de verdade (pulado sem GEMINI_API_KEY)"]
+markers = [
+  "live: chama o Gemini de verdade (pulado sem GEMINI_API_KEY)",
+  "fulldata: precisa dos dados completos do case (data/)",
+]
 
 [tool.ruff]
 line-length = 100

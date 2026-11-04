@@ -34,31 +34,36 @@ Grafo de 2 nós: `get_stream_writer()` + `stream_mode="custom"` entrega `{"fase"
 Container `sa-spike-phoenix` (6016→6006, 4327→4317), removido ao fim. Span raiz com `BatchSpanProcessor` → `force_flush(2000)` em `asyncio.to_thread` com timeout de 2,5 s → span visível via `arize-phoenix-client` → anotação `thumb` gravada e lida (`/v1/projects/default/span_annotations`). Com `docker restart` e volume em `PHOENIX_WORKING_DIR=/mnt/data`, span e anotação persistem.
 **Armadilha:** a imagem define `PHOENIX_HOST=::`; um host não-loopback liga a autenticação por padrão (401 "Invalid token" em tudo). O compose deve definir `PHOENIX_ENABLE_AUTH=false` (rede interna) ou provisionar segredos.
 
-## Gemini
-Todos os itens abaixo: **pendente: sem GEMINI_API_KEY**. Os testes existem e pulam sem chave (`models.list`, portão de 20+20 por modelo gravando `docs/evidence/gemini_samples_<modelo>.json`); não foram executados, logo podem precisar de ajuste.
-- `models.list` com `gemini-3.5-flash-lite` e `gemini-3.8-flash`: pendente: sem GEMINI_API_KEY
-- schema estrito (`enum`, `additionalProperties:false`): pendente: sem GEMINI_API_KEY
-- 2 voltas com `thought_signature`; troca de modelo com assinatura do outro: pendente: sem GEMINI_API_KEY
-- portão 20+20 por modelo (MINIMAL, ~1.500 tokens, 11 declarações): pendente: sem GEMINI_API_KEY
-- `cached_content_token_count` entre alunos; `max_output_tokens` × raciocínio: pendente: sem GEMINI_API_KEY
-- `functionCall` sintético de `get_student_card` (declaração e assinatura): pendente: sem GEMINI_API_KEY
-- RPM/TPM/RPD por modelo: pendente: sem GEMINI_API_KEY
-- Vertex `global`: pendente: sem GEMINI_API_KEY (sem projeto)
+## Gemini (NADA foi executado: pendente, sem GEMINI_API_KEY)
+Nenhuma chamada ao Gemini foi feita na Task 3. Os testes abaixo existem em `tests/live/test_spikes.py` (`-m live`), pulam sem chave e rodam sem alteração quando a chave existir. Foram só coletados (collect-only/skip): podem precisar de ajuste na primeira execução real. Observações vão para `docs/evidence/gemini_observations.json`; amostras do portão para `docs/evidence/gemini_samples_<modelo>.json`.
+
+| Item | Teste | Estado |
+|---|---|---|
+| `models.list` contém os 2 IDs (senão, lista os disponíveis) | `test_gemini_models_listed` | pendente: sem GEMINI_API_KEY |
+| schema estrito (`enum`, `additionalProperties:false`) validado com jsonschema | `test_gemini_strict_schema_enum_no_additional_properties` | pendente |
+| 2 voltas com `thought_signature` devolvida | `test_gemini_two_turns_thought_signature_roundtrip` | pendente |
+| portão 20 emitem ferramenta + 20 respondem, MINIMAL, ~1.500 tokens, 11 declarações | `test_gemini_latency_gate` | pendente |
+| `cached_content_token_count` na 2ª requisição de outro aluno, mesmo prefixo | `test_gemini_cached_tokens_second_student_same_prefix` | pendente |
+| `max_output_tokens` × raciocínio (MINIMAL/LOW) | `test_gemini_max_output_tokens_vs_thinking` | pendente |
+| troca de modelo carregando a assinatura do outro | `test_gemini_model_switch_carries_other_models_signature` | pendente |
+| `functionCall` sintético `get_student_card` + `functionResponse` (declarada? assinatura?) | `test_gemini_synthetic_get_student_card_call` | pendente |
+| RPM/TPM/RPD por modelo | `test_gemini_quotas_manual` (manual: página de cotas) | pendente; valores em `slo_targets.yaml` são provisórios |
+| Vertex `global`, 5 chamadas | `test_vertex_global_five_calls` | pendente: sem `GOOGLE_CLOUD_PROJECT` |
 
 ## Fórmula de latência
 `evals/latency/formula.py` (stdlib). **Os componentes abaixo são PRIORS, não medidos**; devem ser substituídos pelos lognormais ajustados (`fit_lognormal`) com as amostras do portão.
 Priors: chamada que emite ferramenta / chamada que responde, lognormal sigma 0,35, medianas 1,8 s / 2,6 s (flash-lite) e 2,6 s / 3,8 s (3.8-flash); SQL+guard+overhead lognormal de mediana 0,3 s (sigma 0,2); retry do guard 5%; k de ferramentas: `card` 0, `1` 1, `2+` sorteado de {2,2,3,4}; n=200.000, seed 42.
-TTFE = 1ª chamada que emite ferramenta (1º `progress`); `card` = latência total. Metas iniciais da spec: card p50 3,5 / p95 6; `1` p95 8; `2+` p95 12; TTFE (1, 2+) p95 4.
+TTFE = 1ª chamada que emite ferramenta (1º `progress`); `card` = latência total (no `targets()`, TTFE do `card` = p95 final). O TTFE de 1 e 2+ **exclui** o overhead anterior ao 1º progress (admissão, prompt), logo é otimista por esse valor. Metas iniciais da spec: card p50 3,5 / p95 6; `1` p95 8; `2+` p95 12; TTFE (1, 2+) p95 4.
 
 Metas = max(inicial, previsto), em segundos:
 
 | Modelo | Classe | p50 | p90 | p95 | p99 | TTFE p95 |
 |---|---|---|---|---|---|---|
-| flash-lite | card | 3,5 | 4,73 | 6,0 | 7,25 | 5,5 |
+| flash-lite | card | 3,5 | 4,73 | 6,0 | 7,25 | 6,0 |
 | flash-lite | 1 | 4,91 | 6,92 | 8,0 | 9,41 | 4,0 |
 | flash-lite | 2+ | 8,19 | 11,6 | 12,59 | 14,59 | 4,0 |
 | 3.8-flash | card | 4,19 | 6,77 | 7,9 | 10,46 | 7,9 |
 | 3.8-flash | 1 | 7,0 | 9,92 | 11,08 | 13,56 | 4,63 |
 | 3.8-flash | 2+ | 11,74 | 16,68 | 18,12 | 21,01 | 4,62 |
 
-Orçamento do grafo (p99 `2+` × 1,2): flash-lite **17,51 s**; 3.8-flash **25,22 s**. Observação: com os priors, a meta inicial `2+` p95 < 12 s já fica abaixo do previsto (12,59 s no flash-lite) e a fórmula a eleva; com o 3.8-flash, `card` e `1` também superam as metas iniciais. Cotas: pendente: sem GEMINI_API_KEY. A proposta para `slo_targets.yaml` está em `spikes.json` → `slo_targets_proposal` (o controlador faz o merge; `slo_targets.yaml` não foi tocado).
+Modelo padrão: **gemini-3.8-flash** (`slo_targets.yaml` usa as linhas dele); flash-lite é o fallback. Orçamento do grafo (p99 `2+` × 1,2): flash-lite **17,51 s**; 3.8-flash **25,22 s**. Observação: com os priors, a meta inicial `2+` p95 < 12 s já fica abaixo do previsto (12,59 s no flash-lite) e a fórmula a eleva; com o 3.8-flash, `card` e `1` também superam as metas iniciais. Cotas: pendente: sem GEMINI_API_KEY. A proposta para `slo_targets.yaml` está em `spikes.json` → `slo_targets_proposal` (já mesclada em `slo_targets.yaml`).

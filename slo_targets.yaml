@@ -1,7 +1,7 @@
 # Fonte única dos números operacionais.
 # Metas, TTFE e orçamento: fórmula pré-registrada (evals/latency/formula.py) aplicada a PRIORS do modelo
-# padrão gemini-3.5-flash-lite (docs/evidence/spikes.md); a atualização única vem depois da janela A.
-# Previsão do gemini-3.8-flash (experimento de modelo) em docs/evidence/spikes.json.
+# padrão gemini-3.8-flash (docs/evidence/spikes.md); a atualização única vem depois da janela A.
+# Previsão do gemini-3.5-flash-lite (fallback) em docs/evidence/spikes.json.
 frozen: false
 quotas:  # PROVISÓRIO: cotas reais (RPM/TPM/RPD) pendentes, sem GEMINI_API_KEY
   gemini-3.8-flash: {rpm: 1000, tpm: 1000000, rpd: 10000}
@@ -10,9 +10,9 @@ admission:
   quota_fraction: 0.9
   est_requests: 3  # PROVISÓRIO: E[chamadas ao LLM por turno] p/ reserve (spec §5); refit após janela A
   est_tokens: 6000  # PROVISÓRIO: E[tokens por turno] p/ reserve; refit após janela A
-components:  # lognormal por componente de latência (s): mu = ln(mediana); PRIORS de docs/evidence/spikes.json (gemini-3.5-flash-lite)
-  tool_call: {mu: 0.5878, sigma: 0.35}
-  answer_call: {mu: 0.9555, sigma: 0.35}
+components:  # lognormal por componente de latência (s): mu = ln(mediana); PRIORS de docs/evidence/spikes.json (gemini-3.8-flash)
+  tool_call: {mu: 0.9555, sigma: 0.35}
+  answer_call: {mu: 1.335, sigma: 0.35}
   overhead: {mu: -1.204, sigma: 0.2}
 limits:  # plano, Global Constraints (Limites); perfil escolhido por LIMITS_PROFILE
   default: &limits_default
@@ -35,14 +35,14 @@ limits:  # plano, Global Constraints (Limites); perfil escolhido por LIMITS_PROF
     global_ceiling_usd: 40
     degrade_at: null
 targets:  # segundos, por classe de ferramentas do turno: max(meta inicial, previsto)
-  card: {p50: 3.5, p90: 4.73, p95: 6.0, p99: 7.25}
-  "1": {p50: 4.91, p90: 6.92, p95: 8.0, p99: 9.41}
-  "2+": {p50: 8.19, p90: 11.6, p95: 12.59, p99: 14.59}
-ttfe:  # POST -> 1º progress/answer; card = latência total
-  card: {p95: 5.5}
-  "1": {p95: 4.0}
-  "2+": {p95: 4.0}
-graph_budget_s: 17.51  # p99 previsto da classe 2+ x 1,2
+  card: {p50: 4.19, p90: 6.77, p95: 7.9, p99: 10.46}
+  "1": {p50: 7.0, p90: 9.92, p95: 11.08, p99: 13.56}
+  "2+": {p50: 11.74, p90: 16.68, p95: 18.12, p99: 21.01}
+ttfe:  # POST -> 1º progress/answer; card = latência total (= p95 total)
+  card: {p95: 7.9}
+  "1": {p95: 4.63}
+  "2+": {p95: 4.62}
+graph_budget_s: 25.22  # p99 previsto da classe 2+ x 1,2
 buckets: [0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24]
 turn_slots: 8
 infra_overhead_p95_ms: 300

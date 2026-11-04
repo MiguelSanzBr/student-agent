@@ -23,6 +23,8 @@ class ClassQuantiles:
 
 
 def fit_lognormal(samples_s: Sequence[float]) -> LogNormal:
+    if len(samples_s) < 2 or any(x <= 0 for x in samples_s):
+        raise ValueError("amostras: precisa de ≥ 2 valores, todos > 0")
     logs = [math.log(x) for x in samples_s]
     return LogNormal(statistics.fmean(logs), statistics.stdev(logs))
 
@@ -41,7 +43,9 @@ def simulate_class(
 ) -> ClassQuantiles:
     """Soma, por sorteio: k chamadas que emitem ferramenta (k de `k_tool_calls`) + 1 que responde
     (+1 se o guard pedir retry) + overhead (SQL, guard, infra). Componentes: tool_call, answer_call,
-    overhead. TTFE = 1ª chamada que emite ferramenta (1º `progress`); card = total."""
+    overhead. TTFE = 1ª chamada que emite ferramenta (1º `progress`); card = total. O TTFE das
+    classes 1 e 2+ exclui o overhead anterior ao 1º progress (admissão, prompt): ele entra
+    no prior de 300 ms só do total, então o TTFE previsto é otimista por esse valor."""
     rng = random.Random(seed)
     draw = {k: (lambda v=v: rng.lognormvariate(v.mu, v.sigma)) for k, v in components.items()}
     totals, ttfes = [], []
@@ -63,11 +67,13 @@ def simulate_class(
 def targets(
     initial: Mapping[str, Mapping[str, float]], predicted: Mapping[str, ClassQuantiles]
 ) -> dict[str, dict[str, float]]:
-    """Meta de cada quantil = max(meta inicial, previsto)."""
+    """Meta de cada quantil = max(meta inicial, previsto). No `card` o TTFE é a latência total."""
     out: dict[str, dict[str, float]] = {}
     for cls, q in predicted.items():
         pred = {"p50": q.p50, "p90": q.p90, "p95": q.p95, "p99": q.p99, "ttfe_p95": q.ttfe_p95}
         out[cls] = {k: max(initial.get(cls, {}).get(k, 0.0), v) for k, v in pred.items()}
+        if cls == "card":
+            out[cls]["ttfe_p95"] = out[cls]["p95"]
     return out
 
 
