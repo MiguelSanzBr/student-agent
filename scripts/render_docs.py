@@ -131,9 +131,10 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
         out["guard.blind_recall"] = _ci(g["blind"]["recall"], "guard.recall")
         fb = g["blind"]["false_block"]
         out["guard.false_block"] = f"{fb['k']}/{fb['n']} ({_ci(fb, 'guard.false_block')})"
+        by_t = g["blind"].get("recall_by_template", {})
         for t in ("status_word", "flip_negation"):
-            r = g["blind"]["recall_by_template"][t]
-            out[f"guard.weak.{t}"] = f"{r['k']}/{r['n']}"
+            if t in by_t:
+                out[f"guard.weak.{t}"] = f"{by_t[t]['k']}/{by_t[t]['n']}"
     if (sec := _load(evidence_dir / "security.json")) is not None:
         out |= _security(sec)
     if (lat := _load(evidence_dir / "latency-A.json")) is not None:
