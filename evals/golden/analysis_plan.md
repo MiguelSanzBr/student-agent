@@ -52,7 +52,10 @@ amostra 24/6 (não proporcional) não os enviesa. O intervalo de Wilson (95%) s�
 para o próprio VPP e VPN.
 
 ## 9. Escolha do modelo
-Na 1ª rodada do dev, com margem pareada >= 3 p.p. em pass@1 (mesmos itens), vence o modelo mais
+Modelo sob teste: `claude-haiku-5-5` (Anthropic), fixado pelo autor em 2026-11-04, antes de
+qualquer medição real: é o que cabe no teto de gasto do perfil eval (Sonnet/Opus 5.5 estouram).
+Não há comparação de modelos prevista; se outro modelo rodar no mesmo dev, vale a regra abaixo
+e ela é relatada. Na 1ª rodada do dev, com margem pareada >= 3 p.p. em pass@1 (mesmos itens), vence o modelo mais
 forte; abaixo da margem, o mais barato. Ajuste de prompt/regra: no máximo 2 iterações, dentro
 do teto de correções do sábado.
 
