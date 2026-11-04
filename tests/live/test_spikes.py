@@ -1,4 +1,4 @@
-"""Spikes ao vivo da Task 3. Rodar: pytest -m live tests/live/test_spikes.py (Gemini pula sem GEMINI_API_KEY)."""
+"""Spikes ao vivo da Task 3: pytest -m live tests/live/test_spikes.py (Gemini pula sem chave)."""
 
 import asyncio
 import logging
@@ -145,7 +145,7 @@ def test_a2a_rejected_task_carries_retry_after():
 
 
 def test_a2a_exceptions_leak_message_and_log(caplog):
-    """Exceção no executor/store/builder: o SDK devolve InternalError(str(e)) e loga -> wrappers são obrigatórios."""
+    """Exceção no executor/store/builder: InternalError(str(e)) + log -> wrappers obrigatórios."""
     from a2a.utils.errors import InternalError
 
     H, P, U, send, raw = _a2a()
@@ -240,7 +240,7 @@ def test_langgraph_two_nodes_writer_cancel_mermaid():
     assert asyncio.run(go()) == [{"fase": "a"}, {"fase": "b"}]
 
 
-# ------------------------------------------------------------------ Phoenix (imagem em container sa-spike-*)
+# ---------------------------------------------- Phoenix (container sa-spike-*)
 
 PHOENIX_URL = os.environ.get("SPIKE_PHOENIX_URL")
 
@@ -309,7 +309,7 @@ def test_phoenix_span_flush_annotation():
         assert r.json()["data"][0]["name"] == "thumb"
 
 
-# ------------------------------------------------------------------ Gemini (pula sem GEMINI_API_KEY; NÃO executado na Task 3)
+# ---------------------------------------------- Gemini (pula sem chave; NÃO executado na Task 3)
 
 KEY = os.environ.get("GEMINI_API_KEY")
 needs_key = pytest.mark.skipif(not KEY, reason="pendente: sem GEMINI_API_KEY")
@@ -344,7 +344,7 @@ def test_gemini_models_listed():
 @needs_key
 @pytest.mark.parametrize("model", MODELS)
 def test_gemini_latency_gate(model):
-    """20 chamadas que emitem ferramenta + 20 que respondem (MINIMAL, ~1.500 tokens, 11 declarações)."""
+    """20 chamadas que emitem ferramenta + 20 que respondem (MINIMAL, ~1.500 tokens, 11 decl.)."""
     import json
     import time
 

@@ -93,10 +93,10 @@ services:
 
   # --- profiles ---
   phoenix:  # versão fixada no spike da Task 3
-    image: ${PHOENIX_IMAGE:-arizephoenix/phoenix:latest}
+    image: ${PHOENIX_IMAGE:-arizephoenix/phoenix:version-21.0.0@sha256:1f9a144a5357b4973e93a15718f050247cb7a4ee7b7c6c06ecb91b5eed3fbaad}
     profiles: [obs]
     volumes: [phoenix-data:/mnt/data]
-    environment: {PHOENIX_WORKING_DIR: /mnt/data}
+    environment: {PHOENIX_WORKING_DIR: /mnt/data, PHOENIX_ENABLE_AUTH: "false"}  # imagem liga auth com PHOENIX_HOST=::
     ports: ["127.0.0.1:${PHOENIX_PORT:-6006}:6006"]
 
   prometheus:

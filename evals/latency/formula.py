@@ -1,4 +1,4 @@
-"""Fórmula pré-registrada de latência (spec §6.5): lognormal por componente + Monte Carlo por classe."""
+"""Fórmula pré-registrada de latência (spec §6.5): lognormal por componente + Monte Carlo."""
 
 import math
 import random
@@ -39,9 +39,9 @@ def simulate_class(
     n: int = 200_000,
     seed: int,
 ) -> ClassQuantiles:
-    """Soma, por sorteio: k chamadas que emitem ferramenta (k sorteado de `k_tool_calls`) + 1 chamada que
-    responde (+1 se o guard pedir retry) + overhead (SQL, guard, infra). Componentes: tool_call, answer_call,
-    overhead. TTFE = 1ª chamada que emite ferramenta (1º `progress`); sem ferramenta (card) = latência total."""
+    """Soma, por sorteio: k chamadas que emitem ferramenta (k de `k_tool_calls`) + 1 que responde
+    (+1 se o guard pedir retry) + overhead (SQL, guard, infra). Componentes: tool_call, answer_call,
+    overhead. TTFE = 1ª chamada que emite ferramenta (1º `progress`); card (sem ferramenta) = total."""
     rng = random.Random(seed)
     draw = {k: (lambda v=v: rng.lognormvariate(v.mu, v.sigma)) for k, v in components.items()}
     totals, ttfes = [], []

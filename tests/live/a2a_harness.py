@@ -1,4 +1,4 @@
-"""Servidor A2A 1.0 em processo (DefaultRequestHandler + InMemoryTaskStore com dono) e cliente real."""
+"""Servidor A2A 1.0 em processo (DefaultRequestHandler + InMemoryTaskStore) e cliente real."""
 
 import logging
 
