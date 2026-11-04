@@ -87,7 +87,7 @@ async def confirm(
         raise _conflict("Matrícula não encontrada.") from None
     today = reference_today(st.settings)
     prazo = sla_due(today, svc.sla_hours)
-    description = (body.description if body.description is not None else card.description).strip()
+    description = (body.description or card.description).strip()  # vazio = manter o rascunho
     async with with_scope(st.pool, pk, scope.brand_families) as conn:
         if code not in NO_LOCK:  # serializa confirmações do mesmo aluno, serviço e disciplina
             await conn.execute(
@@ -120,8 +120,11 @@ async def confirm(
             )
             row = await cur.fetchone()
     sa, due = str(row[0]), fmt_date(prazo)  # type: ignore[index]
-    note = Message("system_note", f"Solicitação {sa} aberta em {fmt_date(today)}")
-    await history.append(pk, "web", card.conversation_id, (note,), draft_only=False)
+    try:  # o pedido já foi commitado: falha do Redis não pode virar 500
+        note = Message("system_note", f"Solicitação {sa} aberta em {fmt_date(today)}")
+        await history.append(pk, "web", card.conversation_id, (note,), draft_only=False)
+    except Exception:
+        log.exception("nota de confirmação não gravada (%s)", sa)
     METRICS["agent_draft_total"].labels(outcome="confirmado").inc()  # type: ignore[union-attr]
     return {"sa": sa, "prazo": due, "mensagem": CONFIRMED_TEMPLATE.format(sa=sa, prazo=due)}
 

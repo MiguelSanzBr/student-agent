@@ -250,6 +250,7 @@ async def test_confirm_note_grounds_action_claim(env: Env) -> None:
 
 
 async def test_feedback_isolated(env: Env) -> None:
+    await TurnOutputCache(env.redis).put(env.person(1), "t1", {"status": "ok"})
     async with env.client(1) as c:
         r = await c.post("/feedback", json={"trace_id": "t1", "useful": True, "comment": "ok"})
     assert r.status_code == 200
@@ -260,18 +261,59 @@ async def test_feedback_isolated(env: Env) -> None:
     assert env.rows("SELECT count(*) FROM agent_rw.turn_output")[0][0] == 0  # 👍 não guarda saída
 
 
-async def test_idor_conversation_feedback(env: Env) -> None:
-    outs = TurnOutputCache(env.redis)
-    await outs.put(env.person(1), "tr-a", {"status": "ok", "tool_calls": []})
-    async with env.client(2) as c:  # outro aluno 👎 num trace que não é dele
-        r = await c.post("/feedback", json={"trace_id": "tr-a", "useful": False})
-    assert r.status_code == 200
+@pytest.mark.parametrize("useful", [True, False])
+async def test_idor_conversation_feedback(
+    env: Env, monkeypatch: pytest.MonkeyPatch, useful: bool
+) -> None:
+    calls: list[Any] = []
+    monkeypatch.setattr(feedback_mod, "annotate", lambda *a: calls.append(a))
+    await TurnOutputCache(env.redis).put(env.person(1), "tr-a", {"status": "ok", "tool_calls": []})
+    async with env.client(2) as c:  # outro aluno avalia um trace que não é dele
+        r = await c.post("/feedback", json={"trace_id": "tr-a", "useful": useful})
+    assert r.status_code == 404 and r.json() == {"mensagem": "Turno não encontrado."}
     assert env.rows("SELECT trace_id FROM agent_rw.turn_output") == []
+    assert env.rows("SELECT count(*) FROM agent_rw.feedback")[0][0] == 0 and calls == []
     async with env.client(1) as c:
         assert (
-            await c.post("/feedback", json={"trace_id": "tr-a", "useful": False})
+            await c.post("/feedback", json={"trace_id": "tr-a", "useful": useful})
         ).status_code == 200
-    assert [r[0] for r in env.rows("SELECT trace_id FROM agent_rw.turn_output")] == ["tr-a"]
+    assert env.rows("SELECT count(*) FROM agent_rw.feedback")[0][0] == 1
+    assert [x[0] for x in calls] == ["tr-a"]
+    assert len(env.rows("SELECT trace_id FROM agent_rw.turn_output")) == (0 if useful else 1)
+
+
+def test_typed_only_allowlist_exact_keys() -> None:
+    from app.api.feedback import ALLOWED_KEYS, typed_only
+
+    full = {k: ("x" if k not in ("tool_calls", "records") else []) for k in ALLOWED_KEYS}
+    noisy = {**full, "answer": "A", "pre_guard_answer": "B", "timings_ms": {}, "novo": 1}
+    assert set(typed_only(noisy)) == set(ALLOWED_KEYS) == {
+        "status", "guard", "answer_kind", "domain", "tools_class", "model", "tool_calls", "records"
+    }  # fmt: skip
+    rec = {"kind": "k", "id": "1", "aliases": ["a"], "fields": {"prazo": "02/11/2026",
+           "valor": "R$ 20,00", "obs": "texto livre do aluno com várias palavras"}}  # fmt: skip
+    out = typed_only({**full, "records": [rec]})["records"][0]
+    assert out == {"kind": "k", "id": "1", "fields": {"prazo": "02/11/2026",
+                   "valor": "R$ 20,00", "obs": "[omitido]"}}  # fmt: skip
+
+
+async def test_confirm_survives_redis_failure_after_commit(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    a = await env.draft(1, "DOC-001", "c1")
+
+    async def boom(*args: Any, **kw: Any) -> None:
+        raise ConnectionError("redis fora")
+
+    monkeypatch.setattr(HistoryStore, "append", boom)
+    r = await env.confirm(1, a.draft_id)
+    assert r.status_code == 200 and r.json()["sa"] == env.rows()[0][0]
+
+
+async def test_empty_description_keeps_draft_text(env: Env) -> None:
+    a = await env.draft(1, "DOC-002", "c1", description="texto do rascunho")
+    assert (await env.confirm(1, a.draft_id, description="")).status_code == 200
+    assert env.rows()[0][3] == "texto do rascunho"
 
 
 async def test_thumbs_down_persists_typed_outputs_7d(

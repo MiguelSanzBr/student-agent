@@ -9,6 +9,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from psycopg import errors
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -50,13 +51,25 @@ def _enumerated(tool: str, key: str, value: str) -> bool:
     return key == "service_code" and _SERVICE.fullmatch(value) is not None
 
 
+ALLOWED_KEYS = ("status", "guard", "answer_kind", "domain", "tools_class", "model",
+                "tool_calls", "records")  # fmt: skip
+_ATOMIC = re.compile(r"[\d.,/:$%R -]{1,32}|[A-Za-z0-9_-]{1,32}")  # número, data, valor ou rótulo
+
+
 def typed_only(payload: dict[str, Any]) -> dict[str, Any]:
-    """Sem a resposta e sem argumento livre (que pode citar o aluno)."""
-    out = {k: v for k, v in payload.items() if k not in {"answer", "pre_guard_answer"}}
+    """Allowlist: sem a resposta, sem argumento livre e sem campo de registro em texto livre."""
+    out = {k: payload[k] for k in ALLOWED_KEYS if k in payload}
     out["tool_calls"] = [
-        {**c, "args": {k: v if _enumerated(c["name"], k, str(v)) else _OMITTED
-                       for k, v in c.get("args", {}).items()}}
+        {"name": c["name"], "returned_records": c.get("returned_records"),
+         "args": {k: v if _enumerated(c["name"], k, str(v)) else _OMITTED
+                  for k, v in c.get("args", {}).items()}}
         for c in payload.get("tool_calls", [])
+    ]  # fmt: skip
+    out["records"] = [
+        {"kind": r["kind"], "id": r["id"],
+         "fields": {k: v if _ATOMIC.fullmatch(str(v)) else _OMITTED
+                    for k, v in r.get("fields", {}).items()}}
+        for r in payload.get("records", [])
     ]  # fmt: skip
     return out
 
@@ -64,10 +77,12 @@ def typed_only(payload: dict[str, Any]) -> dict[str, Any]:
 @router.post("/feedback", dependencies=[Depends(same_origin)])
 async def feedback(
     body: FeedbackRequest, request: Request, pk: Annotated[UUID, Depends(get_person_cookie)]
-) -> dict[str, str]:
+) -> JSONResponse:
     st = request.app.state
-    # o cache é por aluno: o trace de outro não aparece, e o 👎 dele não copia nada
-    payload = None if body.useful else await TurnOutputCache(st.redis).get(pk, body.trace_id)
+    # o cache é por aluno: só o dono do turno avalia (👍 ou 👎); trace alheio não grava nem anota
+    payload = await TurnOutputCache(st.redis).get(pk, body.trace_id)
+    if payload is None:
+        return JSONResponse({"mensagem": "Turno não encontrado."}, status_code=404)
     now = wall_now()
     async with with_scope(st.pool, pk, ()) as conn:
         await conn.execute(
@@ -75,7 +90,7 @@ async def feedback(
             " VALUES (%s, %s, %s, %s)",
             (body.trace_id, pk, body.useful, body.comment),
         )
-        if payload is not None:
+        if not body.useful:
             # agent_app não tem SELECT: ON CONFLICT não serve; o 👎 repetido vira UniqueViolation
             with contextlib.suppress(errors.UniqueViolation):
                 async with conn.transaction():
@@ -88,4 +103,4 @@ async def feedback(
     METRICS["agent_feedback_total"].labels(useful=str(body.useful).lower()).inc()  # type: ignore[union-attr]
     annotate(body.trace_id, "feedback", "up" if body.useful else "down",
              1.0 if body.useful else 0.0, body.comment)  # fmt: skip
-    return {"status": "ok"}
+    return JSONResponse({"status": "ok"})

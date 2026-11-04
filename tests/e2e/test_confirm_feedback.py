@@ -11,7 +11,7 @@ from app.config import AppSettings
 from app.infra.stores.drafts import DraftStore
 from app.tools.base import DraftCard, DraftKey
 from tests.e2e.test_chat import cookies, make_app
-from tests.unit.turn_env import OK, OTHER, SCOPE, SUB, scripted
+from tests.unit.turn_env import OK, OTHER, SCOPE, scripted
 
 pytestmark = pytest.mark.usefixtures("app_secrets")
 ORIGIN = {"Origin": "http://testserver"}
@@ -73,4 +73,9 @@ async def test_other_students_draft_409(client: TestClient) -> None:
     assert r.status_code == 409
     again = DraftStore(redis, AppSettings().limits)
     assert await again.take(OTHER, "d1") is not None  # o rascunho do outro segue intacto
-    assert SUB != OTHER
+
+
+def test_feedback_csrf_missing_origin_and_form(client: TestClient) -> None:
+    fb = {"trace_id": "t", "useful": True}
+    assert client.post("/feedback", json=fb).status_code == 403  # sem Origin
+    assert client.post("/feedback", data=fb, headers=ORIGIN).status_code == 403  # urlencoded
