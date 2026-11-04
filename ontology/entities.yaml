@@ -1,0 +1,306 @@
+# Tabelas do canon e seus campos (spec 5.2). scope: person (RLS por person_key) | family | global.
+# Campo com derived: true não tem coluna de origem (calculado no build). enum: nome em enums.yaml.
+# person_key e enrollment_key de toda tabela de pessoa são implícitos (HMAC, nunca vêm do CSV).
+brand:
+  scope: family
+  fields:
+    brand: {type: code}
+    modality: {type: enum, enum: modality}
+    hq_uf: {type: code}
+    active: {type: bool}
+    family: {type: enum, derived: true, enum: brand_family}
+unit:
+  scope: family
+  fields:
+    unit_id: {type: id}
+    brand: {type: code}
+    label: {type: text}
+    unit_type: {type: enum, enum: unit_type}
+    uf: {type: code}
+course:
+  scope: global
+  fields:
+    course_id: {type: id}
+    acronym: {type: code}
+    name_pt: {type: text}
+    degree: {type: enum, enum: degree}
+    duration_semesters: {type: number}
+curriculum:
+  scope: global
+  fields:
+    curriculum_id: {type: id}
+    course_id: {type: id}
+    valid_from_term: {type: code}
+    valid_to_term: {type: code}
+    total_hours: {type: number}
+    status: {type: enum, enum: curriculum_status}
+subject:
+  scope: global
+  fields:
+    subject_code: {type: id}
+    name_pt: {type: text}
+    hours: {type: number}
+    credits: {type: number}
+    subject_type: {type: enum, enum: subject_type}
+curriculum_subject:
+  scope: global
+  fields:
+    curriculum_id: {type: id}
+    subject_code: {type: id}
+    semester: {type: number}
+    mandatory: {type: bool}
+    prerequisite_code: {type: id}
+course_offer:
+  scope: family
+  fields:
+    offer_id: {type: id}
+    unit_id: {type: id}
+    course_id: {type: id}
+    curriculum_id: {type: id}
+    shift: {type: enum, enum: shift}
+    modality: {type: enum, derived: true, enum: modality}
+term:
+  scope: global
+  fields:
+    term: {type: code}
+    start_date: {type: date}
+    end_date: {type: date}
+    av1_start: {type: date}
+    av2_start: {type: date}
+    is_current: {type: bool}
+enrollment:
+  scope: person
+  fields:
+    brand: {type: code}
+    ra: {type: code}
+    course_id: {type: id}
+    curriculum_id: {type: id}
+    unit_label: {type: text}
+    modality: {type: enum, enum: modality}
+    shift: {type: enum, enum: shift}
+    entry_type: {type: enum, enum: entry_type}
+    enrolled_on: {type: date}
+    entry_term: {type: code}
+    semester: {type: number}
+    completion_pct: {type: number}
+    gpa: {type: number}
+    status: {type: enum, enum: enrollment_status}
+    status_date: {type: date}
+    origin_brand: {type: code}
+enrollment_event:
+  scope: person
+  fields:
+    term: {type: code}
+    event_date: {type: date}
+    old_status: {type: enum, enum: enrollment_status}
+    new_status: {type: enum, enum: enrollment_status}
+    reason: {type: enum, enum: status_reason}
+    protocol_ref: {type: code}
+term_enrollment:
+  scope: person
+  fields:
+    term: {type: code}
+    semester_level: {type: number}
+    registration_date: {type: date}
+    term_status: {type: enum, enum: term_status}
+    credits_enrolled: {type: number}
+class_result:
+  scope: person
+  fields:
+    class_id: {type: id}
+    curriculum_id: {type: id}
+    is_retake: {type: bool}
+    grade_av1: {type: number}
+    grade_av2: {type: number}
+    grade_av3: {type: number}
+    final_grade: {type: number}
+    attendance_pct: {type: number}
+    result: {type: enum, enum: class_result_status}
+    professor: {type: text}
+    subject_code: {type: id, derived: true}
+    subject_name_pt: {type: text, derived: true}
+    term: {type: code, derived: true}
+    section: {type: code, derived: true}
+    divergencia: {type: bool, derived: true}
+person:
+  scope: person
+  fields:
+    first_name: {type: text}
+lms_account:
+  scope: person
+  fields:
+    lms_user_id: {type: id}
+    suspended: {type: bool}
+    first_access: {type: instant}
+    last_access: {type: instant}
+    created_at: {type: instant}
+lms_event:
+  scope: person
+  fields:
+    event_id: {type: id}
+    event_name: {type: enum, enum: lms_event}
+    occurred_at: {type: instant}
+    subject_name_pt: {type: text, derived: true}
+lms_quiz:
+  scope: person
+  fields:
+    quiz_id: {type: id}
+    quiz_type: {type: enum, enum: quiz_type}
+    opens_at: {type: instant}
+    closes_at: {type: instant}
+    time_limit_s: {type: number}
+    attempts_allowed: {type: number}
+    subject_name_pt: {type: text, derived: true}
+lms_quiz_attempt:
+  scope: person
+  fields:
+    attempt_id: {type: id}
+    quiz_id: {type: id}
+    attempt_no: {type: number}
+    state: {type: enum, enum: attempt_state}
+    started_at: {type: instant}
+    finished_at: {type: instant}
+    sumgrades: {type: number}
+protocol:
+  scope: person
+  fields:
+    protocol: {type: id}
+    service_code: {type: code}
+    status: {type: enum, enum: protocol_status}
+    channel: {type: enum, enum: channel}
+    opened_at: {type: instant}
+    first_response_at: {type: instant}
+    sla_due_at: {type: instant}
+    closed_at: {type: instant}
+    resolution: {type: enum, enum: resolution}
+    solicitante_papel: {type: enum, derived: true, enum: solicitante_papel}
+protocol_event:
+  scope: person
+  fields:
+    protocol: {type: id}
+    seq: {type: number}
+    from_status: {type: enum, enum: protocol_status}
+    to_status: {type: enum, enum: protocol_status}
+    changed_at: {type: instant}
+service:
+  scope: global
+  fields:
+    code: {type: code}
+    name_pt: {type: text}
+    area: {type: enum, enum: service_area}
+    sla_hours: {type: number}
+    fee_cents: {type: money}
+    active: {type: bool}
+    ui_label: {type: text, derived: true}
+    mode: {type: enum, derived: true, enum: service_mode}
+issued_document:
+  scope: person
+  fields:
+    document_id: {type: id}
+    protocol: {type: id}
+    document_type: {type: enum, enum: document_type}
+    issued_at: {type: instant}
+    codigo_validacao: {type: text}
+    delivery: {type: enum, enum: delivery}
+protocol_message:
+  scope: person
+  fields:
+    message_id: {type: id}
+    protocol: {type: id}
+    autor_papel: {type: enum, enum: author_role}
+    modelo: {type: text}
+    created_at: {type: instant}
+    texto_livre: {type: text, derived: true}
+contract:
+  scope: person
+  fields:
+    contract_id: {type: id}
+    product_code: {type: code}
+    signed_on: {type: date}
+    start_competence: {type: code}
+    end_competence: {type: code}
+    due_day: {type: number}
+    status: {type: enum, enum: contract_status}
+    payer_type: {type: enum, derived: true, enum: payer_type}
+invoice:
+  scope: person
+  fields:
+    invoice_id: {type: id}
+    contract_id: {type: id}
+    competence: {type: code}
+    invoice_type: {type: enum, enum: invoice_type}
+    issue_date: {type: date}
+    due_date: {type: date}
+    gross_cents: {type: money}
+    discount_cents: {type: money}
+    net_cents: {type: money}
+    status: {type: enum, enum: invoice_status}
+    protocol_ref: {type: code}
+    agreement_id: {type: id}
+payment:
+  scope: person
+  fields:
+    payment_id: {type: id}
+    invoice_id: {type: id}
+    paid_at: {type: instant}
+    credit_date: {type: date}
+    amount_cents: {type: money}
+    principal_cents: {type: money}
+    fine_cents: {type: money}
+    interest_cents: {type: money}
+    method: {type: enum, enum: payment_method}
+    status: {type: enum, enum: payment_status}
+late_charge:
+  scope: person
+  fields:
+    late_charge_id: {type: id}
+    invoice_id: {type: id}
+    reference_date: {type: date}
+    days_late: {type: number}
+    fine_rate: {type: number}
+    monthly_interest_rate: {type: number}
+    fine_cents: {type: money}
+    interest_cents: {type: money}
+    waived: {type: bool}
+discount:
+  scope: person
+  fields:
+    discount_id: {type: id}
+    contract_id: {type: id}
+    discount_type: {type: enum, enum: discount_type}
+    rate: {type: number}
+    valid_from: {type: date}
+    valid_to: {type: date}
+agreement:
+  scope: person
+  fields:
+    agreement_id: {type: id}
+    contract_id: {type: id}
+    created_at: {type: instant}
+    original_debt_cents: {type: money}
+    waived_cents: {type: money}
+    agreed_amount_cents: {type: money}
+    installments: {type: number}
+    status: {type: enum, enum: agreement_status}
+    protocol_ref: {type: code}
+agreement_invoice:
+  scope: person
+  fields:
+    agreement_id: {type: id}
+    invoice_id: {type: id}
+price:
+  scope: family
+  fields:
+    course_id: {type: code}
+    brand_family: {type: code}
+    ano: {type: number}
+    mensalidade: {type: money}
+    modality: {type: enum, derived: true, enum: modality}
+    parcelas_por_semestre: {type: number, derived: true}
+coverage:
+  scope: global
+  fields:
+    source: {type: code, derived: true}
+    domain: {type: code, derived: true}
+    starts_on: {type: date, derived: true}
+    ends_on: {type: date, derived: true}

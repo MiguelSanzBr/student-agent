@@ -1,0 +1,17 @@
+# Tipo de cada campo de texto exposto do canon (spec 5.6): enum | label_pt | exact_list | regex | free_text.
+# O único free_text é protocol_message.texto_livre: nunca vai ao LLM ('[mensagem não exibida]').
+person.first_name: regex
+unit.label: exact_list
+course.name_pt: label_pt
+subject.name_pt: label_pt
+class_result.professor: exact_list
+service.name_pt: label_pt
+issued_document.codigo_validacao: regex
+protocol_message.modelo: label_pt
+enrollment.unit_label: exact_list
+lms_quiz.quiz_type: enum
+protocol_message.texto_livre: free_text
+class_result.subject_name_pt: label_pt
+lms_event.subject_name_pt: label_pt
+lms_quiz.subject_name_pt: label_pt
+service.ui_label: label_pt

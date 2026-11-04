@@ -1,0 +1,148 @@
+# 18 serviços da secretaria (secretary/demand_type.csv). sla_hours e fee_cents vêm do CSV de 2026-10-31
+# (a taxa é a de 2026). mode: agent (o agente registra o pedido) | orientation (só orienta; traz
+# why_not_agent). channels: canais com que o serviço foi aberto nos protocolos (Portal, WhatsApp,
+# E-mail, Telefone, Presencial).
+DOC-001:
+  name_pt: "Declaração de matrícula"
+  ui_label: "Declaração de matrícula"
+  sla_hours: 48
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+DOC-002:
+  name_pt: "Histórico escolar impresso"
+  ui_label: "Histórico escolar impresso"
+  sla_hours: 72
+  fee_cents: 2000
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+DOC-003:
+  name_pt: "Pacote de ementas"
+  ui_label: "Pacote de ementas"
+  sla_hours: 120
+  fee_cents: 3000
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+DOC-040:
+  name_pt: "Emissão de diploma"
+  ui_label: "Emissão de diploma"
+  sla_hours: 240
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+DOC-041:
+  name_pt: "Segunda via de diploma"
+  ui_label: "Segunda via de diploma"
+  sla_hours: 240
+  fee_cents: 15000
+  mode: agent
+  channels: [Portal, WhatsApp]
+  why_not_agent: ~
+ACA-010:
+  name_pt: "Trancamento de matrícula"
+  ui_label: "Trancamento de matrícula"
+  sla_hours: 72
+  fee_cents: 0
+  mode: orientation
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: "O trancamento muda a situação da matrícula e depende de análise da secretaria acadêmica; o agente só orienta."
+ACA-011:
+  name_pt: "Reativação de matrícula"
+  ui_label: "Reativação de matrícula"
+  sla_hours: 72
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+ACA-012:
+  name_pt: "Cancelamento de matrícula"
+  ui_label: "Cancelamento de matrícula"
+  sla_hours: 72
+  fee_cents: 0
+  mode: orientation
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: "O cancelamento é um ato formal e irreversível que exige confirmação do titular com a secretaria; o agente só orienta."
+ACA-013:
+  name_pt: "Transferência interna"
+  ui_label: "Transferência interna"
+  sla_hours: 120
+  fee_cents: 0
+  mode: orientation
+  channels: [Portal, WhatsApp, Telefone]
+  why_not_agent: "A transferência interna exige análise de vaga, matriz e histórico pela secretaria; o agente só orienta."
+ACA-014:
+  name_pt: "Migração de matriz curricular"
+  ui_label: "Migração de matriz curricular"
+  sla_hours: 120
+  fee_cents: 0
+  mode: orientation
+  channels: [Portal, WhatsApp, E-mail, Presencial]
+  why_not_agent: "A migração de matriz exige análise de equivalência de disciplinas pela coordenação; o agente só orienta."
+ACA-020:
+  name_pt: "Revisão de nota"
+  ui_label: "Revisão de nota"
+  sla_hours: 168
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+ACA-021:
+  name_pt: "Prova de segunda chamada"
+  ui_label: "Prova de segunda chamada"
+  sla_hours: 72
+  fee_cents: 4500
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+FIN-030:
+  name_pt: "Segunda via de boleto"
+  ui_label: "Segunda via de boleto"
+  sla_hours: 48
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+FIN-031:
+  name_pt: "Renegociação de dívida"
+  ui_label: "Renegociação de dívida"
+  sla_hours: 72
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+FIN-032:
+  name_pt: "Solicitação de bolsa ou desconto"
+  ui_label: "Solicitação de bolsa ou desconto"
+  sla_hours: 120
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+TEC-060:
+  name_pt: "Problema de acesso ao ambiente virtual"
+  ui_label: "Problema de acesso ao ambiente virtual"
+  sla_hours: 48
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone]
+  why_not_agent: ~
+GEN-090:
+  name_pt: "Informações gerais"
+  ui_label: "Falar com a secretaria"
+  sla_hours: 72
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~
+OUV-099:
+  name_pt: "Reclamação na ouvidoria"
+  ui_label: "Falar com a ouvidoria"
+  sla_hours: 120
+  fee_cents: 0
+  mode: agent
+  channels: [Portal, WhatsApp, E-mail, Telefone, Presencial]
+  why_not_agent: ~

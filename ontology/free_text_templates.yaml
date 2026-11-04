@@ -1,0 +1,25 @@
+# Texto do dataset que vira tipo (spec 5.6, D9). Comparação por igualdade exata depois de NFKC e de
+# normalizar espaços; o que sobrar de atendimento/sistema é texto_livre (nunca vai ao LLM).
+messages:  # só atendimento e sistema; mensagens de solicitante e notas internas nunca entram
+  - {text: "Request received and under analysis.", label_pt: "Solicitação recebida e em análise."}
+  - {text: "Please send a copy of your ID document.", label_pt: "Envio de cópia do documento de identidade solicitado."}
+  - {text: "Protocol closed as Resolved.", label_pt: "Protocolo encerrado como resolvido."}
+  - {text: "Protocol closed as Cancelled.", label_pt: "Protocolo encerrado como cancelado."}
+quizzes:  # nome da prova -> tipo; fullmatch
+  AV1: '^AV1 - Online Exam$'
+  AV2: '^AV2 - Online Exam$'
+  simulado: '^Practice Test$'
+rooms:
+  # idnumber "SAG-<CLASS_ID>" liga a turma; sem ele vale o prefixo do shortname (código da disciplina)
+  idnumber: '^SAG-(?P<class_id>[0-9]+)$'
+  shortname: '^(?P<subject>[A-Z]{3}[0-9]{4})_[0-9]{4}-[0-9]_[A-Z]{3}_[A-Z][0-9]{2}$'
+  inst: '^INST-[A-Z]+-(?P<n>[0-9]{2})$'  # ambientação: rótulo fixo por número
+  inst_labels:
+    "01": Orientação ao ensino a distância
+    "02": Treinamento da biblioteca
+    "03": Integridade acadêmica
+    "04": Central de carreiras
+    "05": Sala dos professores
+    "06": Ambiente de testes do LMS
+    "07": Apoio ao estudante
+    "08": Semana de boas-vindas

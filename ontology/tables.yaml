@@ -1,0 +1,641 @@
+# Destino de cada coluna das 47 tabelas de origem (spec 5.3 item 7). Chave = "<sistema>/<tabela>".
+# Coluna: [destino, tipo, alvo, motivo]. destino: load | transform | resolution | discard.
+# tipo: id | enum | text | date | instant | money | number | bool | code (tipo da coluna de origem).
+# alvo: "<tabela canon>.<campo>" (campo declarado em entities.yaml); só load/transform têm alvo.
+# O build só emite load/transform; resolution só alimenta ligações e regras; discard nunca sai do CSV.
+
+sag/brand:
+  destination: loaded
+  reason: "catálogo por família: marca, modalidade e UF da sede"
+  columns:
+    BRAND: [load, code, brand.brand, "chave da marca"]
+    BRAND_NAME: [discard, text, ~, "nome jurídico em caixa alta; a UI usa a família da marca"]
+    MODALITY: [load, enum, brand.modality, "presencial ou EAD"]
+    CNPJ: [discard, code, ~, "CNPJ nunca é carregado"]
+    HQ_UF: [load, code, brand.hq_uf, "UF da sede, dado público"]
+    ACTIVE: [load, bool, brand.active, "marca ativa"]
+
+sag/unit:
+  destination: loaded
+  reason: "catálogo de unidades; só o rótulo da lista congelada de 27"
+  columns:
+    UNIT_ID: [load, id, unit.unit_id, "chave da unidade"]
+    BRAND: [load, code, unit.brand, "marca da unidade"]
+    UNIT_NAME: [transform, text, unit.label, "vira o rótulo da lista exata congelada"]
+    UNIT_TYPE: [load, enum, unit.unit_type, "campus ou polo"]
+    CITY: [discard, text, ~, "texto livre; o rótulo congelado já identifica a unidade"]
+    UF: [load, code, unit.uf, "UF da unidade"]
+    IBGE_CODE: [discard, code, ~, "sem pergunta de aluno"]
+    OPENED_ON: [discard, date, ~, "sem pergunta de aluno"]
+
+sag/course:
+  destination: loaded
+  reason: "catálogo global de cursos, com nome PT da ontologia"
+  columns:
+    COURSE: [load, id, course.course_id, "chave do curso"]
+    COURSE_ACRONYM: [load, code, course.acronym, "sigla ligada ao produto e ao LMS"]
+    COURSE_NAME: [transform, text, course.name_pt, "nome em inglês vira o nome PT congelado"]
+    DEGREE: [load, enum, course.degree, "grau"]
+    DURATION_SEMESTERS: [load, number, course.duration_semesters, "duração"]
+    EMEC_CODE: [discard, code, ~, "código regulatório sem pergunta de aluno"]
+
+sag/curriculum:
+  destination: loaded
+  reason: "catálogo global de matrizes curriculares"
+  columns:
+    CURRICULUM_ID: [load, id, curriculum.curriculum_id, "chave da matriz"]
+    COURSE: [load, id, curriculum.course_id, "curso da matriz"]
+    VALID_FROM_TERM: [load, code, curriculum.valid_from_term, "início de vigência"]
+    VALID_TO_TERM: [load, code, curriculum.valid_to_term, "fim de vigência"]
+    TOTAL_HOURS: [load, number, curriculum.total_hours, "carga total"]
+    STATUS: [load, enum, curriculum.status, "vigente ou legada"]
+
+sag/subject:
+  destination: loaded
+  reason: "catálogo global de disciplinas; name_pt obrigatório"
+  columns:
+    SUBJECT_CODE: [load, id, subject.subject_code, "chave da disciplina"]
+    SUBJECT_NAME: [transform, text, subject.name_pt, "nome em inglês vira o nome PT congelado"]
+    HOURS: [load, number, subject.hours, "carga horária"]
+    CREDITS: [load, number, subject.credits, "créditos"]
+    SUBJECT_TYPE: [load, enum, subject.subject_type, "tipo da disciplina"]
+
+sag/curriculum_subject:
+  destination: loaded
+  reason: "disciplinas por matriz: semestre, obrigatoriedade e pré-requisito"
+  columns:
+    CURRICULUM_ID: [load, id, curriculum_subject.curriculum_id, "matriz"]
+    SUBJECT_CODE: [load, id, curriculum_subject.subject_code, "disciplina"]
+    SEMESTER: [load, number, curriculum_subject.semester, "semestre da matriz"]
+    MANDATORY: [load, bool, curriculum_subject.mandatory, "obrigatória"]
+    PREREQUISITE_CODE: [load, id, curriculum_subject.prerequisite_code, "pré-requisito"]
+
+sag/course_offer:
+  destination: loaded
+  reason: "oferta por unidade e curso; modalidade vem da marca da unidade"
+  columns:
+    OFFER_ID: [load, id, course_offer.offer_id, "chave da oferta"]
+    UNIT_ID: [load, id, course_offer.unit_id, "unidade"]
+    COURSE: [load, id, course_offer.course_id, "curso"]
+    CURRICULUM_ID: [load, id, course_offer.curriculum_id, "matriz"]
+    SHIFT: [load, enum, course_offer.shift, "turno"]
+    SEATS: [discard, number, ~, "capacidade interna"]
+    FIRST_TERM: [discard, code, ~, "sem pergunta de aluno"]
+
+sag/term:
+  destination: loaded
+  reason: "calendário global: período e início de AV1/AV2"
+  columns:
+    TERM: [load, code, term.term, "semestre AAAA/S"]
+    START_DATE: [load, date, term.start_date, "início do semestre"]
+    END_DATE: [load, date, term.end_date, "fim do semestre"]
+    AV1_START: [load, date, term.av1_start, "início da AV1"]
+    AV2_START: [load, date, term.av2_start, "início da AV2"]
+    IS_CURRENT: [load, bool, term.is_current, "semestre corrente"]
+
+sag/enrollment:
+  destination: loaded
+  reason: "matrícula do aluno, ligada por (marca, RA); sem dado pessoal"
+  columns:
+    BRAND: [load, code, enrollment.brand, "marca"]
+    STUDENT_ID: [load, code, enrollment.ra, "RA do próprio aluno (a chave de ligação usa marca + RA)"]
+    PERSON_ID: [resolution, id, ~, "serve só para ligar à pessoa; a chave humana é o CPF"]
+    COURSE: [load, id, enrollment.course_id, "curso"]
+    CURRICULUM_ID: [load, id, enrollment.curriculum_id, "matriz"]
+    UNIT_ID: [transform, id, enrollment.unit_label, "vira o rótulo da lista congelada de unidades"]
+    MODALITY: [load, enum, enrollment.modality, "modalidade"]
+    SHIFT: [load, enum, enrollment.shift, "turno"]
+    ENTRY_TYPE: [load, enum, enrollment.entry_type, "forma de ingresso"]
+    DATE_OF_ENROLLMENT: [load, date, enrollment.enrolled_on, "data da matrícula"]
+    ENTRY_TERM: [load, code, enrollment.entry_term, "semestre de ingresso"]
+    SEMESTER: [load, number, enrollment.semester, "semestre cursado"]
+    CURRENT_CURRICULUM_COMPLETION: [load, number, enrollment.completion_pct, "conclusão 0-100"]
+    GPA: [load, number, enrollment.gpa, "CR armazenado; não recalcular"]
+    ENROLLMENT_STATUS: [load, enum, enrollment.status, "SAG decide o status acadêmico"]
+    STATUS_DATE: [load, date, enrollment.status_date, "data do status"]
+    ORIGIN_BRAND: [load, code, enrollment.origin_brand, "marca de origem da transferência"]
+    ORIGIN_STUDENT_ID: [resolution, code, ~, "liga à matrícula de origem; RA de outra marca não é exibido"]
+    UPDATED_AT: [discard, instant, ~, "carimbo técnico sem fuso"]
+
+sag/enrollment_status_history:
+  destination: loaded
+  reason: "eventos de status da matrícula, sem CHANGED_BY"
+  columns:
+    HISTORY_ID: [discard, id, ~, "chave técnica"]
+    BRAND: [resolution, code, ~, "liga à matrícula"]
+    STUDENT_ID: [resolution, code, ~, "liga à matrícula"]
+    TERM: [load, code, enrollment_event.term, "semestre do evento"]
+    EVENT_DATE: [load, date, enrollment_event.event_date, "data do evento"]
+    OLD_STATUS: [load, enum, enrollment_event.old_status, "status anterior"]
+    NEW_STATUS: [load, enum, enrollment_event.new_status, "status novo"]
+    REASON: [load, enum, enrollment_event.reason, "motivo, rotulado em PT"]
+    PROTOCOL_REF: [transform, code, enrollment_event.protocol_ref, "PRT-AAAA/NNNNNNN vira 11 dígitos"]
+    CHANGED_BY: [discard, code, ~, "login de funcionário nunca é carregado"]
+
+sag/term_enrollment:
+  destination: loaded
+  reason: "rematrícula por semestre; o status da matrícula prevalece"
+  columns:
+    BRAND: [resolution, code, ~, "liga à matrícula"]
+    STUDENT_ID: [resolution, code, ~, "liga à matrícula"]
+    TERM: [load, code, term_enrollment.term, "semestre"]
+    SEMESTER_LEVEL: [load, number, term_enrollment.semester_level, "período cursado"]
+    REGISTRATION_DATE: [load, date, term_enrollment.registration_date, "data da rematrícula"]
+    TERM_STATUS: [load, enum, term_enrollment.term_status, "situação da rematrícula"]
+    CREDITS_ENROLLED: [load, number, term_enrollment.credits_enrolled, "créditos"]
+
+sag/student_class:
+  destination: loaded
+  reason: "resultado por disciplina; nota armazenada, nunca recalculada"
+  columns:
+    CLASS_ID: [load, id, class_result.class_id, "turma; disciplina, semestre e professor vêm de class_section"]
+    BRAND: [resolution, code, ~, "liga à matrícula"]
+    STUDENT_ID: [resolution, code, ~, "liga à matrícula"]
+    CURRICULUM_ID: [load, id, class_result.curriculum_id, "matriz"]
+    IS_RETAKE: [load, bool, class_result.is_retake, "repetência"]
+    GRADE_AV1: [load, number, class_result.grade_av1, "nota oficial do SAG"]
+    GRADE_AV2: [load, number, class_result.grade_av2, "nota oficial do SAG"]
+    GRADE_AV3: [load, number, class_result.grade_av3, "nota substitutiva"]
+    FINAL_GRADE: [load, number, class_result.final_grade, "média armazenada"]
+    ATTENDANCE_PCT: [load, number, class_result.attendance_pct, "frequência 0-100"]
+    RESULT: [load, enum, class_result.result, "resultado"]
+    UPDATED_AT: [discard, instant, ~, "carimbo técnico sem fuso"]
+
+sag/person:
+  destination: partial
+  reason: "só o primeiro nome (saudação da UI); nenhum dado pessoal"
+  columns:
+    PERSON_ID: [resolution, id, ~, "liga matrícula e pessoa"]
+    FULL_NAME: [transform, text, person.first_name, "só o primeiro nome, nunca vai ao LLM"]
+    CPF: [resolution, code, ~, "chave humana da pessoa; nunca carregado"]
+    BIRTH_DATE: [discard, date, ~, "dado pessoal"]
+    GENDER: [discard, enum, ~, "dado pessoal"]
+    MOTHER_NAME: [discard, text, ~, "dado pessoal"]
+    EMAIL: [discard, text, ~, "dado pessoal"]
+    PHONE: [discard, text, ~, "dado pessoal"]
+    ZIP_CODE: [discard, text, ~, "endereço"]
+    CITY: [discard, text, ~, "endereço"]
+    UF: [discard, code, ~, "endereço"]
+    CREATED_AT: [discard, instant, ~, "carimbo técnico sem fuso"]
+
+sag/professor:
+  destination: partial
+  reason: "só o nome, e só se estiver na lista congelada de 60"
+  columns:
+    PROFESSOR_ID: [resolution, id, ~, "liga a turma e professor"]
+    FULL_NAME: [transform, text, class_result.professor, "só se estiver na lista exata congelada"]
+    CPF: [discard, code, ~, "dado pessoal de funcionário"]
+    BRAND: [discard, code, ~, "sem uso"]
+    ACADEMIC_TITLE: [discard, enum, ~, "professor além do nome não é carregado"]
+    HIRED_ON: [discard, date, ~, "dado de funcionário"]
+    EMAIL: [discard, text, ~, "dado pessoal de funcionário"]
+
+sag/class_section:
+  destination: resolution_only
+  reason: "dá disciplina, semestre, turma e professor ao resultado; não é carregada"
+  columns:
+    CLASS_ID: [resolution, id, ~, "liga student_class e salas do LMS (SAG-<CLASS_ID>)"]
+    TERM: [resolution, code, ~, "semestre do resultado"]
+    SUBJECT_CODE: [resolution, id, ~, "disciplina do resultado"]
+    BRAND: [resolution, code, ~, "marca da turma"]
+    UNIT_ID: [resolution, id, ~, "unidade da turma"]
+    SECTION: [resolution, code, ~, "turma do resultado"]
+    SHIFT: [resolution, enum, ~, "turno da turma"]
+    DELIVERY: [resolution, enum, ~, "modalidade da turma"]
+    PROFESSOR_ID: [resolution, id, ~, "professor, filtrado pela lista congelada"]
+    CAPACITY: [discard, number, ~, "capacidade interna"]
+
+lms/mdl_user:
+  destination: loaded
+  reason: "contas de aluno: último acesso e situação; sem nome, e-mail nem login"
+  columns:
+    student_lms_id: [load, id, lms_account.lms_user_id, "chave da conta de aluno"]
+    tenant_id: [resolution, id, ~, "marca da conta"]
+    username: [resolution, code, ~, "liga contas manuais pelo log; nunca exposto"]
+    student_id: [resolution, code, ~, "liga a conta SSO à matrícula"]
+    auth: [resolution, enum, ~, "separa SSO de conta manual"]
+    firstname: [discard, text, ~, "dado pessoal"]
+    lastname: [discard, text, ~, "dado pessoal"]
+    email: [discard, text, ~, "dado pessoal"]
+    city: [discard, text, ~, "texto livre pessoal"]
+    country: [discard, code, ~, "constante"]
+    timezone: [discard, code, ~, "sem uso"]
+    suspended: [load, bool, lms_account.suspended, "conta suspensa"]
+    deleted: [discard, bool, ~, "sempre zero"]
+    firstaccess: [load, instant, lms_account.first_access, "primeiro acesso"]
+    lastaccess: [load, instant, lms_account.last_access, "último acesso"]
+    timecreated: [load, instant, lms_account.created_at, "criação da conta"]
+    timemodified: [discard, instant, ~, "carimbo técnico"]
+
+lms/mdl_logstore_standard_log:
+  destination: loaded
+  reason: "eventos do próprio aluno, sem IP, URL nem relateduserid"
+  columns:
+    id: [load, id, lms_event.event_id, "chave do evento"]
+    eventname: [load, enum, lms_event.event_name, "tipo do evento"]
+    component: [discard, code, ~, "redundante com eventname"]
+    action: [discard, code, ~, "redundante com eventname"]
+    target: [discard, code, ~, "redundante com eventname"]
+    crud: [discard, code, ~, "redundante com eventname"]
+    edulevel: [discard, number, ~, "sem uso"]
+    contextinstanceid: [resolution, id, ~, "liga o evento ao módulo"]
+    userid: [resolution, id, ~, "liga o evento à conta; filtrar o log só por userid"]
+    courseid: [resolution, id, ~, "sala do evento; vira a disciplina PT"]
+    relateduserid: [discard, id, ~, "terceiro; nunca carregado"]
+    timecreated: [load, instant, lms_event.occurred_at, "instante do evento"]
+    origin: [discard, code, ~, "sem uso"]
+    ip: [discard, code, ~, "IP nunca é carregado"]
+    page_url: [discard, text, ~, "URL nunca é carregada"]
+    other: [resolution, text, ~, "traz o username dos logins que ligam contas manuais"]
+    year: [discard, number, ~, "partição técnica"]
+    month: [discard, number, ~, "partição técnica"]
+
+lms/mdl_quiz:
+  destination: loaded
+  reason: "provas: tipo (AV1, AV2, simulado), disciplina PT, janela e tentativas"
+  columns:
+    id: [load, id, lms_quiz.quiz_id, "chave da prova"]
+    course: [resolution, id, ~, "sala; vira a disciplina PT e a inscrição ativa"]
+    name: [transform, text, lms_quiz.quiz_type, "nome vira tipo por padrão exato"]
+    timeopen: [load, instant, lms_quiz.opens_at, "abertura"]
+    timeclose: [load, instant, lms_quiz.closes_at, "fechamento"]
+    timelimit: [load, number, lms_quiz.time_limit_s, "tempo limite em segundos"]
+    attempts: [load, number, lms_quiz.attempts_allowed, "tentativas permitidas"]
+    sumgrades: [discard, number, ~, "constante 10.0"]
+    grade: [discard, number, ~, "constante 100.0, escala diferente do SAG"]
+
+lms/mdl_quiz_attempts:
+  destination: loaded
+  reason: "tentativas do aluno; a nota do SAG é a oficial"
+  columns:
+    id: [load, id, lms_quiz_attempt.attempt_id, "chave da tentativa"]
+    quiz: [load, id, lms_quiz_attempt.quiz_id, "prova"]
+    userid: [resolution, id, ~, "liga à conta"]
+    attempt: [load, number, lms_quiz_attempt.attempt_no, "número da tentativa"]
+    state: [load, enum, lms_quiz_attempt.state, "finalizada ou abandonada"]
+    timestart: [load, instant, lms_quiz_attempt.started_at, "início"]
+    timefinish: [load, instant, lms_quiz_attempt.finished_at, "fim"]
+    sumgrades: [load, number, lms_quiz_attempt.sumgrades, "nota 0-10 não oficial"]
+
+lms/mdl_tenant:
+  destination: resolution_only
+  reason: "tenant liga a marca; nome e URL não são carregados"
+  columns:
+    id: [resolution, id, ~, "tenant 1..5 liga à marca"]
+    slug: [discard, code, ~, "sem uso"]
+    name: [discard, text, ~, "sem uso"]
+    wwwroot: [discard, text, ~, "URL interna"]
+    timecreated: [discard, instant, ~, "sem uso"]
+
+lms/mdl_course_categories:
+  destination: resolution_only
+  reason: "categorias ligam marca, modalidade e curso à sala"
+  columns:
+    id: [resolution, id, ~, "categoria da sala"]
+    tenant_id: [resolution, id, ~, "marca"]
+    parent: [resolution, id, ~, "hierarquia marca > modalidade > curso"]
+    name: [discard, text, ~, "rótulo livre"]
+    idnumber: [resolution, code, ~, "sigla do curso ou PRES/EAD"]
+    path: [discard, code, ~, "redundante com parent"]
+    depth: [discard, number, ~, "redundante com parent"]
+    visible: [discard, bool, ~, "constante"]
+
+lms/mdl_course:
+  destination: resolution_only
+  reason: "salas viram a disciplina PT; a sala em si não é carregada"
+  columns:
+    id: [resolution, id, ~, "sala"]
+    tenant_id: [resolution, id, ~, "marca"]
+    category: [resolution, id, ~, "categoria"]
+    shortname: [resolution, code, ~, "prefixo é o código da disciplina"]
+    fullname: [discard, text, ~, "nome livre em inglês"]
+    idnumber: [resolution, code, ~, "SAG-<CLASS_ID> liga a turma"]
+    format: [discard, code, ~, "constante"]
+    startdate: [resolution, instant, ~, "período da sala"]
+    enddate: [resolution, instant, ~, "período da sala"]
+    visible: [discard, bool, ~, "constante"]
+    timecreated: [discard, instant, ~, "sem uso"]
+
+lms/mdl_user_enrolments:
+  destination: resolution_only
+  reason: "inscrição ativa filtra provas e salas; a inscrição não é carregada"
+  columns:
+    id: [discard, id, ~, "chave técnica"]
+    courseid: [resolution, id, ~, "sala"]
+    userid: [resolution, id, ~, "conta"]
+    role: [resolution, enum, ~, "só papel de aluno conta"]
+    enrol_method: [discard, enum, ~, "sem uso"]
+    status: [resolution, enum, ~, "0 ativa, 1 suspensa"]
+    timestart: [discard, instant, ~, "sem uso"]
+    timeend: [resolution, instant, ~, "0 = sem fim"]
+    timecreated: [discard, instant, ~, "sem uso"]
+
+lms/mdl_user_info_data:
+  destination: discarded
+  reason: "perfil traz CPF e dados pessoais; a ligação usa o SAG"
+  columns:
+    id: [discard, id, ~, "tabela descartada"]
+    userid: [discard, id, ~, "tabela descartada"]
+    fieldid: [discard, id, ~, "tabela descartada"]
+    data: [discard, text, ~, "CPF e texto livre pessoal"]
+
+lms/mdl_user_info_field:
+  destination: discarded
+  reason: "metadados do perfil com CPF; sem uso"
+  columns:
+    id: [discard, id, ~, "tabela descartada"]
+    shortname: [discard, code, ~, "tabela descartada"]
+    name: [discard, text, ~, "tabela descartada"]
+    datatype: [discard, code, ~, "tabela descartada"]
+
+lms/mdl_course_modules:
+  destination: discarded
+  reason: "módulos de sala sem pergunta de aluno; nomes livres"
+  columns:
+    id: [discard, id, ~, "tabela descartada"]
+    course: [discard, id, ~, "tabela descartada"]
+    modname: [discard, code, ~, "tabela descartada"]
+    instance: [discard, id, ~, "tabela descartada"]
+    name: [discard, text, ~, "texto livre"]
+    section: [discard, number, ~, "tabela descartada"]
+    visible: [discard, bool, ~, "tabela descartada"]
+    added: [discard, instant, ~, "tabela descartada"]
+
+secretary/protocol:
+  destination: loaded
+  reason: "protocolos ligados à matrícula; sem CPF, nome do solicitante, analista, prioridade nem SLA_Breached"
+  columns:
+    Protocol: [load, id, protocol.protocol, "número de 11 dígitos"]
+    Stu_ID: [resolution, code, ~, "RA com erros de digitação; confere com o CPF"]
+    Requester_CPF: [resolution, code, ~, "liga por CPF; nunca carregado"]
+    Requester_Name: [discard, text, ~, "dado pessoal de terceiros"]
+    Requester_Type: [resolution, enum, ~, "alimenta solicitante_papel (regra do responsável)"]
+    Unit_Code: [resolution, code, ~, "liga à marca"]
+    Course_Label: [resolution, text, ~, "confirma a ligação por curso; texto livre"]
+    Demand: [load, code, protocol.service_code, "serviço"]
+    Demand_Status: [load, enum, protocol.status, "situação"]
+    Demand_Analyst: [discard, code, ~, "login de analista nunca é carregado"]
+    Channel: [load, enum, protocol.channel, "canal de abertura"]
+    Priority: [discard, enum, ~, "interno da secretaria"]
+    Opened_At: [load, instant, protocol.opened_at, "abertura"]
+    First_Response_At: [load, instant, protocol.first_response_at, "primeira resposta"]
+    SLA_Due_At: [load, instant, protocol.sla_due_at, "prazo; julgado contra a data de referência"]
+    Closed_At: [load, instant, protocol.closed_at, "encerramento"]
+    SLA_Breached: [discard, bool, ~, "interno da secretaria"]
+    Resolution: [load, enum, protocol.resolution, "resolução"]
+
+secretary/protocol_status_history:
+  destination: loaded
+  reason: "histórico do protocolo sem Changed_By"
+  columns:
+    Protocol: [load, id, protocol_event.protocol, "protocolo"]
+    Seq: [load, number, protocol_event.seq, "ordem"]
+    From_Status: [load, enum, protocol_event.from_status, "status anterior"]
+    To_Status: [load, enum, protocol_event.to_status, "status novo"]
+    Changed_At: [load, instant, protocol_event.changed_at, "instante"]
+    Changed_By: [discard, code, ~, "login de analista nunca é carregado"]
+
+secretary/demand_type:
+  destination: loaded
+  reason: "catálogo de serviços; nome PT, prazo e taxa vêm da ontologia"
+  columns:
+    Demand_Code: [load, code, service.code, "código do serviço"]
+    Demand_Name: [transform, text, service.name_pt, "nome em inglês vira o nome PT de services.yaml"]
+    Area: [load, enum, service.area, "área"]
+    SLA_Hours: [load, number, service.sla_hours, "prazo em horas"]
+    Service_Fee: [transform, money, service.fee_cents, "texto 'R$ 20,00' vira centavos (preço de 2026)"]
+    Active: [load, bool, service.active, "serviço ativo"]
+
+secretary/issued_document:
+  destination: loaded
+  reason: "documentos emitidos sem Signed_By"
+  columns:
+    Document_ID: [load, id, issued_document.document_id, "chave do documento"]
+    Protocol: [load, id, issued_document.protocol, "protocolo de origem"]
+    Document_Type: [load, enum, issued_document.document_type, "tipo"]
+    Issued_At: [load, instant, issued_document.issued_at, "emissão"]
+    Validation_Code: [load, text, issued_document.codigo_validacao, "regex XXXX-XXXX-XXXX"]
+    Signed_By: [discard, code, ~, "login de analista nunca é carregado"]
+    Delivery: [load, enum, issued_document.delivery, "digital ou impresso"]
+
+secretary/protocol_interaction:
+  destination: partial
+  reason: "só atendimento e sistema, tipificadas; notas internas e solicitante ficam de fora"
+  columns:
+    Interaction_ID: [load, id, protocol_message.message_id, "chave da mensagem"]
+    Protocol: [load, id, protocol_message.protocol, "protocolo"]
+    Author_Type: [transform, enum, protocol_message.autor_papel, "atendimento ou sistema; solicitante é omitido"]
+    Author: [discard, text, ~, "login de analista ou nome do solicitante"]
+    Message: [transform, text, protocol_message.modelo, "um dos 4 modelos por igualdade exata, senão texto_livre"]
+    Is_Internal_Note: [resolution, bool, ~, "filtra notas internas pela flag, não pelo conteúdo"]
+    Created_At: [load, instant, protocol_message.created_at, "instante"]
+
+secretary/unit:
+  destination: resolution_only
+  reason: "Unit_Code liga o protocolo à unidade e à marca do SAG"
+  columns:
+    Unit_Code: [resolution, code, ~, "1:1 com UNIT_ID do SAG"]
+    Unit_Name: [discard, text, ~, "o rótulo vem da lista congelada do SAG"]
+    Unit_Type: [discard, enum, ~, "redundante com o SAG"]
+    Brand_Name: [resolution, text, ~, "confirma a marca"]
+    City: [discard, text, ~, "sem uso"]
+    UF: [discard, code, ~, "sem uso"]
+
+secretary/satisfaction_survey:
+  destination: discarded
+  reason: "pesquisa de satisfação nunca é carregada"
+  columns:
+    Survey_ID: [discard, id, ~, "tabela descartada"]
+    Protocol: [discard, id, ~, "tabela descartada"]
+    CSAT: [discard, number, ~, "tabela descartada"]
+    NPS: [discard, number, ~, "tabela descartada"]
+    Comment: [discard, text, ~, "texto livre"]
+    Answered_At: [discard, instant, ~, "tabela descartada"]
+
+secretary/analyst:
+  destination: discarded
+  reason: "funcionários e logins nunca são carregados"
+  columns:
+    Analyst_Login: [discard, code, ~, "login de funcionário"]
+    Analyst_Name: [discard, text, ~, "nome de funcionário"]
+    Team: [discard, text, ~, "interno"]
+    Unit_Code: [discard, code, ~, "interno"]
+    Hired_On: [discard, date, ~, "dado de funcionário"]
+    Active: [discard, bool, ~, "interno"]
+
+finance/contract:
+  destination: loaded
+  reason: "contrato ligado à matrícula por academicRef; sem nome nem pagador"
+  columns:
+    contractId: [load, id, contract.contract_id, "chave do contrato"]
+    customerId: [resolution, id, ~, "pagador; define payer_type, nunca liga faturas"]
+    companyCode: [resolution, code, ~, "marca"]
+    businessArea: [resolution, enum, ~, "modalidade"]
+    academicRef: [resolution, code, ~, "liga à matrícula após normalizar"]
+    studentName: [discard, text, ~, "dado pessoal"]
+    productCode: [load, code, contract.product_code, "produto"]
+    signedAt: [load, date, contract.signed_on, "assinatura"]
+    startCompetence: [load, code, contract.start_competence, "AAAA-MM"]
+    endCompetence: [load, code, contract.end_competence, "AAAA-MM"]
+    dueDay: [load, number, contract.due_day, "dia de vencimento"]
+    status: [load, enum, contract.status, "situação; o financeiro decide a dívida"]
+
+finance/invoice:
+  destination: loaded
+  reason: "faturas pelo contrato da matrícula, nunca por customerId"
+  columns:
+    invoiceId: [load, id, invoice.invoice_id, "chave da fatura"]
+    documentNumber: [discard, code, ~, "número fiscal interno"]
+    contractId: [load, id, invoice.contract_id, "contrato"]
+    customerId: [resolution, id, ~, "traria faturas do irmão"]
+    companyCode: [resolution, code, ~, "marca"]
+    productCode: [discard, code, ~, "redundante com o contrato"]
+    competence: [load, code, invoice.competence, "AAAA-MM"]
+    invoiceType: [load, enum, invoice.invoice_type, "tipo"]
+    issueDate: [load, date, invoice.issue_date, "emissão"]
+    dueDate: [load, date, invoice.due_date, "vencimento"]
+    grossAmountCents: [load, money, invoice.gross_cents, "bruto"]
+    discountAmountCents: [load, money, invoice.discount_cents, "desconto"]
+    netAmountCents: [load, money, invoice.net_cents, "líquido"]
+    status: [load, enum, invoice.status, "situação"]
+    protocolRef: [transform, code, invoice.protocol_ref, "protocolo vinculado"]
+    agreementId: [load, id, invoice.agreement_id, "acordo que renegociou"]
+    createdAt: [discard, instant, ~, "carimbo técnico"]
+
+finance/payment:
+  destination: loaded
+  reason: "pagamentos sem transactionRef nem bankCode"
+  columns:
+    paymentId: [load, id, payment.payment_id, "chave"]
+    invoiceId: [load, id, payment.invoice_id, "fatura"]
+    paidAt: [load, instant, payment.paid_at, "pagamento"]
+    creditDate: [load, date, payment.credit_date, "crédito"]
+    amountCents: [load, money, payment.amount_cents, "total, inclui multa e juros"]
+    principalCents: [load, money, payment.principal_cents, "principal"]
+    fineCents: [load, money, payment.fine_cents, "multa"]
+    interestCents: [load, money, payment.interest_cents, "juros"]
+    method: [load, enum, payment.method, "forma de pagamento"]
+    bankCode: [discard, code, ~, "banco nunca é carregado"]
+    transactionRef: [discard, code, ~, "referência da transação nunca é carregada"]
+    status: [load, enum, payment.status, "confirmado ou estornado"]
+
+finance/late_charge:
+  destination: loaded
+  reason: "encargos por fatura"
+  columns:
+    lateChargeId: [load, id, late_charge.late_charge_id, "chave"]
+    invoiceId: [load, id, late_charge.invoice_id, "fatura"]
+    referenceDate: [load, date, late_charge.reference_date, "data de referência"]
+    daysLate: [load, number, late_charge.days_late, "dias de atraso"]
+    fineRate: [load, number, late_charge.fine_rate, "taxa da multa"]
+    monthlyInterestRate: [load, number, late_charge.monthly_interest_rate, "taxa de juros"]
+    fineCents: [load, money, late_charge.fine_cents, "multa"]
+    interestCents: [load, money, late_charge.interest_cents, "juros"]
+    waived: [load, bool, late_charge.waived, "dispensado"]
+
+finance/discount:
+  destination: loaded
+  reason: "descontos por contrato"
+  columns:
+    discountId: [load, id, discount.discount_id, "chave"]
+    contractId: [load, id, discount.contract_id, "contrato"]
+    discountType: [load, enum, discount.discount_type, "tipo"]
+    rate: [load, number, discount.rate, "taxa"]
+    validFrom: [load, date, discount.valid_from, "início"]
+    validTo: [load, date, discount.valid_to, "fim"]
+
+finance/agreement:
+  destination: loaded
+  reason: "acordos por contrato; customerId só resolve o pagador"
+  columns:
+    agreementId: [load, id, agreement.agreement_id, "chave"]
+    contractId: [load, id, agreement.contract_id, "contrato"]
+    customerId: [resolution, id, ~, "pagador"]
+    createdAt: [load, instant, agreement.created_at, "criação"]
+    originalDebtCents: [load, money, agreement.original_debt_cents, "dívida original"]
+    waivedCents: [load, money, agreement.waived_cents, "abatido"]
+    agreedAmountCents: [load, money, agreement.agreed_amount_cents, "valor acordado"]
+    installments: [load, number, agreement.installments, "parcelas"]
+    status: [load, enum, agreement.status, "ativo, rompido ou quitado"]
+    protocolRef: [transform, code, agreement.protocol_ref, "protocolo vinculado"]
+
+finance/agreement_invoice:
+  destination: loaded
+  reason: "parcelas do acordo"
+  columns:
+    agreementId: [load, id, agreement_invoice.agreement_id, "acordo"]
+    invoiceId: [load, id, agreement_invoice.invoice_id, "fatura da parcela"]
+
+finance/price_list:
+  destination: loaded
+  reason: "preço de catálogo por família, curso e ano"
+  columns:
+    priceId: [discard, id, ~, "chave técnica"]
+    productCode: [transform, code, price.course_id, "produto GRAD-<SIGLA>-<PRE|DIG> vira o curso"]
+    companyCode: [transform, code, price.brand_family, "empresa vira a família da marca"]
+    validFrom: [transform, date, price.ano, "o ano da vigência"]
+    validTo: [discard, date, ~, "redundante com o ano"]
+    priceCents: [transform, money, price.mensalidade, "mensalidade em centavos"]
+
+finance/customer:
+  destination: resolution_only
+  reason: "só decide o tipo de pagador e a regra do responsável; dados pessoais nunca carregados"
+  columns:
+    customerId: [resolution, id, ~, "pagador do contrato"]
+    customerType: [resolution, enum, ~, "pessoa física ou empresa"]
+    taxId: [resolution, code, ~, "distingue pagador aluno de responsável"]
+    name: [discard, text, ~, "dado pessoal de terceiro"]
+    email: [discard, text, ~, "dado pessoal de terceiro"]
+    phone: [discard, text, ~, "dado pessoal de terceiro"]
+    billingZip: [discard, text, ~, "endereço"]
+    billingCity: [discard, text, ~, "endereço"]
+    billingState: [discard, code, ~, "endereço"]
+    createdAt: [discard, instant, ~, "carimbo técnico"]
+
+finance/receivable_snapshot:
+  destination: resolution_only
+  reason: "gabarito 273/273 para conferir a dívida calculada pelas faturas"
+  columns:
+    snapshotDate: [resolution, date, ~, "data do snapshot"]
+    contractId: [resolution, id, ~, "contrato"]
+    customerId: [resolution, id, ~, "pagador"]
+    companyCode: [resolution, code, ~, "marca"]
+    overdueInvoices: [resolution, number, ~, "contagem do gabarito"]
+    principalCents: [resolution, money, ~, "gabarito"]
+    fineCents: [resolution, money, ~, "gabarito"]
+    interestCents: [resolution, money, ~, "gabarito"]
+    totalDebtCents: [resolution, money, ~, "gabarito"]
+    maxDaysPastDue: [resolution, number, ~, "gabarito"]
+    agingBucket: [resolution, enum, ~, "gabarito"]
+    collectionStage: [discard, enum, ~, "estágio de cobrança nunca é carregado"]
+
+finance/company:
+  destination: resolution_only
+  reason: "companyCode liga à marca; CNPJ e razão social nunca carregados"
+  columns:
+    companyCode: [resolution, code, ~, "marca"]
+    legalName: [discard, text, ~, "razão social"]
+    tradeName: [discard, text, ~, "sem uso"]
+    cnpj: [discard, code, ~, "CNPJ nunca é carregado"]
+    state: [discard, code, ~, "sem uso"]
+
+finance/product:
+  destination: resolution_only
+  reason: "produto liga curso e modalidade ao preço e ao contrato"
+  columns:
+    productCode: [resolution, code, ~, "GRAD-<SIGLA>-<PRE|DIG>"]
+    productType: [resolution, enum, ~, "tipo"]
+    description: [discard, text, ~, "texto livre em inglês"]
+    businessArea: [resolution, enum, ~, "modalidade do preço"]
+    installmentsPerTerm: [resolution, number, ~, "parcelas por semestre do preço"]
+
+finance/invoice_tax:
+  destination: discarded
+  reason: "impostos nunca são carregados"
+  columns:
+    invoiceId: [discard, id, ~, "tabela descartada"]
+    taxType: [discard, enum, ~, "tabela descartada"]
+    rate: [discard, number, ~, "tabela descartada"]
+    baseAmountCents: [discard, money, ~, "tabela descartada"]
+    taxAmountCents: [discard, money, ~, "tabela descartada"]
+    municipalityIbge: [discard, code, ~, "tabela descartada"]

@@ -1,0 +1,5 @@
+# Campos de saída declarados por ferramenta (T7 cria vazio; as tarefas 16-19 preenchem).
+tools:
+  list_protocols: {outputs: []}
+  get_protocol: {outputs: []}
+  draft_protocol: {outputs: []}

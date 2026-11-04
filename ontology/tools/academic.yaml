@@ -1,0 +1,5 @@
+# Campos de saída declarados por ferramenta (T7 cria vazio; as tarefas 16-19 preenchem).
+tools:
+  get_academic_profile: {outputs: []}
+  list_course_results: {outputs: []}
+  get_curriculum_progress: {outputs: []}

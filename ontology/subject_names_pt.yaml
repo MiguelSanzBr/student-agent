@@ -1,0 +1,265 @@
+# Nome PT das 260 disciplinas (SUBJECT_CODE -> nome). Fonte do ETL: sag/subject.csv (nomes em inglês).
+# Proveniência: tradução direta feita pelo implementador (um LLM), sem GEMINI_API_KEY no ambiente;
+# scripts/gen_subject_names.py regenera com o Gemini quando houver chave. Pendente: o autor
+# revisa uma amostra de 20: ADM0103 ADM5504 ADS0403 ADS5104 CON0603 DIR0602 DIR0603 ENC0204
+# ENC0602 ENF0302 ENF0802 GEN0009 PED0502 PED0604 PED0703 PSI0204 PSI0304 PSI0603 ADM0504 CON0502.
+ADM0103: Introdução à Administração
+ADM0104: Microeconomia
+ADM0202: Macroeconomia
+ADM0203: Contabilidade Financeira
+ADM0204: Comportamento Organizacional
+ADM0302: Marketing I
+ADM0303: Gestão Financeira I
+ADM0304: Gestão de Custos
+ADM0401: Gestão de Pessoas I
+ADM0402: Gestão de Operações I
+ADM0403: Logística e Cadeia de Suprimentos
+ADM0404: Direito Empresarial
+ADM0502: Gestão Estratégica I
+ADM0503: Gestão de Projetos
+ADM0504: Sistemas de Informação
+ADM0601: Vendas e Negociação
+ADM0602: Negócios Internacionais
+ADM0603: Governança Corporativa
+ADM0604: Simulação Empresarial
+ADM0701: Administração Pública
+ADM0702: Marketing II
+ADM0703: Gestão Financeira II
+ADM0704: Gestão de Pessoas II
+ADM0801: Gestão de Operações II
+ADM0802: Gestão Estratégica II
+ADM0803: Trabalho de Conclusão de Curso em Administração
+ADM0804: Estágio Supervisionado em Administração
+ADM5202: Análise de Negócios
+ADM5302: Marketing Digital
+ADM5401: ESG e Sustentabilidade
+ADM5404: Gestão Ágil
+ADM5504: Tomada de Decisão Baseada em Dados
+ADM5603: Gestão da Inovação
+ADM5702: Experiência do Cliente
+ADS0102: Algoritmos e Programação I
+ADS0103: Arquitetura de Computadores
+ADS0104: Banco de Dados I
+ADS0202: Desenvolvimento Web I
+ADS0203: Engenharia de Software I
+ADS0204: Programação Orientada a Objetos
+ADS0301: Sistemas Operacionais
+ADS0302: Redes de Computadores
+ADS0303: Estruturas de Dados
+ADS0304: Desenvolvimento Mobile
+ADS0401: Segurança da Informação
+ADS0402: Computação em Nuvem
+ADS0403: Design de Experiência do Usuário
+ADS0404: Algoritmos e Programação II
+ADS0501: Banco de Dados II
+ADS0502: Desenvolvimento Web II
+ADS0503: Engenharia de Software II
+ADS0504: Projeto Integrador
+ADS5104: DevOps
+ADS5204: Fundamentos de Ciência de Dados
+ADS5303: Inteligência Artificial
+ADS5402: Desenvolvimento de APIs
+ADS5501: Testes de Software
+CON0103: Introdução à Contabilidade
+CON0104: Contabilidade Financeira I
+CON0202: Contabilidade de Custos I
+CON0203: Contabilidade Tributária I
+CON0204: Auditoria I
+CON0302: Finanças Corporativas I
+CON0402: Direito do Trabalho e Previdenciário
+CON0403: Teoria da Contabilidade
+CON0404: Contabilidade Gerencial
+CON0502: Contabilidade Pública
+CON0503: Controladoria
+CON0504: Análise das Demonstrações Contábeis
+CON0601: Ciências Atuariais
+CON0602: Sistemas de Informação Contábil
+CON0603: Perícia e Arbitragem
+CON0604: Normas Internacionais de Contabilidade
+CON0701: Orçamento Empresarial
+CON0702: Contabilidade Financeira II
+CON0703: Contabilidade de Custos II
+CON0704: Contabilidade Tributária II
+CON0801: Auditoria II
+CON0802: Finanças Corporativas II
+CON0803: Trabalho de Conclusão de Curso em Ciências Contábeis
+CON0804: Estágio Supervisionado em Ciências Contábeis
+DIR0103: Introdução ao Direito
+DIR0104: Filosofia do Direito
+DIR0202: Sociologia do Direito
+DIR0203: Direito Constitucional I
+DIR0204: Direito Civil I
+DIR0302: Direito Penal I
+DIR0303: Direito Processual Civil I
+DIR0304: Direito Processual Penal I
+DIR0401: Direito do Trabalho I
+DIR0402: Processo do Trabalho
+DIR0403: Direito Administrativo I
+DIR0404: Direito Tributário I
+DIR0502: Direito Empresarial I
+DIR0503: Direito do Consumidor
+DIR0504: Direito Ambiental
+DIR0601: Direito Internacional
+DIR0602: Direito de Família e Sucessões
+DIR0603: Prática Jurídica I
+DIR0604: Direitos Humanos
+DIR0701: Direito Constitucional II
+DIR0702: Direito Civil II
+DIR0703: Direito Penal II
+DIR0704: Direito Processual Civil II
+DIR0801: Direito Processual Penal II
+DIR0802: Direito do Trabalho II
+DIR0803: Direito Administrativo II
+DIR0804: Direito Tributário II
+DIR0901: Direito Empresarial II
+DIR0902: Prática Jurídica II
+DIR0903: Direito Civil III
+DIR0904: Direito Penal III
+DIR1001: Direito Processual Civil III
+DIR1002: Direito Civil IV
+DIR1003: Trabalho de Conclusão de Curso em Direito
+DIR1004: Estágio Supervisionado em Direito
+ENC0103: Cálculo I
+ENC0104: Álgebra Linear
+ENC0202: Física I
+ENC0203: Química Geral
+ENC0204: Desenho Técnico
+ENC0302: Resistência dos Materiais I
+ENC0303: Análise Estrutural I
+ENC0304: Concreto Armado I
+ENC0401: Estruturas de Aço
+ENC0402: Mecânica dos Solos I
+ENC0403: Fundações
+ENC0404: Hidráulica
+ENC0502: Saneamento
+ENC0503: Materiais de Construção I
+ENC0504: Tecnologia da Construção I
+ENC0601: Topografia
+ENC0602: Engenharia de Transportes
+ENC0603: Gerenciamento de Obras
+ENC0604: Instalações Prediais
+ENC0701: Métodos Numéricos
+ENC0702: Economia para Engenharia
+ENC0703: Engenharia Ambiental
+ENC0704: Geotecnia
+ENC0801: Cálculo II
+ENC0802: Física II
+ENC0803: Resistência dos Materiais II
+ENC0804: Análise Estrutural II
+ENC0901: Concreto Armado II
+ENC0902: Mecânica dos Solos II
+ENC0903: Materiais de Construção II
+ENC0904: Tecnologia da Construção II
+ENC1001: Cálculo III
+ENC1002: Física III
+ENC1003: Trabalho de Conclusão de Curso em Engenharia Civil
+ENC1004: Estágio Supervisionado em Engenharia Civil
+ENF0103: Anatomia Humana I
+ENF0104: Fisiologia I
+ENF0202: Bioquímica
+ENF0203: Microbiologia e Imunologia
+ENF0204: Farmacologia I
+ENF0302: Patologia
+ENF0303: Fundamentos de Enfermagem I
+ENF0304: Semiologia e Semiotécnica I
+ENF0401: Saúde Coletiva I
+ENF0402: Epidemiologia
+ENF0403: Enfermagem na Saúde do Adulto I
+ENF0404: Enfermagem na Saúde da Mulher
+ENF0502: Enfermagem na Saúde da Criança e do Adolescente
+ENF0503: Enfermagem em Saúde Mental
+ENF0504: Enfermagem Cirúrgica
+ENF0601: Enfermagem em Terapia Intensiva
+ENF0602: Atendimento de Urgência e Emergência
+ENF0603: Gerenciamento em Enfermagem I
+ENF0604: Enfermagem Geriátrica
+ENF0701: Nutrição
+ENF0702: Biossegurança
+ENF0703: Genética
+ENF0704: Histologia
+ENF0801: Educação em Saúde
+ENF0802: Cuidado com Feridas
+ENF0803: Anatomia Humana II
+ENF0804: Fisiologia II
+ENF0901: Farmacologia II
+ENF0902: Fundamentos de Enfermagem II
+ENF0903: Semiologia e Semiotécnica II
+ENF0904: Saúde Coletiva II
+ENF1001: Enfermagem na Saúde do Adulto II
+ENF1002: Gerenciamento em Enfermagem II
+ENF1003: Trabalho de Conclusão de Curso em Enfermagem
+ENF1004: Estágio Supervisionado em Enfermagem
+GEN0001: Escrita Acadêmica
+GEN0002: Ética e Cidadania
+GEN0003: Estatística Aplicada
+GEN0004: Fundamentos de Matemática
+GEN0005: Empreendedorismo
+GEN0006: Letramento Digital
+GEN0007: Metodologia da Pesquisa
+GEN0008: Direitos Humanos e Diversidade
+GEN0009: Responsabilidade Socioambiental
+GEN0010: Comunicação e Expressão
+GEN0011: Introdução à Filosofia
+GEN0012: Pensamento Crítico
+PED0103: História da Educação
+PED0104: Filosofia da Educação
+PED0202: Sociologia da Educação
+PED0203: Psicologia da Educação I
+PED0204: Didática I
+PED0302: Currículo e Avaliação
+PED0303: Educação Infantil I
+PED0304: Alfabetização e Letramento I
+PED0401: Ensino de Matemática
+PED0402: Ensino de Ciências
+PED0403: Ensino de História e Geografia
+PED0404: Educação Inclusiva
+PED0502: Língua Brasileira de Sinais
+PED0503: Gestão Educacional I
+PED0504: Tecnologia Educacional
+PED0601: Educação de Jovens e Adultos
+PED0602: Política Educacional
+PED0603: Ludicidade e Aprendizagem
+PED0604: Literatura Infantil
+PED0701: Arte-Educação
+PED0702: Psicologia da Educação II
+PED0703: Didática II
+PED0704: Educação Infantil II
+PED0801: Alfabetização e Letramento II
+PED0802: Gestão Educacional II
+PED0803: Trabalho de Conclusão de Curso em Pedagogia
+PED0804: Estágio Supervisionado em Pedagogia
+PSI0103: História da Psicologia
+PSI0104: Neurociência I
+PSI0202: Psicologia do Desenvolvimento I
+PSI0203: Teorias da Personalidade I
+PSI0204: Psicologia Social
+PSI0302: Psicopatologia I
+PSI0303: Avaliação Psicológica I
+PSI0304: Análise do Comportamento
+PSI0401: Psicanálise I
+PSI0402: Psicologia Cognitiva
+PSI0403: Psicologia Organizacional
+PSI0404: Psicologia Escolar
+PSI0502: Psicologia da Saúde
+PSI0503: Psicologia Clínica I
+PSI0504: Processos Grupais
+PSI0601: Ética Profissional em Psicologia
+PSI0602: Métodos de Pesquisa em Psicologia I
+PSI0603: Psicofarmacologia
+PSI0604: Psicologia Comunitária
+PSI0701: Fenomenologia e Humanismo
+PSI0702: Terapia Familiar
+PSI0703: Prática Psicológica I
+PSI0704: Bases Biológicas do Comportamento
+PSI0801: Neurociência II
+PSI0802: Psicologia do Desenvolvimento II
+PSI0803: Teorias da Personalidade II
+PSI0804: Psicopatologia II
+PSI0901: Avaliação Psicológica II
+PSI0902: Psicanálise II
+PSI0903: Psicologia Clínica II
+PSI0904: Métodos de Pesquisa em Psicologia II
+PSI1001: Prática Psicológica II
+PSI1002: Prática Psicológica III
+PSI1003: Trabalho de Conclusão de Curso em Psicologia
+PSI1004: Estágio Supervisionado em Psicologia

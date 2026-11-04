@@ -1,0 +1,117 @@
+# Rótulo PT de cada valor de enum, com a chave igual ao valor cru da origem (ou ao valor
+# canônico dos campos derivados). `label_pt(enum, valor)` levanta KeyError se faltar rótulo.
+agreement_status: {ACTIVE: Ativo, BROKEN: Rompido, SETTLED: Quitado}
+attempt_state: {finished: Finalizada, abandoned: Abandonada}
+author_role: {Analyst: Atendimento, System: Sistema, Requester: Solicitante}
+brand_family:
+  UniSaoPaulo: Uni São Paulo
+  UniMontanhas: Uni Montanhas
+  UniLitoral: Uni Litoral
+  UniAtlantico: Uni Atlântico
+  UniAraucaria: Uni Araucária
+channel: {Portal: Portal, WhatsApp: WhatsApp, Email: E-mail, Phone: Telefone, Walk-in: Presencial}
+class_result_status:
+  APPROVED: Aprovado
+  FAILED: Reprovado por nota
+  FAILED_ATTENDANCE: Reprovado por frequência
+  IN_PROGRESS: Em andamento
+  WITHDRAWN: Desistência
+  EXEMPT: Dispensado
+contract_status: {ACTIVE: Ativo, SUSPENDED: Suspenso, TERMINATED: Encerrado, IN_COLLECTION: Em cobrança}
+course:
+  "110": Administração
+  "120": Análise e Desenvolvimento de Sistemas
+  "130": Ciências Contábeis
+  "140": Pedagogia
+  "210": Direito
+  "220": Enfermagem
+  "230": Engenharia Civil
+  "240": Psicologia
+curriculum_status: {CURRENT: Vigente, LEGACY: Anterior}
+degree: {BACHELOR: Bacharelado, LICENTIATE: Licenciatura, TECHNOLOGIST: Tecnólogo}
+delivery: {Digital: Digital, Printed: Impresso}
+discount_type:
+  MERIT: Mérito
+  CORPORATE: Convênio empresarial
+  PROUNI_100: ProUni integral
+  PROUNI_50: ProUni parcial
+  SIBLING: Irmãos
+  EMPLOYEE: Colaborador
+document_type:
+  Enrollment Certificate: Declaração de matrícula
+  Transcript: Histórico escolar
+  Diploma: Diploma
+  Completion Certificate: Certificado de conclusão
+  Syllabus: Ementas
+enrollment_status:
+  ACTIVE: Ativa
+  LOCKED: Trancada
+  CANCELLED: Cancelada
+  DROPOUT: Evadida
+  GRADUATED: Formada
+  TRANSFERRED: Transferida
+entry_type:
+  ENEM: ENEM
+  ENTRANCE_EXAM: Vestibular
+  EXTERNAL_TRANSFER: Transferência externa
+  INTERNAL_TRANSFER: Transferência interna
+  SECOND_DEGREE: Segunda graduação
+invoice_status:
+  OPEN: Em aberto
+  OVERDUE: Vencida
+  PAID: Paga
+  PARTIAL: Paga parcialmente
+  CANCELLED: Cancelada
+  RENEGOTIATED: Renegociada
+invoice_type: {TUITION: Mensalidade, SERVICE_FEE: Taxa de serviço, AGREEMENT_INSTALLMENT: Parcela de acordo}
+lms_event:
+  '\core\event\user_loggedin': Acesso ao ambiente
+  '\core\event\course_viewed': Visualização da sala
+  '\mod_page\event\course_module_viewed': Visualização de página
+  '\mod_resource\event\course_module_viewed': Visualização de material
+  '\mod_url\event\course_module_viewed': Visualização de link
+  '\mod_forum\event\course_module_viewed': Visualização de fórum
+  '\mod_forum\event\discussion_viewed': Visualização de discussão
+  '\mod_forum\event\post_created': Mensagem no fórum
+  '\mod_quiz\event\course_module_viewed': Visualização de prova
+  '\mod_quiz\event\attempt_started': Início de tentativa
+  '\mod_quiz\event\attempt_submitted': Envio de tentativa
+modality: {CAMPUS: Presencial, DL: EAD}
+payer_type: {aluno: Aluno, responsavel: Responsável, empresa: Empresa}
+payment_method: {PIX: Pix, BOLETO: Boleto, CREDIT_CARD: Cartão de crédito}
+payment_status: {CONFIRMED: Confirmado, REVERSED: Estornado}
+protocol_status:
+  Open: Aberto
+  In Analysis: Em análise
+  Pending Requester: Aguardando você
+  Reopened: Reaberto
+  Resolved: Resolvido
+  Cancelled: Cancelado
+quiz_type: {AV1: AV1, AV2: AV2, simulado: Simulado}
+resolution: {Granted: Deferido, Denied: Indeferido, Withdrawn: Desistência, Duplicate: Duplicado}
+service_area:
+  DOCUMENTS: Documentos
+  ACADEMIC: Acadêmico
+  FINANCIAL: Financeiro
+  TECH: Suporte técnico
+  GENERAL: Geral
+  OMBUDSMAN: Ouvidoria
+service_mode: {agent: O agente registra, orientation: Só orientação}
+shift: {MORNING: Manhã, EVENING: Noite, ONLINE: Online}
+solicitante_papel: {aluno: Aluno, responsavel: Responsável, terceiro: Terceiro}
+status_reason:
+  NEW_ENROLLMENT: Nova matrícula
+  NO_REENROLLMENT: Sem rematrícula
+  COMPLETED: Curso concluído
+  FINANCIAL: Motivo financeiro
+  REACTIVATION: Reativação
+  INTERNAL_TRANSFER: Transferência interna
+  CURRICULUM_MIGRATION: Migração de matriz
+  WORK: Motivo de trabalho
+  PERSONAL: Motivo pessoal
+  SECOND_DEGREE: Segunda graduação
+  HEALTH: Motivo de saúde
+  RELOCATION: Mudança de cidade
+subject_type: {CORE: Núcleo comum, SPECIFIC: Específica do curso, ELECTIVE: Optativa}
+term_status: {REGISTERED: Rematriculado, LOCKED: Trancado, NOT_RENEWED: Não rematriculado}
+unit_type: {CAMPUS: Campus, POLO: Polo}

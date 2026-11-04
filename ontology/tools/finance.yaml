@@ -1,0 +1,5 @@
+# Campos de saída declarados por ferramenta (T7 cria vazio; as tarefas 16-19 preenchem).
+tools:
+  get_financial_summary: {outputs: []}
+  list_invoices: {outputs: []}
+  list_agreements: {outputs: []}
