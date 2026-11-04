@@ -1,0 +1,17 @@
+# Notas das rodadas reais (2026-11-04) — fatos sem JSON próprio
+
+Cada item diz de onde veio. As transcrições completas ficam só no volume `eval-out` (sensíveis).
+
+- **Dev 1, 58 inválidos:** 56 são do caso 10 e 2 do caso 9 (contagem por aluno nas transcrições da
+  rodada). A mesma pergunta do caso 10, refeita depois, respondeu normalmente; o PC do autor reiniciou
+  logo depois da rodada, e a causa provável é a API ter caído. A dev 2 e a dev 3 tiveram 0 inválidos.
+- **Dev 3, cortes pelo prazo:** 0 respostas com o texto de prazo estourado ("Estou demorando...") e 0
+  com LLM indisponível nas 553 transcrições.
+- **Tokens por turno:** sondas pela API com `claude-haiku-5-5` mostraram ~13,5 mil tokens de entrada por
+  turno (~11,6 mil em cache) e ~0,8–1 mil de saída e raciocínio (evento `debug.usage`). Com 200 mil
+  tokens/aluno/dia contando o cache, isso dá ~13 turnos por dia.
+- **Perfil eval:** `limits.eval.tokens_per_day` subiu de 200 mil para 5 milhões (`slo_targets.yaml`)
+  porque a rodada dev faria ~16 turnos por aluno sintético; o teto de gasto (US$ 40/dia) ficou igual.
+- **Oráculo vazio:** contagens em `analysis-dev-r1.md` e `analysis-dev-r2.md` (análise das
+  transcrições contra `templates.yaml`, `oracle.py` e `score.py`).
+- **Ataques:** os templates que falharam e os motivos estão em `../security.json` (`attacks[*].reasons`).
