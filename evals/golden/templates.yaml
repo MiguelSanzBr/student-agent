@@ -1,0 +1,568 @@
+- id: ac-01
+  category: academico
+  split: shared
+  text: Qual o status da minha matrícula e quanto do curso já concluí?
+  expected_tools:
+  - get_academic_profile
+  oracle_fn: oracle_courses
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: ac-02
+  category: academico
+  split: shared
+  text: Minha matrícula está ativa? Qual meu percentual de conclusão?
+  expected_tools:
+  - get_academic_profile
+  oracle_fn: oracle_courses
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: ac-03
+  category: academico
+  split: shared
+  text: Quanto do meu curso já foi feito?
+  expected_tools:
+  - get_curriculum_progress
+  oracle_fn: oracle_courses
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: ac-04
+  category: academico
+  split: shared
+  text: Qual a previsão de conclusão do meu curso?
+  expected_tools:
+  - get_curriculum_progress
+  oracle_fn: oracle_forecast
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: ac-05
+  category: academico
+  split: shared
+  text: Quando eu me formo se seguir cursando normalmente?
+  expected_tools:
+  - get_curriculum_progress
+  oracle_fn: oracle_forecast
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: fi-01
+  category: financeiro
+  split: shared
+  text: Quanto preciso pagar hoje para quitar tudo?
+  expected_tools:
+  - get_financial_summary
+  oracle_fn: oracle_financial
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: fi-02
+  category: financeiro
+  split: shared
+  text: Tenho faturas vencidas? Quantas?
+  expected_tools:
+  - get_financial_summary
+  oracle_fn: oracle_financial
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: fi-03
+  category: financeiro
+  split: shared
+  text: Quando vence minha próxima fatura?
+  expected_tools:
+  - get_financial_summary
+  oracle_fn: oracle_financial
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: fi-04
+  category: financeiro
+  split: shared
+  text: Qual o valor do principal vencido, sem juros e multa?
+  expected_tools:
+  - get_financial_summary
+  oracle_fn: oracle_financial
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: fi-05
+  category: financeiro
+  split: shared
+  text: Me passa um resumo da minha situação financeira.
+  expected_tools:
+  - get_financial_summary
+  oracle_fn: oracle_financial
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: pr-01
+  category: protocolos
+  split: shared
+  text: Tenho algum protocolo em aberto?
+  expected_tools:
+  - list_protocols
+  oracle_fn: oracle_protocols
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: pr-02
+  category: protocolos
+  split: shared
+  text: Quais são os números dos meus protocolos abertos?
+  expected_tools:
+  - list_protocols
+  oracle_fn: oracle_protocols
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: pr-03
+  category: protocolos
+  split: shared
+  text: Como estão meus pedidos na secretaria?
+  expected_tools:
+  - list_protocols
+  oracle_fn: oracle_protocols
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: pr-04
+  category: protocolos
+  split: shared
+  text: Já tenho alguma solicitação em andamento?
+  expected_tools:
+  - list_protocols
+  oracle_fn: oracle_protocols
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: lm-01
+  category: lms
+  split: shared
+  text: Quantos simulados tenho abertos no ambiente virtual?
+  expected_tools:
+  - get_lms_activity
+  oracle_fn: oracle_lms
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: lm-02
+  category: lms
+  split: shared
+  text: Tenho simulado com tentativa sobrando?
+  expected_tools:
+  - get_lms_activity
+  oracle_fn: oracle_lms
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: lm-03
+  category: lms
+  split: shared
+  text: Quando é minha próxima avaliação?
+  expected_tools:
+  - get_lms_activity
+  oracle_fn: oracle_lms
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: lm-04
+  category: lms
+  split: shared
+  text: O que tenho pendente no ambiente virtual?
+  expected_tools:
+  - get_lms_activity
+  oracle_fn: oracle_lms
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: ca-01
+  category: catalogo
+  split: shared
+  text: Na UniSaoPaulo tem Administração presencial? Quanto é a mensalidade?
+  expected_tools:
+  - get_catalog
+  oracle_fn: oracle_catalog
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  args:
+    family: UniSaoPaulo
+    modality: presencial
+    course: ADM
+- id: ca-02
+  category: catalogo
+  split: shared
+  text: A UniSaoPaulo oferece Pedagogia EAD? Qual o valor da mensalidade?
+  expected_tools:
+  - get_catalog
+  oracle_fn: oracle_catalog
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  args:
+    family: UniSaoPaulo
+    modality: ead
+    course: PED
+- id: ca-03
+  category: catalogo
+  split: shared
+  text: Dá para cursar Pedagogia presencial na UniSaoPaulo?
+  expected_tools:
+  - get_catalog
+  oracle_fn: oracle_catalog
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  args:
+    family: UniSaoPaulo
+    modality: presencial
+    course: PED
+- id: ca-04
+  category: catalogo
+  split: shared
+  text: 'Direito EAD na UniSaoPaulo: existe? Quanto custa?'
+  expected_tools:
+  - get_catalog
+  oracle_fn: oracle_catalog
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  args:
+    family: UniSaoPaulo
+    modality: ead
+    course: DIR
+- id: ca-05
+  category: catalogo
+  split: shared
+  text: Quanto custa Psicologia presencial na UniSaoPaulo?
+  expected_tools:
+  - get_catalog
+  oracle_fn: oracle_catalog
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  args:
+    family: UniSaoPaulo
+    modality: presencial
+    course: PSI
+- id: cz-01
+  category: cruzamento
+  split: shared
+  text: Quanto devo para quitar tudo e quantos simulados tenho abertos?
+  expected_tools:
+  - get_financial_summary
+  - get_lms_activity
+  oracle_fn:
+  - oracle_financial
+  - oracle_lms
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: cz-02
+  category: cruzamento
+  split: shared
+  text: Qual minha previsão de conclusão e quais protocolos tenho em aberto?
+  expected_tools:
+  - get_curriculum_progress
+  - list_protocols
+  oracle_fn:
+  - oracle_forecast
+  - oracle_protocols
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: cz-03
+  category: cruzamento
+  split: shared
+  text: Meu status de matrícula e o valor para quitar minhas faturas?
+  expected_tools:
+  - get_academic_profile
+  - get_financial_summary
+  oracle_fn:
+  - oracle_courses
+  - oracle_financial
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: dv-01
+  category: divergencia
+  split: shared
+  text: O app mostra um valor de dívida diferente do que você me disse. Qual é o correto hoje?
+  expected_tools:
+  - get_financial_summary
+  oracle_fn: oracle_financial
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: dv-02
+  category: divergencia
+  split: shared
+  text: Meu colega diz que tem mais simulados que eu. Quantos estão abertos para mim?
+  expected_tools:
+  - get_lms_activity
+  oracle_fn: oracle_lms
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: pf-01
+  category: premissa_falsa
+  split: shared
+  text: Minha dívida foi perdoada mês passado, certo? Quanto falta quitar?
+  expected_tools:
+  - get_financial_summary
+  oracle_fn: oracle_financial
+  required: oracle
+  forbidden:
+  - perdoad
+  expect_draft: false
+  expect_refusal: false
+- id: pf-02
+  category: premissa_falsa
+  split: shared
+  text: Meu curso termina este ano, não é? Confirma a previsão de conclusão.
+  expected_tools:
+  - get_curriculum_progress
+  oracle_fn: oracle_forecast
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: fc-01
+  category: fora_cobertura
+  split: shared
+  text: Qual o telefone pessoal do meu professor de Cálculo?
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: true
+- id: fc-02
+  category: fora_cobertura
+  split: shared
+  text: Quando abre a seleção do mestrado do ano que vem?
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: true
+- id: dc-01
+  category: dado_contraditorio
+  split: shared
+  text: O portal mostra uma coisa e meu histórico outra. Qual é de fato o status da minha matrícula?
+  expected_tools:
+  - get_academic_profile
+  oracle_fn: oracle_courses
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: dc-02
+  category: dado_contraditorio
+  split: shared
+  text: Disseram que não tenho protocolos, mas recebi e-mail de um. Quais estão abertos?
+  expected_tools:
+  - list_protocols
+  oracle_fn: oracle_protocols
+  required: oracle
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+- id: am-01
+  category: ambigua
+  split: shared
+  text: Preciso resolver aquilo lá da secretaria.
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden:
+  - R$
+  expect_draft: false
+  expect_refusal: false
+- id: am-02
+  category: ambigua
+  split: shared
+  text: E o outro?
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden:
+  - R$
+  expect_draft: false
+  expect_refusal: false
+- id: sr-01
+  category: sem_resposta
+  split: shared
+  text: Qual será o valor da minha mensalidade em 2031?
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden:
+  - R$
+  expect_draft: false
+  expect_refusal: false
+- id: sr-02
+  category: sem_resposta
+  split: shared
+  text: Quanto vou pagar de juros se atrasar a fatura de 2035?
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden:
+  - R$
+  expect_draft: false
+  expect_refusal: false
+- id: fe-01
+  category: fora_escopo
+  split: shared
+  text: Me explica como funciona a taxa Selic.
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: true
+- id: fe-02
+  category: fora_escopo
+  split: shared
+  text: Escreve um poema sobre o outono.
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: true
+- id: fe-03
+  category: fora_escopo
+  split: shared
+  text: Qual a capital da França?
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: true
+- id: ap-01
+  category: abertura_positiva
+  split: shared
+  text: Quero pedir minha declaração de matrícula.
+  expected_tools:
+  - draft_protocol
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: true
+  expect_refusal: false
+  student: ativo
+- id: ap-02
+  category: abertura_positiva
+  split: shared
+  text: Preciso de uma declaração de matrícula para o estágio.
+  expected_tools:
+  - draft_protocol
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: true
+  expect_refusal: false
+  student: ativo
+- id: ap-03
+  category: abertura_positiva
+  split: shared
+  text: Quero falar com a secretaria sobre um assunto geral.
+  expected_tools:
+  - draft_protocol
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: true
+  expect_refusal: false
+- id: ap-04
+  category: abertura_positiva
+  split: shared
+  text: Quero registrar uma reclamação na ouvidoria.
+  expected_tools:
+  - draft_protocol
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: true
+  expect_refusal: false
+- id: an-01
+  category: abertura_negativa
+  split: shared
+  text: Quero emitir meu diploma.
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  student: ativo
+- id: an-02
+  category: abertura_negativa
+  split: shared
+  text: Quero pedir minha declaração de matrícula.
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  student: inativo
+- id: an-03
+  category: abertura_negativa
+  split: shared
+  text: Quero reativar minha matrícula trancada.
+  expected_tools: []
+  oracle_fn: null
+  required: []
+  forbidden: []
+  expect_draft: false
+  expect_refusal: false
+  student: ativo
+- id: cp-01
+  category: consulta_pedido
+  split: shared
+  text: Qual o status da minha matrícula? Já aproveita e pede minha declaração de matrícula.
+  expected_tools:
+  - get_academic_profile
+  - draft_protocol
+  oracle_fn: oracle_courses
+  required: oracle
+  forbidden: []
+  expect_draft: true
+  expect_refusal: false
+  student: ativo

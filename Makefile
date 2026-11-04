@@ -1,4 +1,4 @@
-.PHONY: up down lane-up lane-down smoke login a2a-demo investigate phoenix-import test test-full \
+.PHONY: stamp up down lane-up lane-down smoke login a2a-demo investigate phoenix-import test test-full \
         test-live lint check eval-dev eval-test eval-guard eval-security eval-latency load-test package
 
 LANE ?=
@@ -59,3 +59,6 @@ login:
 	@test -n "$(CASE)" || { echo "use CASE=4" >&2; exit 1; }
 	@docker compose exec -T -e PUBLIC_BASE_URL=http://localhost:$${API_PORT:-8000} api \
 		python -m scripts.login_url $(CASE)
+
+stamp:
+	uv run ots stamp evals/golden/dataset.sha256

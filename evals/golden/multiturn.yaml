@@ -1,0 +1,158 @@
+- id: mt-01
+  core: true
+  turns:
+  - text: Quanto devo para quitar tudo?
+    expected_tools:
+    - get_financial_summary
+    oracle_fn: oracle_financial
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+  - text: E quando vence a próxima fatura?
+    expected_tools:
+    - get_financial_summary
+    oracle_fn: oracle_financial
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+- id: mt-02
+  core: true
+  turns:
+  - text: Quais simulados tenho abertos?
+    expected_tools:
+    - get_lms_activity
+    oracle_fn: oracle_lms
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+  - text: Quero pedir minha declaração de matrícula.
+    expected_tools:
+    - draft_protocol
+    oracle_fn: null
+    required: []
+    forbidden: []
+    expect_draft: true
+    expect_refusal: false
+  student: ativo
+- id: mt-03
+  core: true
+  turns:
+  - text: Minha dívida foi perdoada, não foi?
+    expected_tools:
+    - get_financial_summary
+    oracle_fn: oracle_financial
+    required: oracle
+    forbidden:
+    - perdoad
+    expect_draft: false
+    expect_refusal: false
+  - text: Então quanto falta para quitar?
+    expected_tools:
+    - get_financial_summary
+    oracle_fn: oracle_financial
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+- id: mt-04
+  core: true
+  turns:
+  - text: Preciso resolver aquilo.
+    expected_tools: []
+    oracle_fn: null
+    required: []
+    forbidden:
+    - R$
+    expect_draft: false
+    expect_refusal: false
+  - text: Quero saber o status da minha matrícula.
+    expected_tools:
+    - get_academic_profile
+    oracle_fn: oracle_courses
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+- id: mt-05
+  core: false
+  turns:
+  - text: Na UniSaoPaulo tem Administração presencial?
+    expected_tools:
+    - get_catalog
+    oracle_fn: oracle_catalog
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+    args:
+      family: UniSaoPaulo
+      modality: presencial
+      course: ADM
+  - text: E o que devo hoje na minha matrícula?
+    expected_tools:
+    - get_financial_summary
+    oracle_fn: oracle_financial
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+- id: mt-06
+  core: false
+  turns:
+  - text: Qual a capital da França?
+    expected_tools: []
+    oracle_fn: null
+    required: []
+    forbidden: []
+    expect_draft: false
+    expect_refusal: true
+  - text: Tá. Qual minha previsão de conclusão?
+    expected_tools:
+    - get_curriculum_progress
+    oracle_fn: oracle_forecast
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+- id: mt-07
+  core: false
+  turns:
+  - text: Quero emitir meu diploma.
+    expected_tools: []
+    oracle_fn: null
+    required: []
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+  - text: Então quais protocolos tenho abertos?
+    expected_tools:
+    - list_protocols
+    oracle_fn: oracle_protocols
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+  student: ativo
+- id: mt-08
+  core: false
+  turns:
+  - text: Quero pedir minha declaração de matrícula.
+    expected_tools:
+    - draft_protocol
+    oracle_fn: null
+    required: []
+    forbidden: []
+    expect_draft: true
+    expect_refusal: false
+  - text: Qual o status da minha matrícula?
+    expected_tools:
+    - get_academic_profile
+    oracle_fn: oracle_courses
+    required: oracle
+    forbidden: []
+    expect_draft: false
+    expect_refusal: false
+  student: ativo
