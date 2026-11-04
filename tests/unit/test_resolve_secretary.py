@@ -1,5 +1,6 @@
 import csv
 import io
+import unicodedata
 import zipfile
 from collections import Counter
 from pathlib import Path
@@ -12,7 +13,8 @@ from etl.resolve_core import (
     resolve_payers,
     resolve_people,
 )
-from etl.resolve_secretary import ProtocolLink, protocol_number, resolve_protocols
+from etl.resolve_secretary import ProtocolLink, _brand, protocol_number, resolve_protocols
+from evals.oracle import load_csv, oracle_link_protocols
 
 KEY = b"k" * 32
 
@@ -160,6 +162,46 @@ def test_cpf_brand_by_date() -> None:
     assert out["P2"] == ProtocolLink(("UniSaoPaulo_EAD", ra("01229")), "cpf_brand_by_date")
 
 
+def _two_enrollments(d1: str, d2: str, s1: str = "GRADUATED", s2: str = "ACTIVE"):  # type: ignore[no-untyped-def]
+    return world(
+        [("1", CPF)],
+        [
+            ("UniSaoPaulo_EAD", ra("01150"), "1", s1, d1),
+            ("UniSaoPaulo_EAD", ra("01229"), "1", s2, d2),
+        ],
+    )
+
+
+def _by_date(w, day: str):  # type: ignore[no-untyped-def]
+    return run(w, [proto("P", "", CPF, unit="SPA-SAO-EAD", day=day)])["P"].enrollment[1]
+
+
+def test_by_date_between_two_enrollments() -> None:
+    w = _two_enrollments("2023-01-04", "2023-08-02")
+    assert _by_date(w, "2023-01-04") == ra("01150")  # no dia em que terminou ainda vigora
+    assert _by_date(w, "2023-01-05") == ra("01229")  # entre o fim de uma e a outra: a seguinte
+
+
+def test_by_date_equal_status_date_tie_prefers_ended_enrollment() -> None:
+    # transferência: mesma data; até esse dia vigorava a encerrada (não-ACTIVE), depois a ACTIVE.
+    w = _two_enrollments("2022-07-30", "2022-07-30", "TRANSFERRED", "ACTIVE")
+    assert _by_date(w, "2022-07-30") == ra("01150")
+    assert _by_date(w, "2022-08-01") == ra("01229")
+    w2 = _two_enrollments("2022-07-30", "2022-07-30", "ACTIVE", "ACTIVE")  # empate total: menor RA
+    assert _by_date(w2, "2022-01-01") == ra("01150")
+
+
+def test_by_date_empty_status_date_is_open_ended() -> None:
+    w = _two_enrollments("2023-01-04", "")
+    assert _by_date(w, "2030-01-01") == ra("01229")
+
+
+def test_by_date_non_iso_date_fails_loudly() -> None:
+    w = _two_enrollments("2023-01-04", "2023-08-02")
+    with pytest.raises(ValueError):
+        _by_date(w, "11/07/2022")
+
+
 def test_invariant_student_or_payer() -> None:
     w = _guardian_world(True)
     rows = [
@@ -170,6 +212,7 @@ def test_invariant_student_or_payer() -> None:
         proto("P5", ra("18001"), "39053344705"),
     ]
     out = run(w, rows)
+    assert out
     ppl, enr, _, _, _ = w
     cpf_of = {p.person_key: c for c, p in ppl.items()}
     for n, link in out.items():
@@ -180,6 +223,27 @@ def test_invariant_student_or_payer() -> None:
 
 def test_protocol_number_format() -> None:
     assert protocol_number("PRT-2022/0003006") == "20220003006"
+
+
+def test_unit_prefix_map_matches_csv() -> None:
+    zpath = Path(__file__).parents[2] / "data" / "dados.zip"
+    if not zpath.exists():
+        pytest.skip("data/dados.zip ausente")
+    with zipfile.ZipFile(zpath) as z:
+        units = list(csv.DictReader(io.TextIOWrapper(z.open("secretary/unit.csv"), "utf-8")))
+        brands = {
+            r["BRAND"] for r in csv.DictReader(io.TextIOWrapper(z.open("sag/brand.csv"), "utf-8"))
+        }
+
+    def slug(v: str) -> str:
+        v = unicodedata.normalize("NFKD", v).encode("ascii", "ignore").decode()
+        return "".join(ch for ch in v.lower() if ch.isalnum())
+
+    fam = {slug(b): b for b in brands if not b.endswith("_EAD")}
+    assert len(units) == 27
+    for u in units:
+        want = fam[slug(u["Brand_Name"])] + ("_EAD" if u["Unit_Code"].endswith("-EAD") else "")
+        assert _brand(u["Unit_Code"]) == want
 
 
 def test_real_data_counts() -> None:
@@ -205,6 +269,11 @@ def test_real_data_counts() -> None:
         "cpf_brand_by_date": 17,
     }
     assert len(out) == 3911 and len(prot) - len(out) == 22
+    oracle = oracle_link_protocols(load_csv(zpath))  # independente (evals/oracle.py)
+    by_date = {n: link for n, link in out.items() if link.rule == "cpf_brand_by_date"}
+    assert len(by_date) == 17
+    for n, link in out.items():
+        assert (link.enrollment, link.rule) == (oracle[n].enrollment, oracle[n].rule), n
     refs = [r["PROTOCOL_REF"] for r in rows("sag/enrollment_status_history.csv")]
     known = {p["Protocol"] for p in prot}
     found = [x for x in refs if x and protocol_number(x) in known]

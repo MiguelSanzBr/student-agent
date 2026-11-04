@@ -7,17 +7,18 @@ responsável, de um pagador de contrato daquela matrícula. Sem vínculo quando 
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 from typing import Literal
 from uuid import UUID
 
 from core.normalize import digits, normalize_cpf, normalize_ra
-from etl.resolve_core import Enrollment, EnrollmentKey, Payer, Person, Row, _contract_target
+from etl.resolve_core import Enrollment, EnrollmentKey, Payer, Person, Row, resolve_contracts
 
 Rule = Literal[
     "ra_cpf", "guardian_payer", "guardian_payer_unique", "cpf_brand_unique", "cpf_brand_by_date"
 ]
 
-# shortcut: prefixo de Unit_Code -> família (testado contra secretary/unit.csv); atualizar se mudar.
+# shortcut: prefixo de Unit_Code -> família (test_unit_prefix_map_matches_csv); atualizar se mudar.
 _UNIT_FAMILY = {
     "SPA": "UniSaoPaulo",
     "MON": "UniMontanhas",
@@ -43,10 +44,20 @@ def _brand(unit_code: str) -> str | None:
     return family and (f"{family}_EAD" if unit_code.strip().upper().endswith("-EAD") else family)
 
 
-def _current(candidates: Sequence[Enrollment], day: str) -> Enrollment:
-    """Vigente na data: a primeira que termina (status_date) depois dela; senão a mais recente."""
-    ordered = sorted(candidates, key=lambda e: e.status_date)
-    return next((e for e in ordered if e.status_date >= day), ordered[-1])
+def _current(candidates: Sequence[Enrollment], day: date) -> Enrollment:
+    """Vigente na data: a 1ª que termina (status_date) em ou depois dela; senão a mais recente.
+
+    status_date vazio = em aberto (ordena por último). Empate de data: a encerrada (não ACTIVE)
+    vem antes da ACTIVE (transferência: até o dia vigorava a antiga); depois, menor RA.
+    Data não ISO levanta ValueError (nada de adivinhar formato).
+    """
+
+    def end(e: Enrollment) -> tuple[date, bool, str]:
+        d = date.fromisoformat(e.status_date) if e.status_date else date.max
+        return d, e.status == "ACTIVE", e.ra
+
+    ordered = sorted(candidates, key=end)
+    return next((e for e in ordered if end(e)[0] >= day), ordered[-1])
 
 
 def resolve_protocols(
@@ -61,15 +72,11 @@ def resolve_protocols(
     """Protocolo -> ProtocolLink. Terceiro, ambíguo ou sem CPF conhecido fica de fora."""
     cpf_of_customer = {c["customerId"]: normalize_cpf(c.get("taxId", "")) for c in customers}
     paid_by: dict[str, set[EnrollmentKey]] = defaultdict(set)  # CPF do pagador -> matrículas
+    target_of = resolve_contracts(contracts, enrollments)
     for r in contracts:
         cpf = cpf_of_customer.get(r["customerId"])
-        target = _contract_target(r)
-        if (
-            cpf
-            and target is not None
-            and target in enrollments
-            and payers[r["customerId"]].payer_type != "empresa"
-        ):
+        target = target_of.get(r["contractId"])
+        if cpf and target and payers[r["customerId"]].payer_type != "empresa":
             paid_by[cpf].add(target)
     by_person: dict[UUID, list[Enrollment]] = defaultdict(list)
     for e in enrollments.values():
@@ -98,7 +105,7 @@ def resolve_protocols(
             if len(mine) == 1:
                 link = ProtocolLink((brand, mine[0].ra), "cpf_brand_unique")
             elif mine:
-                cur = _current(mine, p["Opened_At"][:10])
+                cur = _current(mine, date.fromisoformat(p["Opened_At"][:10]))
                 link = ProtocolLink((brand, cur.ra), "cpf_brand_by_date")
         if link:
             out[p["Protocol"]] = link

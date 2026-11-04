@@ -58,6 +58,7 @@ class Payer:
 @dataclass
 class ResolutionStats:
     unresolved: int = 0
+    duplicates: int = 0  # (marca, RA) repetido por CPFs diferentes: fica o primeiro
 
 
 def first_name(full_name: str) -> str | None:
@@ -98,6 +99,10 @@ def resolve_enrollments(
                 stats.unresolved += 1
             continue
         brand = r["BRAND"]
+        if (brand, ra) in out:
+            if stats:
+                stats.duplicates += 1
+            continue
         out[(brand, ra)] = Enrollment(
             # derivada da person_key: determinística e não reversível sem o segredo
             enrollment_key=uuid5(person.person_key, f"{brand}:{ra}"),

@@ -143,3 +143,13 @@ def test_brand_for_company_csv() -> None:
     for c in companies:
         assert brand_for_company(c["companyCode"], "PRESENCIAL").lower() == c["tradeName"].lower()
         assert brand_for_company(c["companyCode"], "DIGITAL") in brands
+
+
+def test_duplicate_brand_ra_from_two_cpfs_counted_not_overwritten() -> None:
+    people = resolve_people([person("1", "10285495046"), person("2", "39053344705")], KEY)
+    stats = ResolutionStats()
+    out = resolve_enrollments(
+        [enr("UniSaoPaulo", "181722", "1"), enr("UniSaoPaulo", "181722", "2")], people, stats
+    )
+    assert out[("UniSaoPaulo", "181722")].person_key == people["10285495046"].person_key
+    assert stats.duplicates == 1

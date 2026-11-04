@@ -111,3 +111,23 @@ def test_tenant_brand_matches_csv() -> None:
     for t in rows:
         assert tenant_brand(int(t["id"]), "PRES").lower() == t["slug"]
         assert tenant_brand(int(t["id"]), "EAD") in brands
+
+
+def test_real_data_linked_accounts() -> None:
+    zpath = Path(__file__).parents[2] / "data" / "dados.zip"
+    if not zpath.exists():
+        pytest.skip("data/dados.zip ausente")
+    from etl.resolve_core import resolve_enrollments, resolve_people
+
+    def rows(name: str) -> list[dict[str, str]]:
+        with zipfile.ZipFile(zpath) as z:
+            return list(csv.DictReader(io.TextIOWrapper(z.open(name), "utf-8", newline="")))
+
+    people = resolve_people(rows("sag/person.csv"), b"k" * 32)
+    enrollments = resolve_enrollments(rows("sag/enrollment.csv"), people)
+    users = rows("lms/mdl_user.csv")
+    out = resolve_lms_accounts(users, rows("lms/mdl_logstore_standard_log.csv"), enrollments)
+    manual = {int(u["student_lms_id"]) for u in users if not u["student_id"].strip()}
+    assert len(out) == 1003
+    assert len(out.keys() - manual) == 983 and len(out.keys() & manual) == 20
+    assert out[102128] == ("UniSaoPaulo", "182915")  # golden 9
