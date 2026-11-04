@@ -5,7 +5,7 @@ from typing import Any
 
 from app.data.queries import finance as q
 from app.rules.coverage import coverage_note
-from app.rules.finance import financial_position, invoice_balance, invoice_to_settle
+from app.rules.finance import financial_position, invoice_balance, invoice_to_settle, status_label
 from app.tools.base import (
     ENROLLMENT,
     EntityRecord,
@@ -21,6 +21,7 @@ from app.tools.base import (
 from core.format import fmt_brl, fmt_date, fmt_pct
 
 CAP = 20
+COLLECTION_NOTE = "Fatura em cobrança: não entra no total para quitar; fale com o financeiro."
 EMPTY = "Nenhum registro encontrado."
 _DISCOUNT_PT = {
     "CORPORATE": "corporativo",
@@ -60,12 +61,17 @@ async def _summary(
     async with ctx.db() as conn:
         inv, pay, lc = await q.fetch_ledger(conn, e.enrollment_key)
         disc = await q.fetch_discounts(conn, e.enrollment_key)
+        agr = await q.fetch_agreements(conn, e.enrollment_key)
+        payer = await q.fetch_payer_type(conn, e.enrollment_key)
     p = financial_position(inv, pay, lc, ctx.today)
     d: dict[str, Any] = {
         "total_para_quitar": fmt_brl(p.total_due),
         "principal_vencido": fmt_brl(p.overdue_principal),
         "encargos": fmt_brl(p.open_charges),
         "faturas_vencidas": p.overdue_count,
+        "a_vencer": fmt_brl(p.upcoming),
+        "acordos_ativos": sum(1 for a in agr if a[1] == "ACTIVE"),
+        "payer_type": payer or "não informado",
         "proximo_vencimento": fmt_date(p.next_due_date) if p.next_due_date else "nenhum",
         "valor_proximo_vencimento": fmt_brl(p.next_due_amount),
         "dias_para_proximo_vencimento": p.days_to_next_due,
@@ -77,7 +83,7 @@ async def _summary(
         {k: str(v) for k, v in d.items() if k != "dias_para_proximo_vencimento"},
     )
     descontos, drecs = [], []
-    for did, typ, rate, vfrom, vto in disc:
+    for n, (_, typ, rate, vfrom, vto) in enumerate(disc, 1):  # id bruto do banco não sai
         item = {
             "tipo": _DISCOUNT_PT.get(typ, typ.lower()),
             "percentual": fmt_pct(Decimal(rate) * 100),
@@ -86,7 +92,7 @@ async def _summary(
             else "não",
         }
         descontos.append(item)
-        drecs.append(EntityRecord("desconto", f"{e.index}-{did}", (item["tipo"],), item))
+        drecs.append(EntityRecord("desconto", f"{e.index}-{n}", (item["tipo"],), item))
     if descontos:
         d["descontos"] = descontos
     return d, rec, drecs, p.total_due
@@ -116,7 +122,7 @@ async def list_invoices(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput
     async with ctx.db() as conn:
         inv, pay, lc = await q.fetch_ledger(conn, e.enrollment_key)
         since = await q.fetch_coverage_start(conn, "financeiro") if period else None
-    rows = [(i, q.status_label(i.status, i.due, ctx.today)) for i in inv]
+    rows = [(i, status_label(i.status, i.due, ctx.today)) for i in inv]
     rows = [
         (i, s)
         for i, s in rows
@@ -130,16 +136,19 @@ async def list_invoices(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput
             "status": s,
             "vencimento": fmt_date(i.due),
             "valor": fmt_brl(i.net),
-            "saldo": fmt_brl(invoice_balance(i, pay)),
-            "para_quitar": fmt_brl(invoice_to_settle(i, pay, lc)),
         }
+        if i.status == "IN_COLLECTION":  # nunca R$ 0,00: fora do total para quitar
+            it["nota"] = COLLECTION_NOTE
+        else:
+            it["saldo"] = fmt_brl(invoice_balance(i, pay))
+            it["para_quitar"] = fmt_brl(invoice_to_settle(i, pay, lc))
         items.append(it)
         recs.append(
             EntityRecord(
                 "fatura",
                 i.id,
                 (i.id, i.competence),
-                {k: it[k] for k in ("status", "vencimento", "saldo", "para_quitar")},
+                {k: it[k] for k in ("status", "vencimento", "saldo", "para_quitar") if k in it},
             )
         )
     data: dict[str, Any] = {"faturas": items, "total": len(rows)}
@@ -161,7 +170,7 @@ async def list_agreements(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutp
         it = {
             "acordo": aid,
             "status": st,
-            "parcelas": int(n),
+            "parcelas": int(n) if n is not None else "não informado",
             "divida_original": fmt_brl(orig),
             "abatimento": fmt_brl(waived),
             "valor_acordado": fmt_brl(agreed),

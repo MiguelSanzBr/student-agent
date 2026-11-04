@@ -79,7 +79,7 @@ def financial_position(
     today: date,
 ) -> Position:
     payments, late_charges = list(payments), list(late_charges)
-    counted = [i for i in invoices if i.status in COUNTED and invoice_balance(i, payments) > 0]
+    counted = [i for i in invoices if i.status in COUNTED]  # encargos em aberto contam sem saldo
     overdue = [
         i for i in counted if i.due < today
     ]  # a data de referência manda, não o status gravado
@@ -97,3 +97,21 @@ def financial_position(
         days_to_next_due=(nxt.due - today).days if nxt else None,
         overdue_count=len(overdue),
     )
+
+
+_STATUS_PT = {
+    "PAID": "paga",
+    "PARTIAL": "parcial",
+    "RENEGOTIATED": "renegociada",
+    "IN_COLLECTION": "Em cobrança",
+    "CANCELLED": "cancelada",
+}
+
+
+def status_label(status: str, due: date, today: date) -> str:
+    """Rótulo ao aluno. A data de referência manda: todo status contado vencido é 'vencida'."""
+    if status in COUNTED:
+        if due < today:
+            return "vencida"
+        return "parcial" if status == "PARTIAL" else "aberta"
+    return _STATUS_PT.get(status, status.lower())

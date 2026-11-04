@@ -15,19 +15,6 @@ class LedgerInvoice(Invoice):
     competence: str
 
 
-_STATUS_PT = {
-    "PAID": "paga", "PARTIAL": "parcial", "RENEGOTIATED": "renegociada",
-    "IN_COLLECTION": "Em cobrança", "CANCELLED": "cancelada",
-}  # fmt: skip
-
-
-def status_label(status: str, due: date, today: date) -> str:
-    """A data de referência manda: aberta com vencimento passado é 'vencida'."""
-    if status in ("OPEN", "OVERDUE"):
-        return "vencida" if due < today else "aberta"
-    return _STATUS_PT.get(status, status.lower())
-
-
 async def fetch_ledger(
     conn: AsyncConnection[Any], enrollment_key: UUID
 ) -> tuple[list[LedgerInvoice], list[Payment], list[LateCharge]]:
@@ -84,3 +71,12 @@ async def fetch_coverage_start(conn: AsyncConnection[Any], domain: str) -> date 
     )
     row = await cur.fetchone()
     return row[0] if row else None
+
+
+async def fetch_payer_type(conn: AsyncConnection[Any], enrollment_key: UUID) -> str | None:
+    cur = await conn.execute(
+        "SELECT DISTINCT payer_type FROM canon.contract WHERE enrollment_key = %s",
+        (enrollment_key,),
+    )
+    kinds = {r[0] for r in await cur.fetchall()}
+    return next((k for k in ("responsavel", "empresa", "aluno") if k in kinds), None)

@@ -61,3 +61,20 @@ def test_position_reference_only():
         5_000,
         1,
     )
+
+
+def test_overdue_with_principal_paid_but_charges_open_still_counts():
+    p = financial_position([inv("OVERDUE")], [pay(10_000)], [LateCharge("F1", 500)], TODAY)
+    assert p.overdue_count == 1 and p.open_charges == 500 and p.total_due == 500
+
+
+def test_status_label_overdue_rule_for_every_counted_status():
+    from app.rules.finance import status_label
+
+    past, future = date(2026, 9, 10), date(2026, 11, 10)
+    for st in ("OPEN", "OVERDUE", "PARTIAL"):
+        assert status_label(st, past, TODAY) == "vencida"
+    assert status_label("OPEN", future, TODAY) == "aberta"
+    assert status_label("PARTIAL", future, TODAY) == "parcial"
+    assert status_label("IN_COLLECTION", past, TODAY) == "Em cobrança"
+    assert status_label("PAID", past, TODAY) == "paga"

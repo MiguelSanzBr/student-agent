@@ -170,5 +170,76 @@ async def test_finance_coverage_note(pool, loaded_db) -> None:  # type: ignore[n
     assert out.data["total"] == 0
 
 
-async def test_in_collection_label() -> None:
-    assert q.status_label("IN_COLLECTION", date(2026, 1, 1), TODAY) == "Em cobrança"
+async def test_vencida_count_equals_summary(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]
+    for case in (4, 9, 6):
+        ctx = await _ctx(pool, loaded_db, case)
+        for e in ctx.scope.enrollments:
+            s = await H["get_financial_summary"](ctx, {"enrollment": e.index})
+            v = await H["list_invoices"](ctx, {"enrollment": e.index, "status": "vencida"})
+            assert v.data["total"] == s.data["faturas_vencidas"]
+
+
+async def test_in_collection_shows_original_without_balance(pool, loaded_db, raw) -> None:  # type: ignore[no-untyped-def]
+    ctx = await _ctx(pool, loaded_db, 4)
+    f = o.oracle_financial(raw, _enrs(4)[0])
+    due = {i["invoiceId"]: i["dueDate"] for i in raw["finance/invoice"]}
+    iid = next(k for k in sorted(f.saldo) if due[k] < "2026-10-31")
+    with loaded_db.db.connect("postgres") as c:
+        c.execute("UPDATE canon.invoice SET status='IN_COLLECTION' WHERE invoice_id=%s", (iid,))  # type: ignore[call-overload]
+    out = await H["list_invoices"](ctx, {"status": "vencida"})
+    assert out.data["total"] == 31  # sai de "vencida"
+    allv = await H["list_invoices"](
+        ctx,
+        {"period": next(i["competence"] for i in raw["finance/invoice"] if i["invoiceId"] == iid)},
+    )
+    it = next(i for i in allv.data["faturas"] if i["fatura"] == iid)
+    assert it["status"] == "Em cobrança" and "valor" in it
+    assert "saldo" not in it and "para_quitar" not in it
+    assert (
+        "Fatura em cobrança: não entra no total para quitar; fale com o financeiro." in (it["nota"])
+    )
+    r = next(r for r in allv.records if r.id == iid)
+    assert "saldo" not in r.fields and "R$ 0,00" not in str(it)
+
+
+async def test_summary_extras_vs_oracle(pool, loaded_db, raw) -> None:  # type: ignore[no-untyped-def]
+    out = await H["get_financial_summary"](await _ctx(pool, loaded_db, 4), {})
+    f = o.oracle_financial(raw, _enrs(4)[0])
+    due = {i["invoiceId"]: date.fromisoformat(i["dueDate"]) for i in raw["finance/invoice"]}
+    assert out.data["a_vencer"] == fmt_brl(sum(v for k, v in f.saldo.items() if due[k] >= TODAY))
+    assert out.data["payer_type"] == "responsavel" and f.pagadores == ("responsável",)
+    assert out.data["acordos_ativos"] == 0
+    r = next(r for r in out.records if r.kind == "financeiro")
+    assert {"a_vencer", "payer_type", "acordos_ativos"} <= set(r.fields)
+    s6 = await H["get_financial_summary"](await _ctx(pool, loaded_db, 6), {})
+    assert s6.data["acordos_ativos"] == 1
+
+
+async def test_summary_flat_shape_single_enrollment(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]
+    out = await H["get_financial_summary"](await _ctx(pool, loaded_db, 4), {})
+    assert "matriculas" not in out.data and "total_geral" not in out.data
+    assert out.data["total_para_quitar"] == "R$ 49.508,43"
+
+
+async def test_discount_record_id_is_opaque(pool, loaded_db, raw) -> None:  # type: ignore[no-untyped-def]
+    raw_ids = {d["discountId"] for d in raw["finance/discount"]}
+    for case in _golden():
+        out = await H["get_financial_summary"](await _ctx(pool, loaded_db, case), {})
+        for r in out.records:
+            if r.kind == "desconto":
+                assert not any(x in raw_ids for x in r.id.replace("-", " ").split())
+
+
+async def test_null_installments_do_not_crash(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]
+    with loaded_db.db.connect("postgres") as c:
+        c.execute("UPDATE canon.agreement SET installments=NULL")  # type: ignore[call-overload]
+    out = await H["list_agreements"](await _ctx(pool, loaded_db, 6), {})
+    assert out.data["acordos"][0]["parcelas"] == "não informado"
+
+
+async def test_same_statement_six_times_through_pool(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]
+    ctx = await _ctx(pool, loaded_db, 4)
+    for _ in range(8):  # acima de prepare_threshold: DISCARD ALL no reset não pode quebrar
+        async with ctx.db() as conn:
+            cur = await conn.execute("SELECT count(*) FROM canon.invoice")
+            assert (await cur.fetchone())[0] > 0  # type: ignore[index]
