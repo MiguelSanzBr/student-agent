@@ -596,7 +596,7 @@ def test_dates():
 
 def test_money_cpf_family_bool():
     assert parse_brl("R$ 1.234,56") == 123456 and fmt_brl(4950843) == "R$ 49.508,43"
-    assert normalize_cpf("8140522660") == "08140522660" and brand_family("UniSaoPaulo_EAD") == "UniSaoPaulo"
+    assert normalize_cpf("1234567890") == "01234567890" and brand_family("UniSaoPaulo_EAD") == "UniSaoPaulo"
     assert parse_bool("Y") and parse_bool("True") and parse_bool("1") and not parse_bool("N")
 
 def test_hmac_uuid(): assert hmac_uuid(b"a" * 32, "x") == hmac_uuid(b"a" * 32, "x") != hmac_uuid(b"b" * 32, "x")

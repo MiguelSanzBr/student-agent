@@ -86,16 +86,16 @@ Análise somente leitura das 47 tabelas de `dados.zip`. Os números abaixo foram
 
 | # | Caso | Chaves |
 |---|---|---|
-| 1 | Presencial normal | UniSaoPaulo 181722, CPF 08140522660; LMS tenant 1, 101356 / pres_18172 (7 tentativas); CT00012237 / C0007015 / `18172-2`, paga o próprio; protocolos 20250016398, 20260006621, 20260008724, 20260020465 |
-| 2 | EAD com colisão de RA | UniAtlantico_EAD 012815, CPF 20930797205 (mesmo RA ACTIVE em UniSaoPaulo_EAD e UniLitoral_EAD); LMS tenant 4, 101384 (30 tentativas); CT00012308 `01281-5`; protocolos 20250018564, 20260003014 (`Stu_ID` 12815) |
-| 3 | Transferência + pessoa duplicada + protocolo aberto | CPF 23241640191: UniSaoPaulo 181544 TRANSFERRED (PERSON 3002180, LMS 101174 suspensa, CT00011937) → UniSaoPaulo_EAD 014214 ACTIVE (PERSON 3032393 "LEANDRO D…", LMS 101780, CT00012970); mesmo customer C0006592; protocolo aberto 20260024855; protocolo de transferência 20260000610 com `Stu_ID` vazio |
-| 4 | Responsável pagador com irmão | UniSaoPaulo 180823, CPF 79616774107; LMS 100686; CT00011081 IN_COLLECTION pago pelo responsável C0005104, que também paga o irmão 180548; 32 faturas OVERDUE (R$ 42.636,26) com matrícula ACTIVE; AG2024000128 BROKEN; 4 de 12 protocolos abertos pelo responsável |
-| 5 | Empresa pagadora | UniSaoPaulo_EAD 012157, CPF 05278737727; LMS 100006 (62 tentativas); CT00010738 pago por C0004244 SALES S.A.; RA existe em outras 3 marcas EAD |
-| 6 | Acordo ativo | UniSaoPaulo_EAD 013226, CPF 16910893204; LMS 101166; CT00011938; AG2026000340 ACTIVE (protocolRef 20260023152) |
-| 7 | Cancelado, em cobrança, empresa pagadora | UniSaoPaulo_EAD 011703, CPF 35425914407; LMS 100270 suspensa; CT00010289 IN_COLLECTION, pagador MACEDO (empresa); RA também é de outra pessoa em UniAraucaria_EAD |
-| 8 | Conta LMS manual + RA digitado errado | UniSaoPaulo 182230, CPF 38836867359; LMS manual 101629 `lara.martins33` (loga como pres_18223); CT00012721; protocolo 20250010850 com `Stu_ID` 182203 |
-| 9 | Duas matrículas + pessoa duplicada | CPF 43691697127: UniSaoPaulo_EAD 011843 GRADUATED (LMS 100303 suspensa) e UniSaoPaulo 182915 ACTIVE (PERSON 3028232; LMS manual 102128, que ligação por nome erra para 011843); mesmo customer C0004651; protocolo Alumni 20260000536 |
-| 10 | Ativo mas em cobrança, colisão, sem SSO | UniSaoPaulo_EAD 011932, CPF 44178634232 (RA também ACTIVE em UniLitoral_EAD); LMS manual 100341 (loga como ead_01193); CT00010498 e CT00011884, ambos IN_COLLECTION, 30 faturas OVERDUE; protocolo com erro de digitação 20250019415 |
+| 1 | Presencial normal | UniSaoPaulo 181722, CPF 37347362261; LMS tenant 1, 101356 / pres_18172 (7 tentativas); CT00012237 / C0007015 / `18172-2`, paga o próprio; protocolos 20250016398, 20260006621, 20260008724, 20260020465 |
+| 2 | EAD com colisão de RA | UniAtlantico_EAD 012815, CPF 67195220869 (mesmo RA ACTIVE em UniSaoPaulo_EAD e UniLitoral_EAD); LMS tenant 4, 101384 (30 tentativas); CT00012308 `01281-5`; protocolos 20250018564, 20260003014 (`Stu_ID` 12815) |
+| 3 | Transferência + pessoa duplicada + protocolo aberto | CPF 95673908270: UniSaoPaulo 181544 TRANSFERRED (PERSON 3002180, LMS 101174 suspensa, CT00011937) → UniSaoPaulo_EAD 014214 ACTIVE (PERSON 3032393 "LEANDRO D…", LMS 101780, CT00012970); mesmo customer C0006592; protocolo aberto 20260024855; protocolo de transferência 20260000610 com `Stu_ID` vazio |
+| 4 | Responsável pagador com irmão | UniSaoPaulo 180823, CPF 28680802271; LMS 100686; CT00011081 IN_COLLECTION pago pelo responsável C0005104, que também paga o irmão 180548; 32 faturas OVERDUE (R$ 42.636,26) com matrícula ACTIVE; AG2024000128 BROKEN; 4 de 12 protocolos abertos pelo responsável |
+| 5 | Empresa pagadora | UniSaoPaulo_EAD 012157, CPF 02933964422; LMS 100006 (62 tentativas); CT00010738 pago por C0004244 SALES S.A.; RA existe em outras 3 marcas EAD |
+| 6 | Acordo ativo | UniSaoPaulo_EAD 013226, CPF 46069936426; LMS 101166; CT00011938; AG2026000340 ACTIVE (protocolRef 20260023152) |
+| 7 | Cancelado, em cobrança, empresa pagadora | UniSaoPaulo_EAD 011703, CPF 83272798587; LMS 100270 suspensa; CT00010289 IN_COLLECTION, pagador MACEDO (empresa); RA também é de outra pessoa em UniAraucaria_EAD |
+| 8 | Conta LMS manual + RA digitado errado | UniSaoPaulo 182230, CPF 86630394410; LMS manual 101629 `lara.martins33` (loga como pres_18223); CT00012721; protocolo 20250010850 com `Stu_ID` 182203 |
+| 9 | Duas matrículas + pessoa duplicada | CPF 66135464701: UniSaoPaulo_EAD 011843 GRADUATED (LMS 100303 suspensa) e UniSaoPaulo 182915 ACTIVE (PERSON 3028232; LMS manual 102128, que ligação por nome erra para 011843); mesmo customer C0004651; protocolo Alumni 20260000536 |
+| 10 | Ativo mas em cobrança, colisão, sem SSO | UniSaoPaulo_EAD 011932, CPF 44390320440 (RA também ACTIVE em UniLitoral_EAD); LMS manual 100341 (loga como ead_01193); CT00010498 e CT00011884, ambos IN_COLLECTION, 30 faturas OVERDUE; protocolo com erro de digitação 20250019415 |
 
 ## 7. Pontos em aberto
 
