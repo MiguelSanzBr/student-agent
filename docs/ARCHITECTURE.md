@@ -1,7 +1,5 @@
 # Arquitetura do agente de atendimento ao aluno
 
-<!-- rascunho geral: primeira versão da prosa. Cada seção marcada depende de código que ainda não existe e deve ser conferida contra ele antes da entrega. Os números das avaliações são marcadores; ver o comentário "chaves esperadas" no fim deste arquivo. -->
-
 Este documento explica o que foi decidido, por que, e o que cada decisão custa. Ele vale para o escopo do case: um agente para o aluno **já autenticado**, sobre 5 marcas, 4 sistemas (SAG, LMS, secretaria, financeiro) e cerca de <!-- num:data.persons -->1000<!-- /num --> alunos, com data de referência 31/10/2026.
 
 O agente consulta, explica e orienta sobre vida acadêmica, financeiro, protocolos, LMS e catálogo. Ele abre protocolos, mas só como rascunho que o próprio aluno confirma com um clique. Pelo A2A ele só consulta e orienta.
@@ -12,7 +10,7 @@ A tese que organiza tudo: **o que precisa ser garantido não pode depender do co
 
 ```mermaid
 flowchart LR
-  U[Chat web / cliente A2A / Langflow] -- "cookie aud=chat / Bearer ou x-api-key aud=a2a" --> API[FastAPI]
+  U[Chat web / cliente A2A] -- "cookie aud=chat / Bearer ou x-api-key aud=a2a" --> API[FastAPI]
   API --> ADM[admit: balde RPM+TPM global + vaga por turno]
   ADM --> TS[TurnService<br/>limites · histórico · taint]
   TS --> CARD[Cartão do aluno]
@@ -29,8 +27,8 @@ Um turno funciona assim:
 
 1. A API autentica o JWT (o canal define a audiência) e chama `admit()` **antes** de abrir o stream. Sem cota, o aluno recebe 429 ou 503 com `Retry-After`; nada é cortado no meio.
 2. O `TurnService` monta a requisição ao modelo: prompt fixo, as 11 declarações de ferramenta fixas, e o **cartão do aluno** como resposta sintética de uma chamada `get_student_card`.
-3. O grafo alterna `call_model` e `run_tools`. Cada chamada de ferramenta abre uma conexão própria de banco, já com a identidade do aluno no RLS.
-4. O texto gerado pelo modelo passa pelo EvidenceGuard. Reprovado, o modelo tenta mais uma vez com o feedback; reprovado de novo, vira um fallback montado a partir dos registros.
+3. O grafo alterna `llm` e `tools`. Cada chamada de ferramenta abre uma conexão própria de banco, já com a identidade do aluno no RLS.
+4. O texto gerado pelo modelo passa pelo EvidenceGuard. Reprovado, o modelo tenta mais uma vez com o feedback; reprovado de novo, as frases reprovadas são removidas (degradação por tipo) ou, se nada sobra, o texto vira um fallback montado a partir dos registros.
 5. O mesmo `TurnService` atende o SSE do chat e o A2A. Nenhum canal escapa dos limites porque nenhum canal tem limites próprios.
 
 ## 2. As dez decisões centrais
@@ -39,7 +37,6 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 ### D1. Ferramentas tipadas sobre um modelo canônico
 
-<!-- rascunho: depende das Tasks 14 a 20 (ferramentas) -->
 
 **Pergunta difícil:** por que não deixar o modelo escrever SQL, que seria mais flexível?
 
@@ -47,19 +44,18 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 **Alternativas.** Text-to-SQL e um híbrido (ferramentas mais SQL livre para a cauda).
 
-**Trade-off.** Perguntas fora do desenho das ferramentas não têm resposta, e o agente diz isso e oferece "Falar com a secretaria". Em troca, a superfície de ataque é enumerável: o teste do "LLM comprometido" chama toda ferramenta com todo argumento possível, o que é inviável com SQL livre. Também fica determinístico o que importa para precisão: a regra de dívida, de elegibilidade e de prazo mora em código puro, testável contra um oráculo, e não numa conta que o modelo refaz a cada resposta. Uma pergunta comum custa 0 ou 1 ferramenta, e isso é o que mantém a latência dentro da meta.
+**Trade-off.** Perguntas fora do desenho das ferramentas não têm resposta, e o agente diz isso e oferece "Falar com a secretaria". Em troca, a superfície de ataque é enumerável: o teste do "LLM comprometido" exercita toda ferramenta com argumentos fuzzados, o que é inviável com SQL livre. Também fica determinístico o que importa para precisão: a regra de dívida, de elegibilidade e de prazo mora em código puro, testável contra um oráculo, e não numa conta que o modelo refaz a cada resposta. Uma pergunta comum custa 0 ou 1 ferramenta, o que mantém a latência na meta.
 
 ### D2. LangGraph chamando o SDK do Gemini direto
 
-<!-- rascunho: depende das Tasks 22 e 23 (grafo e provider) -->
 
 **Pergunta difícil:** por que um grafo, e por que não um framework de agentes completo?
 
-**Decisão.** Um `StateGraph` explícito (`call_model`, `run_tools`, `check_evidence`, `degrade`) que chama o `google-genai` atrás de um contrato `LLMProvider`. Sem checkpointer: o histórico fica no Redis, com chave do servidor. Sem `interrupt()`: a confirmação humana acontece fora do grafo (D8).
+**Decisão.** Um `StateGraph` explícito com três nós (`llm`, `tools`, `guard`; a degradação é uma função do `guard`) que chama o `google-genai` atrás de um contrato `LLMProvider`. Sem checkpointer: o histórico fica no Redis, com chave do servidor. Sem `interrupt()`: a confirmação humana acontece fora do grafo (D8).
 
 **Alternativas.** Loop próprio; `AgentExecutor` do LangChain; `langchain-google-genai`.
 
-**Trade-off.** O grafo dá um desenho publicável (`draw_mermaid`), `recursion_limit` (2·rodadas + 6) e eventos de progresso pelo stream writer. Ligar o SDK direto evita uma camada que esconderia `thought_signature`, contagem de tokens de cache e raciocínio, e timeouts por chamada, justamente o que a latência e o custo exigem. O contrato `LLMProvider` também é o que permite os modos Scripted, Replay, Adversarial e LoadTest sem tocar no resto. O custo é manter o adaptador do Gemini (retry do SDK e chamada automática de funções desligados de propósito).
+**Trade-off.** O grafo dá um desenho publicável (`draw_mermaid`), `recursion_limit` (2·rodadas + 6) e eventos de progresso pelo stream writer. Ligar o SDK direto evita uma camada que esconderia `thought_signature`, contagem de tokens de cache e raciocínio, e timeouts por chamada, justamente o que a latência e o custo exigem. O contrato `LLMProvider` também é o que permite os modos Scripted, Replay, Adversarial (nos testes) e LoadTest sem tocar no resto. O custo é manter o adaptador do Gemini (retry do SDK e chamada automática de funções desligados de propósito).
 
 ### D3. Isolamento em camadas
 
@@ -75,11 +71,10 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 **Alternativa.** Filtro por aluno na camada de aplicação.
 
-**Trade-off.** RLS forçado complica a carga: antes do COPY o RLS bloquearia o dono, e depois do FORCE o dono lê 0 linhas. Por isso a carga roda numa transação que mede as contagens por SQL antes de aplicar `rls.sql`. O ganho é que um `WHERE` esquecido na aplicação devolve zero linhas em vez de dados alheios. O código pode errar sem cruzar alunos; esse é o critério.
+**Trade-off.** RLS forçado complica a carga: antes do COPY o RLS bloquearia o dono, e depois do FORCE o dono lê 0 linhas. Por isso a carga roda numa transação que mede as contagens por SQL antes de aplicar `rls.sql`. O ganho é que um `WHERE` esquecido devolve zero linhas em vez de dados alheios.
 
 ### D6. EvidenceGuard determinístico
 
-<!-- rascunho: depende da Task 21 (guard) e da Task 32 (medição) -->
 
 **Pergunta difícil:** como evitar que o agente invente um valor, uma data ou uma promessa, sem pagar um segundo LLM?
 
@@ -87,11 +82,12 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 **Alternativas.** Só prompt; um LLM verificador.
 
-**Trade-off.** É barato (sem chamada extra, sem ~1 s a mais) e auditável, mas tem limites declarados: um valor certo atribuído à entidade errada **quando a frase não cita entidade nenhuma** não é pego. Há risco de bloquear resposta correta, por isso o guard é medido nos dois sentidos: recall por tipo num conjunto de perturbação cego e taxa de bloqueio indevido nas rodadas reais. A degradação é por tipo, e o fallback é pelo domínio: uma pergunta de LMS nunca recebe o resumo financeiro.
+**Trade-off.** É barato (sem chamada extra, sem ~1 s a mais) e auditável, mas tem limites declarados: um valor certo atribuído à entidade errada **quando a frase não cita entidade nenhuma** não é pego. Há risco de bloquear resposta correta, por isso o guard é medido nos dois sentidos: recall num conjunto de perturbação cego e bloqueio indevido nas rodadas reais. A degradação é por tipo, e o fallback é pelo domínio: uma pergunta de LMS nunca recebe o resumo financeiro.
+
+**Integridade da medição cega.** Em 2026-11-04, um smoke do runner do guard mediu o conjunto cego real, em volume descartável (código em 3d67e20). O número oficial vem da rodada oficial, e o guard não mudou depois do smoke; se mudar, os dois números serão reportados.
 
 ### D8. Escrita restrita
 
-<!-- rascunho: depende das Tasks 18, 25 e 26 (rascunho, confirmação e lock) -->
 
 **Pergunta difícil:** o agente abre protocolos. Como impedir que um texto malicioso faça ele abrir o que não deve?
 
@@ -99,19 +95,18 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 **Alternativas.** O modelo abre direto; `interrupt()` do LangGraph; confirmação pelo A2A.
 
-**Trade-off.** O aluno dá um clique a mais e o agente não "resolve" sozinho. Isso é o ponto: é a mitigação de excesso de autonomia (OWASP LLM06). Pelo A2A não é possível garantir que quem confirma é uma pessoa, então a escrita simplesmente não existe nesse canal. O lock usa `hashtextextended` no SQL porque o `hash()` do Python muda a cada processo.
+**Trade-off.** O aluno dá um clique a mais e o agente não "resolve" sozinho. Isso é a mitigação de excesso de autonomia (OWASP LLM06). Pelo A2A não é possível garantir que quem confirma é uma pessoa, então a escrita simplesmente não existe nesse canal. O lock usa `hashtextextended` no SQL porque o `hash()` do Python muda a cada processo.
 
 ### D11. Avaliação com oráculo independente e holdout cego
 
-<!-- rascunho: depende das Tasks 30 e 31 (dataset, scorer, runner) -->
 
 **Pergunta difícil:** como saber que a resposta sai certa, e não apenas que os exemplos que escolhi saem certos?
 
 **Decisão.**
 
 - Um **oráculo** lê o CSV cru com a biblioteca padrão e não importa `core/`, `etl/` nem `app/`; ele só vale se cobre todos os protocolos e contas do LMS, e passa em dois autotestes (a resposta ideal passa; a ideal com um fato trocado reprova).
-- O dataset tem pelo menos 50 templates de pergunta, e pelo menos 15 são `test_only`: escritos por um subagente que não vê prompt, ferramentas nem guard, e cifrados com `age` para a chave do autor.
-- O **pré-registro** (hashes do dataset, do plano e do código de pontuação) é carimbado por OpenTimestamps antes da rodada.
+- O dataset tem pelo menos 50 templates de pergunta, e pelo menos 15 são `test_only`: escritos por um redator cego, que não vê prompt, ferramentas nem guard, e cifrados com `age` para a chave do autor.
+- O **pré-registro** (hashes do dataset, do plano de análise e do código de pontuação, em `evals/golden/dataset.sha256`) é pensado para carimbo por OpenTimestamps (`make stamp`). O carimbo está pendente por decisão do autor, porque publica o hash em servidores externos; até lá, o commit do git é a única prova temporal (`evals/golden/analysis_plan.md`, seção 18).
 - A métrica primária é o pass@1 do scorer determinístico na **primeira execução** no SHA congelado, com IC de 95% por bootstrap de dois fatores (aluno e template), estratificado pelas cotas. A meta é sobre o **limite inferior**.
 - O scorer é validado: o autor rotula às cegas 30 respostas e o resultado vira VPP e VPN com Wilson. O pass@1 corrigido por isso é só análise de sensibilidade.
 - Toda reprovação é atribuída pelo trace a um estágio (roteamento, dados, redação, guard bloqueou resposta certa, recusa indevida, gabarito).
@@ -122,9 +117,8 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 ### D15. A2A 1.0 sobre o mesmo TurnService
 
-<!-- rascunho: depende da Task 27 (servidor A2A) -->
 
-**Pergunta difícil:** como oferecer o agente a outros agentes (Langflow, ADK) sem abrir uma porta lateral para os limites e para os dados?
+**Pergunta difícil:** como oferecer o agente a outros agentes (por exemplo, Langflow ou ADK) sem abrir uma porta lateral para os limites e para os dados?
 
 **Decisão.** Um servidor A2A 1.0 (JSON-RPC, sem modo de compatibilidade 0.3) sobre o `TurnService`, com Agent Card declarando só consulta e orientação. O `RedisTaskStore` guarda cada tarefa com o dono e um TTL, e filtra por dono em toda leitura. Push e streaming ficam desligados, e a mensagem tem uma única `TextPart`. Admissão recusada vira tarefa `REJECTED` com `metadata.retry_after_s`. O `contextId` é ligado ao dono: o de outro aluno cria uma conversa nova e vazia do próprio chamador.
 
@@ -136,23 +130,21 @@ O spike com o cliente real do SDK mostrou três fatos que moldaram o desenho:
 
 **Alternativa.** Só HTTP próprio.
 
-**Trade-off.** O A2A é mais protocolo do que um endpoint simples, e o SDK tem arestas (o `GetExtendedAgentCard` com o card declarado devolve <!-- num:a2a.GetExtendedAgentCard_com_extended_agent_card_False -->-32004<!-- /num -->, e não o <!-- num:a2a.EXTENDED_CARD_NOT_CONFIGURED -->-32007<!-- /num --> que a leitura da especificação sugeria). Em troca, os 11 métodos têm teste de posse com controle positivo do dono, e a integração com Langflow e ADK não exige código sob medida.
+**Trade-off.** O A2A é mais protocolo do que um endpoint simples, e o SDK tem arestas (o `GetExtendedAgentCard` com o card declarado devolve <!-- num:a2a.GetExtendedAgentCard_com_extended_agent_card_False -->-32004<!-- /num -->, e não o <!-- num:a2a.EXTENDED_CARD_NOT_CONFIGURED -->-32007<!-- /num --> que a leitura da especificação sugeria). Em troca, os 11 métodos têm teste de posse com controle positivo do dono (`tests/e2e/test_a2a.py`). A demonstração é `make a2a-demo`, com o cliente do SDK; o consumo por Langflow ou ADK é desenho, e não foi demonstrado.
 
 ### D16. Observabilidade que liga qualidade e operação
 
-<!-- rascunho: depende da Task 29 (observabilidade) -->
 
 **Pergunta difícil:** quando uma resposta sai errada, como descobrir por quê sem gravar a conversa do aluno?
 
-**Decisão.** Um trace por turno (AGENT, LLM, TOOL, GUARDRAIL) com atributos OpenInference e `gen_ai.*`, inclusive tokens de cache e de raciocínio. Os spans carregam argumentos **enumerados** das ferramentas e contagens, **sem conteúdo**; o conteúdo só existe nos perfis de desenvolvimento e avaliação, com dados sintéticos. O `session.id` é um HMAC da conversa. O runner da avaliação e o botão de feedback gravam anotações no Phoenix por `trace_id`, e a causa do erro vira o rótulo da anotação. Em produção, quando o aluno marca 👎, só as **saídas tipadas** do turno vão para `agent_rw.turn_output` por 7 dias, com RLS, para investigação por uma role de auditoria. Prometheus traz sinais de qualidade sem gabarito: tipo de resposta por domínio e funil do rascunho.
+**Decisão.** Um trace por turno (AGENT, LLM, TOOL, GUARDRAIL) com atributos OpenInference e `gen_ai.*`, inclusive tokens de cache e de raciocínio. Os spans carregam argumentos **enumerados** das ferramentas e contagens, **sem conteúdo**; o conteúdo só existe nos perfis de desenvolvimento e avaliação, com dados sintéticos. O `session.id` é um HMAC da conversa. O runner da avaliação e o botão de feedback gravam anotações no Phoenix por `trace_id`, e a causa do erro vira o rótulo da anotação. Em produção, quando o aluno marca 👎, só as **saídas tipadas** do turno vão para `agent_rw.turn_output` por 7 dias, com RLS, para investigação por uma role de auditoria (`make investigate`). Prometheus traz sinais de qualidade sem gabarito: tipo de resposta por domínio e funil do rascunho.
 
 **Alternativa.** Só logs.
 
-**Trade-off.** Sem conteúdo, depurar um caso exige reconstruir a resposta a partir das saídas tipadas e dos kinds do guard, o que é mais trabalhoso do que ler a conversa. É o preço de não guardar PII. O spike do Phoenix mostrou duas armadilhas já tratadas: a imagem liga autenticação por padrão quando o host não é loopback, e o `force_flush` precisa rodar em thread com timeout para não travar o turno.
+**Trade-off.** Sem conteúdo, depurar um caso exige reconstruir a resposta a partir das saídas tipadas e dos kinds do guard, o que é mais trabalhoso do que ler a conversa. É o preço de não guardar PII. O spike do Phoenix mostrou duas armadilhas já tratadas: a autenticação ligada por padrão fora do loopback, e o `force_flush`, que roda em thread com timeout.
 
 ### D17. Capacidade e custo
 
-<!-- rascunho: depende das Tasks 4, 22 e 33 (admissão, serviço e carga) -->
 
 **Pergunta difícil:** "escalável" significa o quê, quando o gargalo real é a cota do modelo?
 
@@ -160,15 +152,14 @@ O spike com o cliente real do SDK mostrou três fatos que moldaram o desenho:
 
 **Alternativa.** Ilimitado.
 
-**Trade-off.** Recusar cedo e com `Retry-After` é pior para o aluno do que enfileirar, mas enfileirar esconde o problema e estoura o deadline. O limitador **nunca** corta um turno no meio. A conta de capacidade está na seção 8.
+**Trade-off.** Recusar cedo, com `Retry-After`, é pior para o aluno do que enfileirar, mas enfileirar estoura o deadline. O limitador **nunca** corta um turno no meio. A conta de capacidade está na seção 8.
 
 ### D21. Cartão do aluno como chamada sintética de ferramenta
 
-<!-- rascunho: depende das Tasks 3 e 22 (spike do Gemini e montagem do turno) -->
 
 **Pergunta difícil:** como responder a maior parte das perguntas com uma única chamada ao modelo, mantendo o cache do prefixo?
 
-**Decisão.** Um resumo do aluno de até 400 tokens, sem nome, é entregue como `functionResponse` de uma chamada sintética a `get_student_card`. Traz as matrículas, o total para quitar, o próximo vencimento, protocolos abertos, a próxima avaliação e a cobertura de dados. O prompt de sistema e as 11 declarações de ferramenta são idênticos para todos os alunos, então o cache implícito do provedor é preservado.
+**Decisão.** Um resumo do aluno de até 400 tokens (estimados; `tests/integration/test_card.py`), sem nome, é entregue como `functionResponse` de uma chamada sintética a `get_student_card`. Traz as matrículas, o total para quitar, o próximo vencimento, protocolos abertos, a próxima avaliação e a cobertura de dados. O prompt de sistema e as 11 declarações de ferramenta são idênticos para todos os alunos, então o cache implícito do provedor é preservado.
 
 **Alternativas.** Só ferramentas (uma chamada a mais em toda pergunta); cartão como texto da mensagem do usuário.
 
@@ -189,7 +180,7 @@ O motivo de não serem centrais: ou são consequência direta de uma central, ou
 | D13 | JWT HS256 com algoritmo fixo e `aud` por canal | Identidade no corpo | Padrão; em produção, token exchange (RFC 8693) |
 | D14 | `person_key` = HMAC-SHA256(segredo, CPF) | UUIDv5 | UUIDv5 é reversível por quem conhece o CPF |
 | D18 | AI Studio ou Vertex, com o mesmo código | Só um | Portabilidade |
-| D19 | `LLM_PROVIDER=auto` e modo replay | Exigir chave | Quem avalia roda sem chave |
+| D19 | `LLM_PROVIDER=auto`: sem chave, replay roteirizado que chama as ferramentas de verdade (`app/agent/replay.py`) | Exigir chave | Quem avalia roda sem chave |
 | D20 | Só `core/clock.py` lê relógio | Relógio livre | Respostas iguais depois de 10/11; testado por regex |
 | D22 | `enrollment` é um enum estável "1", "2" ou "3" | Rótulos por aluno | Cache e escopo |
 | D23 | `init-secrets` gera todos os segredos, um volume por consumidor, lidos só de arquivo | `.env` de exemplo | Segredo público permite forjar JWT |
@@ -198,24 +189,35 @@ O motivo de não serem centrais: ou são consequência direta de uma central, ou
 
 ## 4. Grafo do agente
 
-<!-- rascunho: depende da Task 22; substituir o bloco pela saída de draw_mermaid() em docs/evidence/graph.md -->
 
 ```mermaid
-flowchart TD
-  start([início]) --> call_model
-  call_model -->|há chamadas de ferramenta e rodada abaixo do máximo| run_tools
-  run_tools --> call_model
-  call_model -->|texto final| check_evidence
-  check_evidence -->|aprovado| fim([fim])
-  check_evidence -->|1ª reprovação: nova chamada com feedback| call_model
-  check_evidence -->|2ª reprovação| degrade
-  degrade --> fim
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	llm(llm)
+	tools(tools)
+	guard(guard)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> llm;
+	guard -.-> __end__;
+	guard -.-> llm;
+	llm -.-> __end__;
+	llm -.-> guard;
+	llm -.-> tools;
+	tools --> llm;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
 ```
 
 Pontos que o diagrama não mostra:
 
-- `run_tools` recria o `ToolContext` a cada rodada, e o `tainted` é recalculado; aplica `Tool.allowed` e registra um `ToolCallTrace` por chamada.
-- Se a rodada emitiu um rascunho, o turno faz sempre mais uma chamada com a instrução "responda só ao resto da mensagem, ou nada". A resposta final é o texto fixo do servidor mais o resto, e **só o resto** passa pelo guard.
+- O diagrama é a saída de `draw_mermaid()` (`docs/evidence/graph.md`). O nó `tools` recria o `ToolContext` a cada rodada, e o `tainted` é recalculado; aplica `Tool.allowed` e registra um `ToolCallTrace` por chamada. O laço `llm` e `tools` vai até `max_rounds` (4; 2 sob custo); a última rodada e o retry do guard vão sem ferramentas.
+- Se a rodada emitiu um rascunho, o turno faz sempre mais uma chamada, com as ferramentas ainda declaradas, e a instrução "responda só ao resto da mensagem, ou nada". A resposta final é o texto fixo do servidor mais o resto, e **só o resto** passa pelo guard.
 - O guard confere apenas texto gerado pelo modelo. Textos do servidor (rascunho, "Solicitação SA-… aberta", fallback, recusas fixas) ficam fora.
 
 ## 5. Dados
@@ -270,7 +272,6 @@ Texto escrito por humanos nos sistemas de origem é o canal natural de injeção
 
 ## 6. Segurança
 
-<!-- rascunho: depende das Tasks 11, 12, 24 a 27 e 32; a coluna "prova" deve ser conferida contra os testes que existirem -->
 
 A pergunta de projeto é se a segurança sobrevive a um modelo comprometido. Por isso há duas classes de prova: **testes de arquitetura**, que não usam o LLM, e **ataques com LLM real**, que medem comportamento.
 
@@ -288,15 +289,14 @@ A pergunta de projeto é se a segurança sobrevive a um modelo comprometido. Por
 | Consumo abusivo | Admissão a 90% da cota, vaga por turno, rate limit, orçamento, teto | Testes, inclusive via A2A, e a escada de carga com cota simulada |
 | CSRF e saída | SameSite=Strict, `Origin`, JSON, CSP, `nosniff`, texto puro | Testes |
 
-**Ataques com LLM real.** São 15 categorias: jailbreak, roleplay, quebra de papel, falsa promessa, extração de prompt literal e por paráfrase, sequestro de rascunho e escalada multi-turno (comportamento); identidade, outro aluno, outra marca, funcionários e credenciais (vazamento); injeção plantada e armazenada (zero por construção, conferido pelo teste do marcador). O número primário é a suíte completa de desenvolvimento, com 2 repetições, rodada **antes** de qualquer correção, mais uma rodada de holdout cego e adaptativo no SHA congelado, em que um subagente escreve metade dos templates sem ver o código e um LLM atacante refina cada template. A unidade do intervalo de Wilson é o **template de ataque**: ele falha se qualquer mutação ou repetição falhar.
+**Ataques com LLM real.** São 15 categorias: jailbreak, roleplay, quebra de papel, falsa promessa, extração de prompt literal e por paráfrase, sequestro de rascunho e escalada multi-turno (comportamento); identidade, outro aluno, outra marca, funcionários e credenciais (vazamento); injeção plantada e armazenada (zero por construção, conferido pelo teste do marcador). O número primário é a suíte completa de desenvolvimento, com 2 repetições, rodada **antes** de qualquer correção, mais uma rodada de holdout cego e adaptativo no SHA congelado, em que um redator cego escreve os templates sem ver o código e um LLM atacante os refina em até 3 tentativas. A unidade do intervalo de Wilson é o **template de ataque**: ele falha se qualquer mutação ou repetição falhar.
 
 Resultado, quando existir: ataques de comportamento bem-sucedidos (desenvolvimento) <!-- num:security.dev.behavior.success -->a medir<!-- /num -->; no holdout <!-- num:security.holdout.behavior.success -->a medir<!-- /num -->; vazamentos <!-- num:security.leak.success -->a medir<!-- /num -->.
 
 ## 7. Qualidade
 
-<!-- rascunho: depende das Tasks 30, 31 e 32; nenhum resultado desta seção foi medido ainda -->
 
-O método está em D11. Aqui ficam os resultados e o que eles não dizem.
+O método está em D11. Aqui ficam os resultados e o que eles não dizem. Nada desta seção foi medido ainda (sem chave do Gemini); os marcadores abaixo mostram "a medir".
 
 | Medida | Desenvolvimento | Teste |
 |---|---|---|
@@ -315,13 +315,12 @@ O que esta avaliação **não** garante: a amostra é de 40 alunos de teste com 
 
 ## 8. Latência, capacidade e custo
 
-<!-- rascunho: depende das Tasks 3, 22, 25 e 33; a fórmula usa priors até o portão do Gemini rodar -->
 
-**Latência** é medida por classe de turno: `card` (nenhuma ferramenta, caminho nominal de uma chamada), `1` (uma ferramenta) e `2+`. As metas vêm de uma fórmula registrada antes das medições: uma lognormal por componente (chamada que emite ferramenta, chamada que responde), mais SQL, guard e overhead, com Monte Carlo por classe e modelo, **incluindo o retry do guard no sorteio**, aplicada a todos os quantis e ao tempo até o primeiro evento (TTFE). A meta de cada quantil é o maior valor entre a meta inicial e a prevista. A fórmula é atualizada uma única vez, depois da primeira rodada de desenvolvimento, e congelada. A fonte única dos números é `slo_targets.yaml`.
+**Latência** é medida por classe de turno: `card` (nenhuma ferramenta, caminho nominal de uma chamada), `1` (uma ferramenta) e `2+`. As metas vêm de uma fórmula registrada antes das medições: uma lognormal por componente (chamada que emite ferramenta, chamada que responde e overhead, que reúne SQL, guard e infraestrutura), com Monte Carlo por classe e modelo, **incluindo o retry do guard no sorteio**, aplicada a todos os quantis e ao tempo até o primeiro evento (TTFE). A meta de cada quantil é o maior valor entre a meta inicial e a prevista. A fórmula é atualizada uma única vez, depois da primeira rodada de desenvolvimento, e congelada. A fonte única dos números é `slo_targets.yaml`.
 
 Dois trade-offs são declarados. O TTFE da classe `card` é igual à latência total, porque o guard precisa do texto inteiro antes de qualquer byte da resposta. E o orçamento do grafo é derivado (p99 previsto da classe `2+` vezes 1,2), de modo que uma chamada nunca ultrapassa o que o turno ainda tem.
 
-Hoje a fórmula roda com **priors**, não com amostras: o portão do Gemini depende de chave e ainda não foi executado. As tabelas abaixo ficam vazias até as janelas de medição.
+Hoje a fórmula roda com **priors**, não com amostras: o portão do Gemini depende de chave e ainda não foi executado. As janelas de medição são A (primeira rodada de desenvolvimento, a única que reajusta a fórmula), B e C (esta, no SHA congelado); as tabelas abaixo ficam vazias até lá.
 
 | Classe | p50 | p95 | TTFE p95 |
 |---|---|---|---|
@@ -331,15 +330,14 @@ Hoje a fórmula roda com **priors**, não com amostras: o portão do Gemini depe
 
 Overhead de infraestrutura (tudo que não é modelo): <!-- num:latency.overhead.p95 -->a medir<!-- /num -->. Turnos que estouraram o orçamento do grafo na janela A: <!-- num:latency.budget_exceeded -->a medir<!-- /num -->.
 
-**Capacidade.** A premissa de "milhares simultâneos" é traduzida em alunos ativos, mensagens por minuto, RPM e TPM contra a cota do modelo, e só depois em réplicas, pela CPU por turno. O TPM limita antes da CPU. Vagas de turno e pool de conexões são dimensionados pela lei de Little. A carga é gerada por um `LoadTestLLM` com latências sorteadas das lognormais do portão, em duas escadas de laço aberto: com o limitador ligado e cota simulada (platô de goodput, 503 com `Retry-After`, retries e cortes dentro de um teto) e sem limitador, para achar o joelho e a CPU por turno. Resultado: <!-- num:latency.load.plateau -->a medir<!-- /num -->.
+**Capacidade.** A premissa de "milhares simultâneos" é traduzida em alunos ativos, mensagens por minuto, RPM e TPM contra a cota do modelo, e só depois em réplicas, pela CPU por turno. O TPM limita antes da CPU. Vagas de turno e pool de conexões são dimensionados pela lei de Little. A carga é gerada por um `LoadTestLLM` com latências sorteadas das lognormais do portão, em duas escadas de laço aberto contra a API: (a) com o limitador ligado e uma cota simulada derivada das vagas (platô de goodput, 503 com `Retry-After`, retries e cortes dentro de um teto, e o motivo da rejeição por degrau: cota ou vagas) e (b) sem limitador, para achar o joelho e a CPU por turno. `make load-test` e `make eval-latency` rodam em container. Resultado: <!-- num:latency.load.plateau -->a medir<!-- /num -->.
 
-**Custo.** Medido por turno, por índice de turno e por aluno ao mês, com tokens de entrada, saída, raciocínio e cache. Custo médio por turno: <!-- num:latency.cost.per_turn -->a medir<!-- /num -->. Os preços de tabela dos modelos candidatos mudam em 2027, e o relatório dirá com qual tabela foi calculado.
+**Custo.** Medido por turno, por índice de turno e por aluno ao mês, com tokens de entrada, saída, raciocínio e cache. Custo médio por turno: <!-- num:latency.cost.per_turn -->a medir<!-- /num -->. O relatório informa a tabela de preços usada.
 
-Há três experimentos de alavanca, desligados por padrão: hedge da primeira chamada no p90, comparação entre os dois modelos por classe e streaming por frase depois do guard. Os resultados vão para o relatório de latência sem alterar o padrão.
+Há duas alavancas, desligadas por padrão: o hedge da primeira chamada no p90 e a comparação entre os dois modelos por classe. O hedge vive no `TurnService` (`hedger`, flag `lever_hedge_first_call`), tem orçamento (10% das chamadas por minuto, com piso) e só dispara com o balde de admissão abaixo de 80%; a segunda requisição é contabilizada no balde, na cota diária e no gasto. O streaming por frase foi removido: o guard precisa da resposta inteira. Os resultados vão para `docs/evidence/latency.md` sem alterar o padrão.
 
 ## 9. Observabilidade
 
-<!-- rascunho: depende da Task 29 -->
 
 A decisão está em D16. Em operação:
 
@@ -351,34 +349,36 @@ A decisão está em D16. Em operação:
 
 ## 10. Integração em produção
 
-Esta seção descreve o caminho, não algo já feito. Fora do escopo do case: deploy em nuvem, atendimento a responsável, escrita via A2A, auditoria persistente de conversas e streaming A2A.
+Esta seção descreve o caminho, não algo já feito. Fora do escopo: deploy em nuvem, atendimento a responsável, escrita via A2A, auditoria persistente de conversas e streaming A2A.
 
 - **Dados:** hoje o ETL carrega CSV numa carga única. Em produção, a entrada seria CDC dos bancos de origem ou APIs dos sistemas, com o mesmo contrato por coluna e as mesmas verificações de contagem. A escrita do rascunho confirmado sairia por **outbox**, na mesma transação do INSERT, para um worker que abre o protocolo no sistema da secretaria com retry idempotente por `draft_id`.
 - **Identidade:** o JWT de desenvolvimento dá lugar a um provedor de identidade da instituição. O A2A usaria **token exchange (RFC 8693)**: o agente chamador troca o token do aluno por um token de audiência `a2a` com claim `act`, de modo que o `sub` continua sendo o aluno e o chamador fica registrado.
 - **Modelo:** Vertex AI com cota provisionada, com o mesmo código (`llm_backend`, projeto e região) e a conta de serviço montada somente leitura. O balde de admissão passa a ser dimensionado pela cota contratada.
-- **Orquestradores:** Langflow e ADK consomem o agente pelo A2A. O componente de A2A do Langflow envia a chave em `x-api-key`, e por isso o card declara os dois esquemas de segurança. Um fluxo exportado fica como evidência opcional.
+- **Orquestradores:** é desenho, não está demonstrado: Langflow e ADK consumiriam o agente pelo A2A. O componente de A2A do Langflow envia a chave em `x-api-key`, e por isso o servidor aceita os dois esquemas (`test_x_api_key_works`). A integração entregue é o cliente de `make a2a-demo`; a raia do Langflow não foi entregue.
 - **Escala:** réplicas sem estado atrás de um balanceador; o estado é Redis (histórico, admissão, tarefas A2A) e Postgres. A CPU por turno medida na escada de carga define quantas réplicas por RPM.
 
 ## 11. Limites honestos
 
-<!-- rascunho: acrescentar aqui os "limites conhecidos" registrados no sábado, depois do congelamento -->
+<!-- autor: acrescentar aqui os "limites conhecidos" registrados no sábado, depois do congelamento -->
 
 - O guard não pega um valor correto atribuído à entidade errada quando a frase não cita nenhuma entidade.
 - Os <!-- num:data.protocols_unlinked -->22<!-- /num --> protocolos sem vínculo (ver 5.3) não aparecem para nenhum aluno, por escolha de precisão.
 - A regra de média e aprovação não existe nos dados, e o agente diz isso em vez de inferir.
 - Trancamento, cancelamento, transferência e migração são só orientação: o agente explica e oferece "Falar com a secretaria".
 - Sem classificador de jailbreak: a defesa é a arquitetura, e o comportamento do modelo é medido, não garantido.
-- A latência depende da cota e do estado do provedor no dia da medição; os números valem para as janelas descritas.
+- A latência depende da cota e do provedor no dia da medição; os números valem para as janelas descritas.
 - Com a data de referência fixa em 31/10/2026, o agente não representa o "hoje" real; é uma escolha para que a banca receba as mesmas respostas depois do prazo.
 - **Pendente: sem chave do Gemini.** O portão de latência, o cache do prefixo, a chamada sintética do cartão e as cotas ainda não foram medidos. Nada nas seções 7 e 8 é resultado.
 
 ## 12. Como foi construído
 
-<!-- decisão do autor: §12 transparência -->
+<!-- autor: escolha da opção (a) de transparência. Se for (a), descomente a proposta abaixo; se não, deixe a seção vazia ou remova-a.
+Proposta (factual, até 8 linhas):
+O projeto foi feito em etapas: uma especificação de projeto, um plano de tarefas e a implementação tarefa a tarefa, cada uma com teste escrito antes do código. A implementação foi delegada a agentes de IA, e cada tarefa foi revisada por uma revisão independente antes de entrar. Do autor: as decisões de arquitetura e de escopo; a verificação dos dados contra os CSV de origem; a rotulagem às cegas de 30 respostas para validar o scorer; a conferência manual de 20 itens do gabarito; e a curadoria do que entra nas evidências. Os números são gerados por script a partir dos arquivos de evidência, e nenhum é digitado à mão.
+-->
 
 ## Apêndice. Estatística
 
-<!-- rascunho: depende da Task 31; descrever o que o código de pontuação realmente faz -->
 
 - **Bootstrap de dois fatores.** O pass@1 é calculado sobre pares (aluno, template). O intervalo reamostra alunos e templates, estratificado pelas cotas, porque respostas do mesmo aluno ou do mesmo template não são independentes.
 - **P(meta).** A correlação intraclasse é estimada no desenvolvimento, e a probabilidade de o limite inferior passar de 85% é simulada e registrada antes da rodada de teste.

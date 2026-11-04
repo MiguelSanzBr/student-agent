@@ -1,6 +1,5 @@
 # Agente de atendimento ao aluno
 
-<!-- rascunho: texto da primeira versão; revisar quando o código das Tasks 22 a 33 existir -->
 Agente para o aluno já autenticado: consulta e explica vida acadêmica, financeiro, protocolos, LMS e catálogo, em 5 marcas e 4 sistemas. Abre protocolo só como rascunho que o aluno confirma com um clique. Pelo A2A, só consulta e orienta.
 A segurança é de arquitetura (RLS forçado, ferramentas sem identidade, texto livre nunca vai ao LLM, `EvidenceGuard`), provada por testes que não dependem do modelo.
 
@@ -18,19 +17,18 @@ Método, limites e o que não foi medido: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 
 ## Como rodar
 
-<!-- rascunho: os alvos make login e a2a-demo ainda não existem -->
 ```
-cp .env.example .env    # GEMINI_API_KEY é opcional; sem ela o agente roda em modo replay
+cp .env.example .env    # GEMINI_API_KEY é opcional; sem ela (`LLM_PROVIDER=auto`) o agente roda em modo demonstração
 docker compose up
 make login CASE=4       # imprime uma URL de login de uso único
 make a2a-demo           # cliente A2A: lê o card e faz uma pergunta
 ```
-Sem chave, a interface mostra a faixa "modo demonstração" e responde a partir de conversas gravadas.
+Sem chave, a interface mostra a faixa "modo demonstração" e sugestões de pergunta. A resposta vem de um roteiro (`app/agent/replay.py`) que chama as ferramentas de verdade e monta o texto com a saída delas; pergunta fora do roteiro recebe uma resposta honesta de que não está no roteiro.
 
 ## Evidências
 
 - Requisito, mecanismo, teste e número: [docs/evidence/README.md](docs/evidence/README.md).
 - Arquitetura, decisões e trade-offs, com o diagrama: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-- Vídeo de demonstração: <!-- rascunho: link do vídeo -->a definir.
+- Vídeo de demonstração: <!-- autor: link do vídeo -->a definir.
 
-<!-- decisão do autor: §12 transparência -->
+<!-- autor: a seção "Como foi construído" (ARCHITECTURE.md, §12) depende da sua escolha de transparência; ver a proposta lá. -->
