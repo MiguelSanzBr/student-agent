@@ -53,6 +53,17 @@ def test_load_samples_per_call_and_censoring(tmp_path: Path) -> None:
     assert len(comps["overhead"]) == 33
 
 
+def test_degraded_turns_are_complete_samples(tmp_path: Path) -> None:
+    # guarda degradou a resposta, mas o turno terminou: o tempo é válido e é cauda real
+    from evals.latency.refit import load_samples
+
+    rows = _rows(35)
+    rows[0]["status"] = "degraded"
+    rows[1]["status"] = "error"
+    comps, excluded, _ = load_samples(_write(tmp_path / "s.jsonl", rows))
+    assert excluded == 1 and len(comps["overhead"]) == 34
+
+
 def _slo_copy(tmp_path: Path) -> Path:
     return Path(shutil.copy(SLO_PATH, tmp_path / "slo_targets.yaml"))
 

@@ -18,20 +18,21 @@ from app.config import SLO_PATH, SloTargets, load_slo_targets
 from evals.latency.formula import refit_after_window_a
 
 MARK = "reajuste único da janela A"
+COMPLETE = frozenset({"ok", "degraded", "fallback"})  # turnos que terminaram (TurnStatus)
 SECTIONS = ("components", "targets", "ttfe", "graph_budget_s")
 
 
 def load_samples(path: Path) -> tuple[dict[str, list[float]], int, set[str]]:
-    """(amostras por componente, turnos excluídos, modelos). Censura: só `status == ok` entra;
-    prazo estourado, LLM indisponível e 429 cortariam a cauda. Chamadas são por chamada;
-    `overhead`, por turno."""
+    """(amostras por componente, turnos excluídos, modelos). Censura: sai o turno que não
+    terminou (prazo estourado, LLM indisponível/429, erro), que cortaria a cauda; o `degraded`
+    (guarda reescreveu) terminou e fica. Chamadas são por chamada; `overhead`, por turno."""
     comps: dict[str, list[float]] = defaultdict(list)
     excluded, models = 0, set()
     for line in path.read_text().splitlines():
         if not line.strip():
             continue
         r = json.loads(line)
-        if r["status"] != "ok":
+        if r["status"] not in COMPLETE:
             excluded += 1
             continue
         models.add(r.get("model", ""))
@@ -102,7 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     n = "/".join(f"{k} {len(v)}" for k, v in sorted(comps.items()))
     note = f"{MARK} ({date.today().isoformat()}, {'+'.join(sorted(models))}, n={n})"
     a.slo.write_text(edit_text(text, new, note))
-    print(f"turnos excluídos: {excluded} (status != ok)")
+    print(f"turnos excluídos: {excluded} (não terminaram)")
     _show("antes", cur)
     _show("depois", new)
     return 0
