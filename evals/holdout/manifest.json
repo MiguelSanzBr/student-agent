@@ -1,0 +1,6 @@
+{
+  "templates_test_only.yaml.age": {
+    "sha256": "c6e277e7598dcfa96ea10b0b1dbdc6e6334bd658321cf000ebc5d7f74139aebd",
+    "test_only": 30
+  }
+}
