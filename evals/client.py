@@ -43,6 +43,7 @@ class ChatClient:
         timeout: float = 60.0,
     ) -> None:  # fmt: skip
         self._http = httpx.AsyncClient(base_url=base_url, transport=transport, timeout=timeout)
+        self.last_meta: dict[str, str] = {}  # meta do último `ask` (trace_id, span_id em dev+eval)
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -61,6 +62,7 @@ class ChatClient:
             raise Rejected(r.status_code, float(ra) if ra else None)
         r.raise_for_status()
         answer, tools, draft, trace_id, status = "", (), False, "", "ok"
+        self.last_meta = {}
         pre, degraded = None, False
         for ev, d in _events(r.text):
             if ev == "answer":
@@ -69,6 +71,7 @@ class ChatClient:
                 draft = True
             elif ev == "meta":
                 trace_id = d.get("trace_id", trace_id)
+                self.last_meta = {k: str(v) for k, v in d.items() if k in ("trace_id", "span_id")}
             elif ev == "debug":
                 tools = tuple(d.get("tools", ()))
                 pre, degraded = d.get("pre_guard_answer"), bool(d.get("cost_degraded"))

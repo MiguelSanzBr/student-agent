@@ -51,8 +51,16 @@ lint:
 
 check: lint test
 
-eval-dev eval-test eval-guard eval-security \
-package:
+# Runner da qualidade: no host (precisa de EVAL_API_URL, ETL_OUT_DIR, EVAL_OUT_DIR e dos segredos do
+# app para `evals.tokens.mint`). make eval-dev MODEL=gemini-3.8-flash ROUND=1 [ARGS="--paraphrase"]
+eval-dev eval-test:
+	uv run python -m evals.golden.run --split $(patsubst eval-%,%,$@) --model $(MODEL) \
+	  --round $(ROUND) --record $(ARGS)
+
+eval-guard:  # make eval-guard SEED=<semente do cego> [ARGS="--dev-transcripts .../transcripts.jsonl"]
+	uv run python -m evals.guard.run --blind-seed $(SEED) $(ARGS)
+
+eval-security package:
 	$(NOT_YET)
 
 eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] [MODEL=gemini-3.8-flash]
