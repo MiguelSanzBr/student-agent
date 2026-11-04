@@ -13,6 +13,8 @@ case "${MODE:-}" in
   b) extra=(':(exclude)docs/superpowers') ;;
   *) echo "defina MODE=a (zip + git bundle do histórico) ou MODE=b (zip sem docs/superpowers/ e sem histórico)" >&2; exit 2 ;;
 esac
+[ -z "$(git status --porcelain)" ] || { echo "árvore suja: commite ou descarte as mudanças antes de empacotar" >&2; exit 1; }
+[ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ] || { echo "HEAD não é a main (o zip é do HEAD e o bundle da main): faça checkout da main" >&2; exit 1; }
 mkdir -p "$OUT"
 rm -f "$OUT/student-agent.zip" "$OUT/student-agent.bundle"
 git archive --format=zip --prefix=student-agent/ -o "$OUT/student-agent.zip" HEAD -- . \

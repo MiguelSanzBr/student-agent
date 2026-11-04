@@ -16,10 +16,23 @@ FORBIDDEN_PREFIX = (
 )
 
 
+def clone(tmp_path: Path, branch: str = "main") -> Path:
+    """Cópia limpa do HEAD numa branch `branch` (o script exige árvore limpa e main = HEAD)."""
+    repo = tmp_path / "repo"
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True,
+                          check=True).stdout.strip()  # fmt: skip
+    subprocess.run(["git", "clone", "-q", "--no-checkout", str(ROOT), str(repo)], check=True)
+    subprocess.run(["git", "checkout", "-q", "-B", branch, head], cwd=repo, check=True)
+    if branch != "main":
+        subprocess.run(["git", "branch", "-f", "main", f"{head}~1"], cwd=repo, check=True)
+    return repo
+
+
 def build(tmp_path: Path, mode: str) -> tuple[list[str], Path]:
+    repo = clone(tmp_path)
     r = subprocess.run(
-        ["bash", str(SCRIPT)],
-        cwd=ROOT,
+        ["bash", str(repo / "scripts" / "package.sh")],
+        cwd=repo,
         capture_output=True,
         text=True,
         env={"PATH": "/usr/bin:/bin:/usr/local/bin", "MODE": mode, "OUT": str(tmp_path)},
@@ -73,3 +86,25 @@ def test_package_requires_mode(tmp_path: Path) -> None:
         env={"PATH": "/usr/bin:/bin", "OUT": str(tmp_path)},
     )
     assert r.returncode != 0 and "MODE=a" in r.stderr and "MODE=b" in r.stderr
+
+
+def _run(repo: Path, out: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", str(repo / "scripts" / "package.sh")], cwd=repo, capture_output=True, text=True,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "MODE": "b", "OUT": str(out)},
+    )  # fmt: skip
+
+
+def test_package_refuses_dirty_tree(tmp_path: Path) -> None:
+    repo = clone(tmp_path)
+    (repo / "README.md").write_text("sujo\n")
+    r = _run(repo, tmp_path / "out")
+    assert r.returncode != 0 and "árvore" in r.stderr
+    assert not (tmp_path / "out" / "student-agent.zip").exists()
+
+
+def test_package_refuses_head_not_main(tmp_path: Path) -> None:
+    repo = clone(tmp_path, branch="outra")
+    r = _run(repo, tmp_path / "out")
+    assert r.returncode != 0 and "main" in r.stderr
+    assert not (tmp_path / "out" / "student-agent.zip").exists()
