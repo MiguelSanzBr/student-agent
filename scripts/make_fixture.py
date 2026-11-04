@@ -1,11 +1,14 @@
 """Gera a fixture mínima (tests/fixtures/mini + golden.json) a partir de `dados.zip`.
 
 Uso: uv run python -I scripts/make_fixture.py data/dados.zip tests/fixtures/mini
-Os dados do case são sintéticos; CPFs e nomes ficam como no original porque os testes os usam.
+Os CPFs do dataset nunca vão para o git: cada um vira um CPF sintético válido (`fake_cpf`), igual em
+todos os arquivos, no formato de cada coluna. Os casos golden são (marca, RA), sem CPF.
 """
 
 import csv
+import hashlib
 import json
+import re
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
@@ -18,18 +21,18 @@ from etl.raw import RawData, read_raw  # noqa: E402
 Row = Mapping[str, str]
 Key = tuple[str, str]
 
-# (caso, marca, RA, CPF, outras matrículas da mesma pessoa que o caso exige)
-GOLDEN: list[tuple[int, str, str, str, list[Key]]] = [
-    (1, "UniSaoPaulo", "181722", "08140522660", []),
-    (2, "UniAtlantico_EAD", "012815", "20930797205", []),
-    (3, "UniSaoPaulo_EAD", "014214", "23241640191", [("UniSaoPaulo", "181544")]),
-    (4, "UniSaoPaulo", "180823", "79616774107", []),
-    (5, "UniSaoPaulo_EAD", "012157", "05278737727", []),
-    (6, "UniSaoPaulo_EAD", "013226", "16910893204", []),
-    (7, "UniSaoPaulo_EAD", "011703", "35425914407", []),
-    (8, "UniSaoPaulo", "182230", "38836867359", []),
-    (9, "UniSaoPaulo", "182915", "43691697127", [("UniSaoPaulo_EAD", "011843")]),
-    (10, "UniSaoPaulo_EAD", "011932", "44178634232", []),
+# (caso, marca, RA, outras matrículas da mesma pessoa que o caso exige)
+GOLDEN: list[tuple[int, str, str, list[Key]]] = [
+    (1, "UniSaoPaulo", "181722", []),
+    (2, "UniAtlantico_EAD", "012815", []),
+    (3, "UniSaoPaulo_EAD", "014214", [("UniSaoPaulo", "181544")]),
+    (4, "UniSaoPaulo", "180823", []),
+    (5, "UniSaoPaulo_EAD", "012157", []),
+    (6, "UniSaoPaulo_EAD", "013226", []),
+    (7, "UniSaoPaulo_EAD", "011703", []),
+    (8, "UniSaoPaulo", "182230", []),
+    (9, "UniSaoPaulo", "182915", [("UniSaoPaulo_EAD", "011843")]),
+    (10, "UniSaoPaulo_EAD", "011932", []),
 ]
 SIBLING: Key = ("UniSaoPaulo", "180548")  # irmão do golden 4
 LOCKED: Key = ("UniAraucaria", "090948")  # matrícula LOCKED escolhida à mão
@@ -42,6 +45,48 @@ CATALOGS = [
     "secretary/unit", "secretary/analyst", "finance/company", "finance/product",
     "finance/price_list", "lms/mdl_tenant", "lms/mdl_course_categories", "lms/mdl_user_info_field",
 ]  # fmt: skip
+
+
+_CPF_RX = re.compile(r"\d{3}\.\d{3}\.\d{3}-\d{2}|\b\d{8,11}\b")
+
+
+def _dv(base: str) -> str:
+    for n in (9, 10):
+        base += str(
+            sum(int(c) * w for c, w in zip(base, range(n + 1, 1, -1), strict=True)) * 10 % 11 % 10
+        )
+    return base[9:]
+
+
+def fake_cpf(real: str) -> str:
+    """CPF sintético válido, determinístico por CPF real; mantém pontuação e zeros à esquerda."""
+    d = digits(real).zfill(11)
+    for salt in range(100):  # repete só se der dígitos repetidos (inválido) ou o próprio real
+        n = (
+            int(hashlib.sha256(f"student-agent-fixture:{salt}:{d}".encode()).hexdigest(), 16)
+            % 10**9
+        )
+        base = f"{n:09d}"
+        if len(set(base)) > 1 and base + _dv(base) != d:
+            break
+    out = base + _dv(base)
+    if "." in real:
+        return f"{out[:3]}.{out[3:6]}.{out[6:9]}-{out[9:]}"
+    return out if len(real) >= 11 else out.lstrip("0")
+
+
+def real_cpfs(raw: RawData) -> set[str]:
+    return {
+        d
+        for rows in raw.values()
+        for r in rows
+        for k, v in r.items()
+        if ("cpf" in k.lower() or "taxid" in k.lower()) and len(d := digits(v)) == 11
+    }
+
+
+def pseudonymize(cell: str, real: set[str]) -> str:
+    return _CPF_RX.sub(lambda m: fake_cpf(m[0]) if digits(m[0]).zfill(11) in real else m[0], cell)
 
 
 def ek(r: Row) -> Key:
@@ -60,7 +105,7 @@ def select(raw: RawData) -> dict[str, list[Row]]:
     enr = raw["sag/enrollment"]
     by_key = {ek(r): r for r in enr}
     person = {r["PERSON_ID"]: r for r in raw["sag/person"]}
-    gold = {(b, ra) for _, b, ra, _, _ in GOLDEN} | {k for *_, o in GOLDEN for k in o}
+    gold = {(b, ra) for _, b, ra, _ in GOLDEN} | {k for *_, o in GOLDEN for k in o}
     ras = {ra for _, ra in gold}
     partners = {ek(r) for r in enr if r["STUDENT_ID"] in ras} - gold
     seed = gold | partners | {SIBLING, LOCKED}
@@ -172,8 +217,11 @@ def select(raw: RawData) -> dict[str, list[Row]]:
 
 
 def write(dest: Path, raw: RawData, sel: Mapping[str, Iterable[Row]]) -> None:
+    real = real_cpfs(raw)
+    fakes = {fake_cpf(c) for c in real}
+    assert len(fakes) == len(real) and not {digits(f) for f in fakes} & real  # mapa injetivo
     for name in raw:
-        rows = list(sel[name])
+        rows = [{k: pseudonymize(v, real) for k, v in r.items()} for r in sel[name]]
         assert rows, f"tabela vazia na fixture: {name}"
         path = dest / f"{name}.csv"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -187,13 +235,15 @@ def main(src: Path, dest: Path) -> None:
     raw = read_raw(src)
     cpf = {r["PERSON_ID"]: digits(r["CPF"]) for r in raw["sag/person"]}
     enr = {(r["BRAND"], r["STUDENT_ID"]): r for r in raw["sag/enrollment"]}
-    for _, b, ra, c, others in GOLDEN:
-        assert cpf[enr[(b, ra)]["PERSON_ID"]] == c, (b, ra)
-        assert all(cpf[enr[k]["PERSON_ID"]] == c for k in others), (b, ra)
+    for _, b, ra, others in GOLDEN:  # as outras matrículas do caso são da mesma pessoa (mesmo CPF)
+        assert all(cpf[enr[k]["PERSON_ID"]] == cpf[enr[(b, ra)]["PERSON_ID"]] for k in others), (
+            b,
+            ra,
+        )
     sel = select(raw)
     write(dest, raw, sel)
-    cases = [{"case": n, "brand": b, "ra": ra, "cpf": c, "other_enrollments": [list(k) for k in o]}
-             for n, b, ra, c, o in GOLDEN]  # fmt: skip
+    cases = [{"case": n, "brand": b, "ra": ra, "other_enrollments": [list(k) for k in o]}
+             for n, b, ra, o in GOLDEN]  # fmt: skip
     gj = dest.parent / "golden.json"
     gj.write_text(json.dumps({"cases": cases}, ensure_ascii=False, indent=2) + "\n", "utf-8")
 

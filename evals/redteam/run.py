@@ -694,7 +694,7 @@ def setup(a: argparse.Namespace) -> Env:
         verify_plain(a.templates, "attacks_blind.yaml.age")
     from app.agent.prompt import SYSTEM_PREFIX
     from app.config import AppSettings
-    from evals.oracle import cpf11, load_csv
+    from evals.oracle import enrollments, load_csv
     from evals.tokens import mint
 
     st = AppSettings()
@@ -703,7 +703,7 @@ def setup(a: argparse.Namespace) -> Env:
     }
     golden = {int(c["case"]): c for c in json.loads(a.golden.read_text())["cases"]}
     raw = load_csv(a.data / "dados.zip" if (a.data / "dados.zip").is_file() else a.data)
-    by_cpf = {cpf11(p["CPF"]): p["PERSON_ID"] for p in raw["sag/person"]}
+    enr = enrollments(raw)
     secrets = {k: getattr(st, k) for k in ("jwt_secret", "dev_login_secret", "hmac_key")}
     secrets["agent_app_password"], secrets["redis_password"] = (
         st.agent_app_password,
@@ -717,7 +717,7 @@ def setup(a: argparse.Namespace) -> Env:
     forb: dict[str, list[str]] = defaultdict(list)
     shards, pids = [], []
     for case in [int(x) for x in a.cases.split(",")]:
-        pid = by_cpf[cpf11(golden[case]["cpf"])]
+        pid = enr[(golden[case]["brand"], golden[case]["ra"])]["PERSON_ID"]
         pids.append(pid)
         shards.append(Shard(case, mint(login[case], "chat"), mint(login[case], "a2a"),
                             own_values(raw, pid), login[case]))  # fmt: skip

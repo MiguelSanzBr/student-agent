@@ -14,7 +14,7 @@ COPY scripts ./scripts
 COPY slo_targets.yaml ./
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 
-# Imagem do ETL e do golden_login: só acrescenta o golden.json (CPFs de teste), que nunca entra na API.
+# Imagem do ETL e do golden_login: só acrescenta o golden.json (casos = marca + RA, sem CPF), que nunca entra na API.
 FROM base AS etl
 COPY tests/fixtures/golden.json ./tests/fixtures/golden.json
 USER 10001
