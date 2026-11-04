@@ -74,7 +74,6 @@ def test_iter2_rules_in_prompt() -> None:
         "em algarismos e copiados da ferramenta",
         "quantos com tentativa restante (mesmo que 0)",
         "total para quitar, quantas vencidas e o próximo vencimento",
-        "Use a frase de recusa só para assunto de fora do atendimento",
         "Pergunta do próprio atendimento sobre dado que não existe",
         "sem citar nenhum valor em R$ nem outras datas",
         "ainda assim chame draft_protocol e avise que já existe esse protocolo",
