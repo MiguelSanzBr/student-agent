@@ -187,7 +187,10 @@ async def test_parse_text_calls_thinking_usage(
     fm = FakeMessages([ok(content)])
     r = await gen(provider(fm))
     assert r.text == "ab" and r.tool_calls == (ToolCall("t1", "f", {"q": 1}),)
-    assert r.provider_meta == json.dumps([THINK, REDACTED], separators=(",", ":")).encode()
+    full = [THINK, {"type": "text", "text": "a"},
+            {"type": "tool_use", "id": "t1", "name": "f", "input": {"q": 1}},
+            REDACTED, {"type": "text", "text": "b"}]  # fmt: skip
+    assert r.provider_meta == json.dumps(full, separators=(",", ":")).encode()
     assert (r.usage.input_tokens, r.usage.cached_tokens) == (16, 4)
     assert (r.usage.output_tokens, r.usage.thinking_tokens) == (3, 0)
 
@@ -387,5 +390,83 @@ async def test_real_client_wire_format(app_secrets: object) -> None:
     assert j["messages"][1]["content"][0]["type"] == "tool_use"
     assert j["messages"][2]["content"][0]["type"] == "tool_result"
     assert r.text == "ola" and r.tool_calls == (ToolCall("toolu_1", "get_x", {"q": 1}),)
-    assert json.loads(r.provider_meta or b"") == [THINK]
+    assert [b["type"] for b in json.loads(r.provider_meta or b"")] == [
+        "thinking",
+        "text",
+        "tool_use",
+    ]
     assert (r.usage.input_tokens, r.usage.cached_tokens, r.usage.output_tokens) == (16, 4, 5)
+
+
+T0 = {"type": "thinking", "thinking": "t0", "signature": "s0"}
+T1 = {"type": "thinking", "thinking": "t1", "signature": "s1"}
+TXT = {"type": "text", "text": "ok"}
+USE_A = {"type": "tool_use", "id": "a", "name": "f", "input": {}}
+USE_B = {"type": "tool_use", "id": "b", "name": "g", "input": {}}
+
+
+def _meta(*blocks: dict[str, Any]) -> bytes:
+    return json.dumps(list(blocks), separators=(",", ":")).encode()
+
+
+async def test_interleaved_blocks_resent_in_original_order(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    calls = (ToolCall("a", "f", {}), ToolCall("b", "g", {}))
+    msgs = [Message("user", "q"),
+            Message("assistant", None, calls, provider_meta=_meta(T0, USE_A, T1, USE_B), model=M1),
+            Message("tool", tool_call_id="a", tool_name="f", tool_result={}),
+            Message("tool", tool_call_id="b", tool_name="g", tool_result={})]  # fmt: skip
+    fm = FakeMessages()
+    await gen(provider(fm), messages=msgs)
+    assert fm.calls[0]["messages"][1]["content"] == [T0, USE_A, T1, USE_B]
+
+
+async def test_changed_text_falls_back_to_rebuilt_order(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    msgs = [Message("user", "q"),
+            Message("assistant", "editado", (ToolCall("a", "f", {}),),
+                    provider_meta=_meta(T0, TXT, USE_A, T1), model=M1)]  # fmt: skip
+    fm = FakeMessages()
+    await gen(provider(fm), messages=msgs)
+    assert fm.calls[0]["messages"][1]["content"] == [
+        T0,
+        T1,
+        {"type": "text", "text": "editado"},
+        USE_A,
+    ]
+
+
+async def test_old_thinking_only_meta_falls_back(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    msgs = [Message("user", "q"),
+            Message("assistant", "ok", (ToolCall("a", "f", {}),),
+                    provider_meta=_meta(T0), model=M1)]  # fmt: skip
+    fm = FakeMessages()
+    await gen(provider(fm), messages=msgs)
+    assert fm.calls[0]["messages"][1]["content"] == [T0, TXT, USE_A]
+
+
+async def test_thinking_dropped_is_logged_and_counted(
+    provider: Callable[[FakeMessages], AnthropicProvider], caplog: pytest.LogCaptureFixture
+) -> None:
+    from app.obs.metrics import METRICS
+
+    c = METRICS["agent_llm_thinking_dropped_total"]
+    before = c._value.get()  # type: ignore[union-attr]
+    tr = [NS(type="thinking_dropped", path=f"messages.1.content.{i}") for i in (0, 1)]
+    with caplog.at_level(logging.INFO, logger="app.agent.claude"):
+        await gen(provider(FakeMessages([ok(input_transformations=tr)])))
+    assert c._value.get() - before == 2  # type: ignore[union-attr]
+    assert "2" in caplog.text
+
+
+async def test_thinking_tokens_split_from_output(
+    provider: Callable[[FakeMessages], AnthropicProvider],
+) -> None:
+    resp = ok()
+    resp.usage = usage(output_tokens=10, output_tokens_details=NS(thinking_tokens=4))
+    r = await gen(provider(FakeMessages([resp])))
+    assert (r.usage.output_tokens, r.usage.thinking_tokens) == (6, 4)

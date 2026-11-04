@@ -74,6 +74,7 @@ def test_metrics_from_slo_targets() -> None:
         "agent_draft_total",
         "agent_tokens_total",
         "agent_cost_usd_total",
+        "agent_llm_thinking_dropped_total",
         "agent_feedback_total",
     }
     assert set(METRICS) == names

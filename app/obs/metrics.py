@@ -34,6 +34,9 @@ METRICS: dict[str, Counter | Gauge | Histogram] = {
     "agent_first_event_seconds": _h("agent_first_event_seconds", "TTFE", "tools_class"),
     "agent_llm_seconds": _h("agent_llm_seconds", "Latência do LLM"),
     "agent_llm_errors_total": _c("agent_llm_errors_total", "Erros do LLM", "kind"),
+    "agent_llm_thinking_dropped_total": _c(
+        "agent_llm_thinking_dropped_total", "Blocos de raciocínio descartados pela API"
+    ),
     "agent_llm_retries_total": _c("agent_llm_retries_total", "Retries do LLM"),
     "agent_admission_rejected_total": _c(
         "agent_admission_rejected_total", "Admissões recusadas", "reason"
