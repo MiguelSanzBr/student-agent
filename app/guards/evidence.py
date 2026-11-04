@@ -25,15 +25,17 @@ _SA = re.compile(r"SA-\d{4}-\d{6}")
 _REFUSAL = {"dados", "registros", "registro", "informacao", "informacoes", "consigo", "posso",
             "sei", "previsao", "acesso", "disponivel", "encontrei", "localizei"}  # fmt: skip
 _LIGHT = {"tem", "ha", "existe", "existem", "possui", "ter", "mais", "um", "uma", "o", "a", "as",
-          "os", "de", "da", "do", "das", "dos", "qualquer", "pendente", "pendentes", "em",
+          "os", "de", "restou", "resta", "restam", "sobrou", "sobra", "consta", "constam", "apresenta", "da", "do", "das", "dos", "qualquer", "pendente", "pendentes", "em",  # noqa: E501
           "aberto", "nem", "e", "eh", "esta", "ficou", "igual", "total", "atual", "valor", "foi",
           "sera", "com", "para", "nenhum", "nenhuma", "voce", "seu", "sua"}  # fmt: skip
 _FIN_NOUNS = {"fatura", "boleto", "mensalidade", "parcela", "pagamento", "deve", "dever", "devo",
               "devemos", "devem"}  # fmt: skip
 _PROMISE = re.compile(
     r"\b(pode|podem|podemos|posso|poderia|podera|poderao|vai|vamos|sera|serao|tera|terao|"
-    r"consegue|conseguira|ficara|garant\w*|prometo|oferec\w+|concedemos|liberamos|"
-    r"tem direito|possivel|parcele|negocie|pague|solicite|peca)\b"
+    r"consegue|conseguira|consigo|conseguimos|ficara|fica|garant\w*|prometo|oferec\w+|"
+    r"concedemos|concedo|conceder|liberamos|libero|liberar|damos|dou|dar|da para|da pra|"
+    r"e possivel|possivel|ganha|ganhara|estendemos|prorrogamos|perdoamos|isentamos|"
+    r"tem direito|parcele|negocie|pague|solicite|peca)\b"
 )
 _STATUS: Mapping[str, str] = {
     "aprovado": r"aprovad[oa]s?|passou|passei|passamos|passaram",
@@ -49,6 +51,8 @@ _STATUS: Mapping[str, str] = {
     "cancelado": r"cancelad[oa]s?",
     "concluido": r"conclu[ií]d[oa]s?",
     "vigente": r"vigentes?",
+    "vencido": r"vencid[oa]s?",
+    "pendente": r"pendentes?",
 }  # fmt: skip
 _STATUS_RX = {k: re.compile(rf"(?<![a-z0-9])(?:{v})(?![a-z0-9])") for k, v in _STATUS.items()}
 _PASSIVE_OPEN = re.compile(r"(?:foi|foram|sido|sendo|sera|serao)\s+abert[oa]s?")
@@ -108,8 +112,8 @@ def _forms(lemma: str) -> tuple[list[str], list[str]]:
         part = [s + "id" + e for e in ("o", "a", "os", "as")]
         if lemma == "abrir":
             part = ["abert" + e for e in ("o", "a", "os", "as")]
-    if lemma in ("aprovar", "quitar", "pagar"):
-        part = []  # "aprovado"/"quitado"/"pago" são status de registro
+    if lemma in ("aprovar", "quitar", "pagar", "abrir"):
+        part = []  # status de registro ("está aberto") ou tratado à parte (abrir)  # "aprovado"/"quitado"/"pago" são status de registro  # noqa: E501
     return fin, part
 
 
@@ -130,7 +134,8 @@ def _lex(ont: Ontology) -> _Lex:
         rf"(?:estou|estamos)\s+\w+ndo)(?![a-z0-9])"
     )
     aux = r"(?:foi|foram|esta|estao|sido|ficou|ficaram)\s+(?:ja\s+|tambem\s+|devidamente\s+)?"
-    action_participle = re.compile(rf"{b}{aux}(?:{_alt(part)})(?![a-z0-9])" if part else r"(?!x)x")
+    ev = r"(?:foi|foram|sido)\s+(?:ja\s+)?abert[oa]s?" if "abrir" in lemmas else r"(?!x)x"
+    action_participle = re.compile(rf"{b}(?:{aux}(?:{_alt(part)})|{ev})(?![a-z0-9])")
     names = [fold(ont.service(c).name_pt) for c in ont.service_codes()]
     neg = frozenset(_f(lx.negators))
     zero = frozenset(_f(lx.zero_words)) | {"zeromoney"}
@@ -166,6 +171,11 @@ def _pool(texts: Sequence[str]) -> Pool:
     return p
 
 
+def _period_pool(args: Sequence[str]) -> Pool:
+    """Argumentos de ferramenta só sustentam período (AAAA ou AAAA/N), nunca valores."""
+    return {k: v for k, v in _pool(args).items() if k == "period"}
+
+
 def _rec_texts(r: EntityRecord) -> list[str]:
     return [r.id, *r.aliases, *r.fields.values()]
 
@@ -178,9 +188,17 @@ def _sentence_domain(text: str, cited: Sequence[EntityRecord]) -> Domain | None:
     return next((d for d, rx in _KEYWORD_DOMAIN if re.search(rx, f)), None)
 
 
+_STATE_ONLY = ("vencido", "pendente")  # só contam como status depois de "está/ficou"
+_STATE_RX = {
+    k: re.compile(rf"(?:esta|estao|ficou|ficaram)\s+(?:ja\s+)?(?:{_STATUS[k]})(?![a-z0-9])")
+    for k in _STATE_ONLY
+}
+
+
 def _statuses(f: str) -> set[str]:
     f = _PASSIVE_OPEN.sub(" ", f)
-    return {k for k, rx in _STATUS_RX.items() if rx.search(f)}
+    out = {k for k, rx in _STATUS_RX.items() if k not in _STATE_ONLY and rx.search(f)}
+    return out | {k for k, rx in _STATE_RX.items() if rx.search(f)}
 
 
 def _canon_status(value: str) -> str | None:
@@ -189,7 +207,7 @@ def _canon_status(value: str) -> str | None:
 
 
 def _zero_like(v: str) -> bool:
-    return bool(re.fullmatch(r"(?:r\$\s?)?0(?:[.,]0+)?|nao|nenhum|nenhuma|zero|", fold(v).strip()))
+    return bool(re.fullmatch(r"(?:r\$\s?)?0(?:[.,]0+)?|nao|nenhum|nenhuma|zero", fold(v).strip()))
 
 
 @dataclass
@@ -227,18 +245,43 @@ _NOUN_SOURCES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )  # noqa: E501
 
 
-def _empty_backed(c: _Ctx, noun: str, cited: Sequence[EntityRecord]) -> bool:
-    """Ausência sustentada: nenhum registro do tipo e uma chamada do turno que voltou vazia."""
+_NEUTRAL_ARGS = {"enrollment", "enrollment_index", "matricula", "limit", "page", "offset"}
+
+
+def _narrowed_away(args: Mapping[str, str], f: str) -> bool:
+    """Filtro da chamada que a frase não repete: a chamada vazia não fala do que a frase diz."""
+    words = re.findall(r"[a-z0-9/]+", f)
+    for k, v in args.items():
+        fv = fold(v).strip()
+        if k in _NEUTRAL_ARGS or not fv:
+            continue
+        if fv in f or any(w.startswith(fv[: max(4, len(fv) - 2)]) for w in words):
+            continue
+        return True
+    return False
+
+
+def _empty_backed(c: _Ctx, noun: str, cited: Sequence[EntityRecord], f: str) -> bool:
+    """Ausência sustentada: sem contagem no cartão, sem registro do tipo e chamada vazia sem filtro."""  # noqa: E501
     stem = noun.rstrip("s")
-    tool_rx, kinds = next(((t, k) for n, t, k in _NOUN_SOURCES if re.search(n, stem)), (r".", ()))
-    vals = [v for r in cited for v in r.fields.values()]
-    vals += [v for k, v in c.card.items() if stem in fold(k)]
+    tool_rx, kinds = next(((t, k) for n, t, k in _NOUN_SOURCES if re.search(n, stem)), (None, ()))
+    card_vals = [v for k, v in c.card.items() if stem in fold(k)]
+    if any(v.strip() and not _zero_like(v) for v in card_vals):
+        return False  # o cartão diz que existe
+    vals = [v for r in cited for v in r.fields.values()] + card_vals
     of_kind = [r for r in c.records.values() if r.kind in kinds or stem in fold(r.kind)]
     vals += [v for r in of_kind for v in r.fields.values()]
     if any(_zero_like(v) or fold(v) in ("pago", "quitado") for v in vals):
         return True
-    return not of_kind and any(
-        tc.returned_records == 0 and re.search(tool_rx, tc.name) for tc in c.calls
+    return bool(
+        tool_rx
+        and not of_kind
+        and any(
+            tc.returned_records == 0
+            and re.search(tool_rx, tc.name)
+            and not _narrowed_away(tc.args, f)
+            for tc in c.calls
+        )
     )
 
 
@@ -286,6 +329,11 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
         return w if w in nouns else w.rstrip("s")
 
     claims: list[str] = []
+    typed = any(r.fields.get("status") or r.fields.get("resultado") for r in cited)
+    if re.search(r"nada a pagar|nada devendo|nenhum valor (?:a pagar|em aberto)|nada em aberto", f):
+        claims.append("financeiro")
+    if not typed and re.search(r"\bquit(?:ad[oa]s?|es?)\b", f):
+        claims.append("financeiro")
     for i, w in enumerate(words):
         if w in ("em_dia",) or (w in neg and w.startswith("sem_")):
             claims.append("financeiro")
@@ -305,13 +353,19 @@ def _polarity_ok(c: _Ctx, text: str, cited: Sequence[EntityRecord], enrs: set[st
                         break
                     if x not in _LIGHT:
                         break
+    if (
+        not claims
+        and re.search(r"\bzerad[oa]s?\b", f)
+        and re.search(r"conta|financeir|mensalidade|cobranca|situacao", f)
+    ):
+        claims.append("financeiro")
     if not claims or any(x in _REFUSAL for x in words):
         return True
     for noun in claims:
         if noun == "financeiro" or noun in debt or stem(noun) in debt:
             if not _fin_zero(c, sorted(enrs), cited, bool(re.search(r"vencid|atras|inadimpl", f))):
                 return False
-        elif not _empty_backed(c, noun, cited):
+        elif not _empty_backed(c, noun, cited, f):
             return False
     return True
 
@@ -407,6 +461,19 @@ def _check_sentence(c: _Ctx, idx: int, text: str, imported: bool) -> list[Failur
                 fail("status", ",".join(sorted(sts)), r.key)
                 break
 
+    if sts and not cited and not re.search(r"\b(?:nao|nenhum\w*|sem|nada)\b", f):
+        typed_recs = [
+            r for n, _, ks in _NOUN_SOURCES if re.search(n, f)
+            for r in c.records.values() if r.kind in ks
+        ]  # fmt: skip
+        canons = {
+            c2
+            for r in typed_recs
+            if (c2 := _canon_status(r.fields.get("resultado") or r.fields.get("status") or ""))
+        }
+        if canons and not canons & sts:
+            fail("status", ",".join(sorted(sts)), typed_recs[0].key)
+
     if not imported:
         fin, part = c.lex.action_finite.search(masked), c.lex.action_participle.search(masked)
         if part and ("matricula" in f and re.search(r"trancad|cancelad", part[0])):
@@ -424,8 +491,13 @@ def _check_sentence(c: _Ctx, idx: int, text: str, imported: bool) -> list[Failur
         nx = [t.norm for t in toks if t.kind == "nx"]
         if nx:
             conds |= {"parcelamento", *(f"parcelamento {n}x" for n in nx)}
-        if conds and (imported or _PROMISE.search(nm)) and not conds <= c.sources:
-            fail("commitment", ",".join(sorted(conds - c.sources)), ent)
+        missing = conds - c.sources
+        if "desconto" in conds and any(
+            t.kind == "pct" and t.norm not in c.pool.get("pct", set()) for t in toks
+        ):
+            missing.add("desconto pct")  # a fonte vale para o percentual do registro
+        if missing and (imported or _PROMISE.search(nm)):
+            fail("commitment", ",".join(sorted(missing)), ent)
 
     # polaridade ("sem juros" é condição, não polaridade)
     if not _polarity_ok(c, nm.replace("sem juros", " "), cited, enrs):
@@ -455,7 +527,7 @@ def check_evidence(
     texts = [t for r in records_by_entity.values() for t in _rec_texts(r)]
     texts += [*card_facts.values(), *system_notes]
     args = [v for tc in tool_calls_this_turn if tc.returned_records > 0 for v in tc.args.values()]
-    pool = _pool([*texts, *args])
+    pool = _merge(_pool(texts), _period_pool(args))
     sources = set(commitment_sources(records_by_entity.values()))
     if any(
         r.kind == "desconto" and r.fields.get("vigente") == "sim"
@@ -463,7 +535,8 @@ def check_evidence(
     ):
         sources.add("desconto")
     c = _Ctx(records_by_entity, card_facts, enrollment_indices, system_notes, question, pool,
-             _pool([*card_facts.values(), *system_notes, *args]), tool_calls_this_turn,
+             _merge(_pool([*card_facts.values(), *system_notes]), _period_pool(args)),
+             tool_calls_this_turn,
              frozenset(sources), lex, ontology)  # fmt: skip
     failures: list[Failure] = []
     if canary and canary in answer:

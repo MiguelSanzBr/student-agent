@@ -20,6 +20,15 @@ def test_perturbation_dev_recall_fpr():
         s = res[f"oracle/{kind}"]
         assert s.n_block >= 20 and s.recall >= 0.95, (kind, s)
     assert res["oracle"].fpr <= 0.05
+    # catraca por grupo, abaixo do medido na rodada 2 (ver relatório); só sobe
+    floor = {"swap": 0.95, "question": 0.85, "authored:empty": 0.85, "authored:status": 0.85,
+             "authored:leaks": 0.9, "authored:negations": 0.7, "authored:commitments": 0.8,
+             "authored:actions": 0.8, "fixed": 1.0}  # fmt: skip
+    for g, r in floor.items():
+        assert res[g].recall >= r, (g, res[g])
+    for g, f in {"swap": 0.05, "question": 0.25, "authored:empty": 0.1,
+                 "authored:controls": 0.1, "fixed": 0.0}.items():  # fmt: skip
+        assert res[g].fpr <= f, (g, res[g])
 
 
 def test_dev_set_has_every_group_with_enough_distinct_strings():

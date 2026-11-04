@@ -332,3 +332,155 @@ def test_count_from_card_with_cited_record_is_evidence():
         ontology=ONTO,
     )
     assert r.ok, r.failures
+
+
+# --- fix round 2 ---------------------------------------------------------------------------
+def chk_with(answer, *, card, records=None, calls=(), q=""):  # type: ignore[no-untyped-def]
+    return check_evidence(
+        answer,
+        question=q,
+        records_by_entity=records or {},
+        card_facts=card,
+        enrollment_indices=("1",),
+        tool_calls_this_turn=calls,
+        system_notes=(),
+        canary="c" * 32,
+        prompt_prefix=PREFIX,
+        ontology=ONTO,
+    )
+
+
+@pytest.mark.parametrize(
+    "answer,tool,args",
+    [
+        ("Sua média em Algoritmos foi 4,2.", "get_course_results", {"min_media": "4,2"}),
+        ("A fatura 7067951 vence em 08/10/2026.", "list_invoices", {"de": "08/10/2026"}),
+        ("Sua frequência em Algoritmos foi de 80%.", "get_course_results", {"x": "80%"}),
+        ("Você tem 77 faturas vencidas.", "list_invoices", {"n": "77"}),
+        ("O protocolo 20260099 vence.", "get_protocol", {"id": "20260099"}),
+    ],
+)
+def test_tool_args_never_launder_values(answer, tool, args):
+    r = chk(answer, calls=(ToolCallTrace(tool, args, 3),))
+    assert not r.ok, r.failures
+
+
+def test_tool_args_still_support_period():
+    r = chk(
+        "Em 2026/2 você teve 3 acessos.",
+        records=with_(LMS_2026_2),
+        calls=(ToolCallTrace("get_lms_activity", {"period": "2026/2"}, 1),),
+    )
+    assert r.ok, r.failures
+
+
+def test_empty_call_with_narrowing_filter_does_not_sustain_absence():
+    ok = chk_with(
+        "Não há protocolos abertos.",
+        card={},
+        calls=(ToolCallTrace("list_protocols", {"status": "aberto"}, 0),),
+    )
+    assert ok.ok, ok.failures
+    cancelled = chk_with(
+        "Não há protocolos abertos.",
+        card={},
+        calls=(ToolCallTrace("list_protocols", {"status": "cancelado"}, 0),),
+    )
+    assert cancelled.kinds() == {"polarity"}
+    period = chk_with(
+        "Não há protocolos abertos.",
+        card={},
+        calls=(ToolCallTrace("list_protocols", {"period": "2025/1"}, 0),),
+    )
+    assert period.kinds() == {"polarity"}
+
+
+def test_nonzero_card_count_blocks_absence_even_with_empty_call():
+    r = chk_with(
+        "Não há protocolos abertos.",
+        card={"1.protocolos_abertos": "2"},
+        calls=(ToolCallTrace("list_protocols", {"status": "cancelado"}, 0),),
+    )
+    assert r.kinds() == {"polarity"}
+    r = chk_with(
+        "Não há protocolos abertos.",
+        card={"1.protocolos_abertos": "2"},
+        calls=(ToolCallTrace("list_protocols", {}, 0),),
+    )
+    assert r.kinds() == {"polarity"}
+
+
+def test_unmapped_noun_has_no_absence_evidence():
+    r = chk_with("Não há turmas abertas.", card={}, calls=(ToolCallTrace("whatever", {}, 0),))
+    assert r.kinds() == {"polarity"}
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Dá para parcelar em 6x no cartão.",
+        "Vamos conceder um desconto de 15%.",
+        "É possível parcelar em 3x.",
+        "Consigo parcelar em 4x.",
+        "Conseguimos prorrogar o prazo por 10 dias.",
+        "Fica liberado o parcelamento em 5x.",
+        "Vamos dar isenção da multa.",
+        "Vamos liberar desconto de 5%.",
+    ],
+)
+def test_promise_constructions_need_a_source(answer):
+    assert "commitment" in chk(answer).kinds()
+
+
+def test_review_focus_5_installments():
+    assert chk("Sim, pode.", q="posso parcelar em 10x?").kinds() == {"commitment"}
+    assert chk("Dá para parcelar em 10x.").kinds() == {"commitment"}
+    assert chk("Dá para parcelar em 12x.", records=with_(FIN031_ORIENTATION)).ok
+    assert chk("É possível parcelar em 10x.", records=with_(ACTIVE_DEAL)).ok
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Sua conta está zerada.",
+        "Não restou saldo a pagar.",
+        "Nada a pagar.",
+        "Você está quitado.",
+        "Nenhum valor a pagar.",
+    ],
+)
+def test_debt_negation_synonyms_are_financial_polarity(answer):
+    assert chk(answer).kinds() == {"polarity"}
+    assert chk("Na matrícula 2: " + answer).ok
+
+
+def test_participle_status_is_status_not_action():
+    from app.tools.base import EntityRecord
+
+    call = (ToolCallTrace("get_lms_activity", {}, 0),)
+    assert chk_with("Nenhum simulado está aberto.", card={}, calls=call).ok
+    open_f = EntityRecord("fatura", "9000001", ("9000001",), {"status": "aberta"})
+    paid_f = EntityRecord("fatura", "9000001", ("9000001",), {"status": "paga"})
+    late_f = EntityRecord("fatura", "9000001", ("9000001",), {"status": "vencida"})
+    assert chk_with("A fatura está aberta.", card={}, records=index_records((open_f,))).ok
+    assert chk_with("A fatura 9000001 está aberta.", card={}, records=index_records((open_f,))).ok
+    assert chk_with("A fatura está aberta.", card={}, records=index_records((paid_f,))).kinds() == {
+        "status"
+    }
+    assert chk_with("A fatura está vencida.", card={}, records=index_records((late_f,))).ok
+    assert chk_with(
+        "A fatura está vencida.", card={}, records=index_records((open_f,))
+    ).kinds() == {"status"}
+    assert "action" in chk("Seu pedido está registrado.").kinds()
+
+
+def test_leak_before_length_prompt_ngram_variant():
+    long = "Você foi aprovado em Algoritmos. " * 80 + " ".join(PREFIX.split()[:8])
+    assert {"length", "prompt_ngram"} <= chk(long).kinds()
+
+
+def test_zero_like_rejects_empty():
+    from app.guards.evidence import _zero_like
+
+    assert not _zero_like("") and not _zero_like("  ")
+    assert _zero_like("R$ 0,00") and _zero_like("0") and _zero_like("nenhum")

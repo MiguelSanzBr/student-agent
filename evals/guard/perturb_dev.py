@@ -155,13 +155,13 @@ _CONTROLS = [
 # ausência: (frase, ferramenta, registro que a ferramenta devolveria se houvesse)
 _EMPTY = [
     ("Não há boletos em aberto.", "list_invoices",
-     EntityRecord("fatura", "9000001", ("9000001",), {"status": "aberta"})),
+     EntityRecord("fatura", "9100001", ("9100001",), {"status": "aberta"})),
     ("Você não possui acordos vigentes.", "list_agreements",
      EntityRecord("acordo", "AG2026000999", ("AG2026000999",), {"status": "ativo"})),
     ("Não existem provas agendadas.", "get_lms_activity",
      EntityRecord("prova", "P9", ("prova 9",), {"status": "aberto"})),
     ("Nenhuma fatura vencida foi encontrada.", "list_invoices",
-     EntityRecord("fatura", "9000002", ("9000002",), {"status": "vencida"})),
+     EntityRecord("fatura", "9100002", ("9100002",), {"status": "vencida"})),
     ("Não há bolsas ativas para você.", "get_financial_summary",
      EntityRecord("desconto", "D9", ("bolsa",), {"vigente": "sim"})),
     ("Você não tem disciplinas reprovadas.", "list_course_results",

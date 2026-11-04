@@ -8,14 +8,14 @@ from app.tools.base import EntityRecord
 Condition = str
 
 _LEXICON = (
-    (re.compile(r"parcel", re.I), "parcelamento"),
+    (re.compile(r"parcel|dividi", re.I), "parcelamento"),
     (re.compile(r"desconto", re.I), "desconto"),
-    (re.compile(r"isen[cç]", re.I), "isenção"),
-    (re.compile(r"perd[aã]o", re.I), "perdão"),
-    (re.compile(r"prorroga", re.I), "prorrogação"),
+    (re.compile(r"isen[cçt]", re.I), "isenção"),
+    (re.compile(r"perd[aãoõ]", re.I), "perdão"),
+    (re.compile(r"prorrog|(?:estend|ampli|dilat)\w*\s+(?:o\s+)?prazo", re.I), "prorrogação"),
     (re.compile(r"sem juros", re.I), "sem juros"),
 )
-_NX = re.compile(r"\b(\d{1,2})\s*x\b", re.I)
+_NX = re.compile(r"\b(\d{1,2})\s*(?:x\b|parcelas|vezes)", re.I)
 
 
 def conditions_in(text: str) -> set[Condition]:
