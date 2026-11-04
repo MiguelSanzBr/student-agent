@@ -1,0 +1,175 @@
+import asyncio
+import re
+from collections import deque
+from collections.abc import Callable, Sequence
+from typing import Any, Literal
+
+from google import genai
+from google.genai import errors, types
+
+from app.agent.llm import LLMResponse, LLMUnavailable, Message, ToolCall, Usage
+from app.config import AppSettings
+from app.tools.base import ToolSpec
+from core.clock import monotonic
+
+THINKING_LEVEL = "MINIMAL"  # nível do portão (spec §6.5); medição real pendente: sem GEMINI_API_KEY
+MAX_OUTPUT_TOKENS = 2048  # resposta ≤ 2000 caracteres + raciocínio mínimo; a confirmar no spike
+RETRY_FRACTION, RETRY_FLOOR_PER_MIN = 0.10, 3
+BACKOFF_S = 0.3  # sem RetryInfo
+MIN_CALL_S = 0.5  # sobra mínima para valer a pena uma nova tentativa
+
+
+async def _sleep(s: float) -> None:
+    await asyncio.sleep(s)
+
+
+def _default_client(settings: AppSettings) -> genai.Client:
+    http = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1))
+    if settings.llm_backend == "vertex":
+        return genai.Client(
+            vertexai=True, project=settings.gcp_project, location=settings.gcp_location,
+            http_options=http,
+        )  # fmt: skip
+    return genai.Client(api_key=settings.gemini_api_key, http_options=http)
+
+
+def _retry_info_s(e: errors.APIError) -> float | None:
+    body = e.details if isinstance(e.details, dict) else {}
+    for d in (body.get("error") or body).get("details", []):
+        if str(d.get("@type", "")).endswith("RetryInfo"):
+            m = re.fullmatch(r"([\d.]+)s", str(d.get("retryDelay", "")))
+            return float(m.group(1)) if m else None
+    return None
+
+
+def _contents(messages: Sequence[Message], model: str) -> list[types.Content]:
+    out: list[types.Content] = []
+
+    def add(role: str, part: types.Part) -> None:
+        if out and out[-1].role == role and role == "user":  # respostas de ferramenta em paralelo
+            assert out[-1].parts is not None
+            out[-1].parts.append(part)
+        else:
+            out.append(types.Content(role=role, parts=[part]))
+
+    for m in messages:
+        keep = m.model == model  # assinatura de outro modelo é descartada
+        if m.role == "user":
+            add("user", types.Part(text=m.text or ""))
+        elif m.role == "system_note":
+            add("user", types.Part(text=f"[nota do sistema] {m.text}"))
+        elif m.role == "tool":
+            add("user", types.Part.from_function_response(
+                name=m.tool_name or "", response=dict(m.tool_result or {})))  # fmt: skip
+        else:
+            if m.text:
+                out.append(
+                    types.Content(
+                        role="model",
+                        parts=[
+                            types.Part(
+                                text=m.text, thought_signature=m.provider_meta if keep else None
+                            )
+                        ],
+                    )
+                )
+            for c in m.tool_calls:
+                out.append(types.Content(role="model", parts=[types.Part(
+                    function_call=types.FunctionCall(name=c.name, args=dict(c.args)),
+                    thought_signature=c.provider_meta if keep else None)]))  # fmt: skip
+    return out
+
+
+def _parse(resp: Any, model: str) -> LLMResponse:
+    cand = resp.candidates[0] if resp.candidates else None
+    text: list[str] = []
+    calls: list[ToolCall] = []
+    meta: bytes | None = None
+    for p in (cand.content.parts or []) if cand and cand.content else []:
+        if p.function_call:
+            fc = p.function_call
+            calls.append(ToolCall(fc.id or f"call_{len(calls)}", fc.name or "",
+                                  dict(fc.args or {}), p.thought_signature))  # fmt: skip
+        elif p.text and not p.thought:
+            text.append(p.text)
+            meta = p.thought_signature or meta
+    u = resp.usage_metadata
+    usage = Usage(
+        input_tokens=(u.prompt_token_count or 0) if u else 0,
+        output_tokens=(u.candidates_token_count or 0) if u else 0,
+        thinking_tokens=(u.thoughts_token_count or 0) if u else 0,
+        cached_tokens=(u.cached_content_token_count or 0) if u else 0,
+    )
+    fr = cand.finish_reason if cand else None
+    return LLMResponse(
+        "".join(text) or None, tuple(calls), usage, model,
+        getattr(fr, "name", None) or str(fr or "STOP"), meta,
+    )  # fmt: skip
+
+
+class GeminiProvider:
+    """Sem semáforo nem fila por chamada: a admissão é do balde global e da vaga por turno."""
+
+    def __init__(
+        self, settings: AppSettings, *, client_factory: Callable[[], genai.Client] | None = None
+    ) -> None:
+        self._client = (client_factory or (lambda: _default_client(settings)))()
+        self._calls: deque[float] = deque()
+        self._retries: deque[float] = deque()
+
+    def _may_retry(self, now: float) -> bool:
+        for q in (self._calls, self._retries):
+            while q and now - q[0] > 60:
+                q.popleft()
+        return len(self._retries) < max(RETRY_FLOOR_PER_MIN, RETRY_FRACTION * len(self._calls))
+
+    async def generate(
+        self, *, model: str, system: str, messages: Sequence[Message],
+        tools: Sequence[ToolSpec], deadline: float,
+    ) -> LLMResponse:  # fmt: skip
+        contents = _contents(messages, model)
+        decls = [types.FunctionDeclaration(name=t.name, description=t.description,
+                                           parameters_json_schema=dict(t.parameters))
+                 for t in tools]  # fmt: skip
+        retried = False
+        while True:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                raise LLMUnavailable("timeout")
+            cfg = types.GenerateContentConfig(
+                system_instruction=system,
+                tools=[types.Tool(function_declarations=decls)] if decls else None,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
+                max_output_tokens=MAX_OUTPUT_TOKENS,
+                http_options=types.HttpOptions(
+                    timeout=int(remaining * 1000),
+                    retry_options=types.HttpRetryOptions(attempts=1),
+                ),
+            )  # fmt: skip
+            if not retried:  # o teto de 10% é sobre chamadas, não sobre tentativas
+                self._calls.append(monotonic())
+            try:
+                resp = await self._client.aio.models.generate_content(
+                    model=model, contents=contents, config=cfg
+                )
+                return _parse(resp, model)
+            except errors.APIError as e:
+                code = e.code
+                if code != 429 and not 500 <= code < 600:
+                    raise
+                reason: Literal["quota", "server"] = "quota" if code == 429 else "server"
+                delay = _retry_info_s(e) if code == 429 else None
+                delay = BACKOFF_S if delay is None else delay
+                now = monotonic()
+                if retried or deadline - now < delay + MIN_CALL_S or not self._may_retry(now):
+                    raise LLMUnavailable(reason) from e
+                retried = True
+                self._retries.append(now)
+                await _sleep(delay)
+            except TimeoutError as e:
+                raise LLMUnavailable("timeout") from e
+            except Exception as e:  # httpx.TimeoutException e afins
+                if "Timeout" in type(e).__name__:
+                    raise LLMUnavailable("timeout") from e
+                raise
