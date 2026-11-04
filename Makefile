@@ -71,7 +71,7 @@ load-test:  # escadas (a) e (b) do loadgen; rodar sozinho na máquina (docs/evid
 	uv run python -m evals.latency.load_test
 
 EVAL_DC = docker compose -f docker-compose.yml -f ops/compose.eval.yml --profile eval
-RT = $(EVAL_DC) run --rm redteam python -m evals.redteam
+RT = $(EVAL_DC) run --rm --build redteam python -m evals.redteam
 # Ataques (Task 32): ETL do banco real, banco plantado em api-redteam, ataques diretos à API (alunos
 # 3 e 4) e a suíte de desenvolvimento (alunos 1 e 2, 2 repetições). Exige SPEND_TODAY e RPD_LEFT
 # (US$ já gastos hoje e requisições restantes do modelo; preflight). RT_ARGS=--label rerun nas

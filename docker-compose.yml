@@ -79,7 +79,7 @@ services:
     profiles: [etl]
     command: ["python", "-m", "etl"]
     volumes:
-      - ${DATA_DIR:-./data}:/data:ro  # make smoke aponta para a fixture
+      - ${DATA_SRC:-./data/dados.zip}:/data/${DATA_NAME:-dados.zip}:ro  # só o dado, nunca ./data; make smoke aponta para a fixture
       - secrets-etl:/run/secrets/etl:ro
       - etl-out:/out
       - eval-out:/eval-out

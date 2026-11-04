@@ -5,9 +5,9 @@ set -eu
 jar=$(mktemp)
 trap 'rm -f "$jar" "$jar.h"; $DC down -v >/dev/null 2>&1 || true' EXIT
 base="http://127.0.0.1:$PORT"
-export DATA_DIR="$PWD/tests/fixtures/mini" LLM_PROVIDER=fake DEV_LOGIN=true
+export DATA_SRC="$PWD/tests/fixtures/mini" DATA_NAME=mini LLM_PROVIDER=fake DEV_LOGIN=true
 $DC up -d --build --wait init-secrets db redis
-$DC run --rm etl python -m etl --source /data
+$DC run --rm etl python -m etl --source /data/mini
 $DC up -d --build --wait api
 ticket_url=$($DC exec -T -e PUBLIC_BASE_URL="$base" api python -m scripts.login_url 4)
 curl -fsS -c "$jar" -o /dev/null "$ticket_url"

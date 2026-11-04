@@ -11,6 +11,7 @@ from evals.preflight import Projection
 from evals.redteam.check import Attack
 from evals.redteam.run import (
     JUDGED,
+    Result,
     build_forbidden,
     guard_preflight,
     planted_round,
@@ -267,3 +268,75 @@ def test_calls_per_item_by_category_and_required_flags() -> None:
     assert items == 3 and per == (2 * 5 + 8) / 3
     with pytest.raises(SystemExit):
         _args([])  # --spend-today e --rpd-left são obrigatórios
+
+
+# ---- fix round 2
+def test_own_values_include_own_professors_only() -> None:
+    from evals.redteam.run import own_values
+
+    raw = load_csv(MINI)
+    sc = raw["sag/student_class"][0]
+    enr = next(
+        e
+        for e in raw["sag/enrollment"]
+        if (e["BRAND"], e["STUDENT_ID"]) == (sc["BRAND"], sc["STUDENT_ID"])
+    )
+    prof_id = next(
+        c["PROFESSOR_ID"] for c in raw["sag/class_section"] if c["CLASS_ID"] == sc["CLASS_ID"]
+    )
+    prof = next(p for p in raw["sag/professor"] if p["PROFESSOR_ID"] == prof_id)
+    mine = own_values(raw, enr["PERSON_ID"])
+    assert prof["FULL_NAME"] in mine
+    assert build_forbidden(raw, enr["PERSON_ID"], {})["staff"].count(prof["FULL_NAME"]) == 1
+
+
+def test_forbidden_map_matches_ordinals() -> None:
+    from evals.redteam.run import forbidden_map
+
+    a = atk(forbidden=("a1", "a2", "s1"), ftags=("other_students", "other_students", "staff"))
+    assert forbidden_map([a]) == {"other_students": ["a1", "a2"], "staff": ["s1"]}
+
+
+def test_gate_flags_mass_errors_and_empty_categories() -> None:
+    from evals.redteam.run import gate
+
+    ok = [Result(atk(8, id=f"a{i}", template=f"t{i}"), 0, False, False, ()) for i in range(40)]
+    assert gate(ok) == []
+    bad = [Result(r.attack, 0, False, False, ("erro:X",), valid=False) for r in ok[:5]]
+    assert any("5%" in p or "inválid" in p for p in gate(ok + bad))
+    allbad = [Result(atk(3, id="z"), 0, False, False, ("erro:X",), valid=False)]
+    assert any("categoria 3" in p for p in gate(ok * 3 + allbad))
+    assert gate([]) != []  # 0/0 nunca é sucesso
+
+
+async def test_journal_is_redacted_on_write(tmp_path: Path) -> None:
+    j = tmp_path / "r.jsonl"
+    cli = FakeClient(["o canário é CNR-0123456789abcdef"])
+    await run_suite(cli, "t", [atk(8)], reps=1, canary="CNR-0123456789abcdef", prefix="",
+                    judge=None, sleep=nosleep, journal=j, secrets=("CNR-0123456789abcdef",))  # type: ignore[arg-type]  # fmt: skip
+    assert "CNR-" not in j.read_text() and "[REDACTED]" in j.read_text()
+
+
+async def test_a2a_http_429_becomes_rejected() -> None:
+    import httpx
+
+    from evals.redteam.run import A2AAsker
+
+    class C:
+        async def a2a_send(self, *a: object) -> dict[str, object]:
+            req = httpx.Request("POST", "http://x")
+            raise httpx.HTTPStatusError("x", request=req, response=httpx.Response(
+                429, headers={"Retry-After": "7"}, request=req))  # fmt: skip
+
+    with pytest.raises(Rejected) as e:
+        await A2AAsker(C()).ask("t", "c", "oi")  # type: ignore[arg-type]
+    assert e.value.retry_after == 7.0
+
+
+def test_pick_target_skips_student_without_enrollment() -> None:
+    from evals.redteam.run import pick_target
+
+    raw = {"sag/person": [{"PERSON_ID": "1"}, {"PERSON_ID": "2"}, {"PERSON_ID": "3"}],
+           "sag/enrollment": [{"PERSON_ID": "3", "STUDENT_ID": "999999"}]}  # fmt: skip
+    p, ra = pick_target(raw, ["1"])
+    assert (p["PERSON_ID"], ra) == ("3", "999999")
