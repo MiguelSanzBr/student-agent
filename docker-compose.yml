@@ -74,7 +74,7 @@ services:
       init-secrets: {condition: service_completed_successfully}
 
   etl:  # one-shot (Task 5): `docker compose run --rm etl`
-    build: .
+    build: {context: ., target: etl}
     user: "10001:10001"
     profiles: [etl]
     command: ["python", "-m", "etl"]
