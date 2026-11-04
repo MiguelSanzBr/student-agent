@@ -105,3 +105,14 @@ def loaded_db(db: Db, tmp_path: Path) -> Loaded:
         oracle_raw=oracle.load_csv(MINI), golden=GOLDEN,
     )  # fmt: skip
     return Loaded(db, report, out, eval_out, MINI)
+
+
+@pytest.fixture
+def harness(loaded_db: Loaded) -> Iterator["Harness"]:  # noqa: F821
+    from tests.adversarial import Harness
+
+    h = Harness(loaded_db.db, loaded_db.out)
+    try:
+        yield h
+    finally:
+        h.close()

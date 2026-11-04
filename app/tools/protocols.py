@@ -32,6 +32,7 @@ from app.tools.base import (
     resolve_enrollment,
     schema,
     service_record,
+    validate_args,
 )
 from core.format import fmt_brl, fmt_date, fmt_instant
 from core.normalize import SP
@@ -42,6 +43,11 @@ WARNING = "Confira os dados: o pedido só é aberto depois que você clicar em C
 _PREFER = {"DOC-040": "GRADUATED", "DOC-041": "GRADUATED", "ACA-011": "LOCKED"}
 _BY_SUBJECT = {"ACA-020", "ACA-021"}
 _ROLE = {"responsavel": "responsável"}
+
+
+def _args(name: str, args: Mapping[str, Any]) -> dict[str, Any]:
+    """Valida contra o schema da própria ferramenta (campo ausente ou fora do enum = recusa)."""
+    return validate_args(next(t.spec for t in TOOLS if t.spec.name == name), args)
 
 
 def _brt(dt: datetime) -> date:
@@ -83,6 +89,7 @@ def _sa(r: tuple[Any, ...]) -> dict[str, str]:
 
 
 async def _list(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+    args = _args("list_protocols", args)
     async with ctx.db() as conn:
         rows = [_secretary(r) for r in await q.list_secretary(conn)]
         rows += [_sa(r) for r in await q.list_sa(conn)]
@@ -102,7 +109,7 @@ async def _list(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
 
 
 async def _get(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
-    numero = str(args["numero"])
+    numero = str(_args("get_protocol", args)["numero"])
     onto = default_ontology()
     async with ctx.db() as conn:
         if numero.startswith("SA-"):
@@ -192,6 +199,7 @@ def _refusal(motivo: str, alt: str | None = None) -> ToolOutput:
 
 
 async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
+    args = _args("draft_protocol", args)
     code, onto = str(args["service_code"]), default_ontology()
     try:
         svc = onto.service(code)
