@@ -51,9 +51,14 @@ lint:
 
 check: lint test
 
-smoke a2a-demo investigate phoenix-import eval-dev eval-test eval-guard eval-security \
+a2a-demo investigate phoenix-import eval-dev eval-test eval-guard eval-security \
 eval-latency load-test package:
 	$(NOT_YET)
+
+smoke:  # make smoke LANE=x, em série; sobe a raia e a derruba ao fim
+	@test -n "$(call lv,API_PORT)" || { echo "use LANE=a|b|c|d" >&2; exit 1; }
+	$(LANE_ENV) DC='docker compose -f docker-compose.yml -f ops/compose.lane.yml' \
+		PORT=$(call lv,API_PORT) sh scripts/smoke.sh
 
 login:
 	@test -n "$(CASE)" || { echo "use CASE=4" >&2; exit 1; }

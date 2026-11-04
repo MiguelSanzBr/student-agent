@@ -4,10 +4,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import ValidationError
 
+from app.agent import make_llm
 from app.api import ROUTERS
 from app.config import AppSettings
 from app.data.db import Pool, assert_safe_role, create_pool
 from app.infra.redis import RealRedis
+from app.service.turn import DefaultTurnService
 
 
 async def startup_checks(pool: Pool, redis: RealRedis) -> None:
@@ -32,6 +34,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await pool.open(wait=True)
         await startup_checks(pool, redis)
         app.state.settings, app.state.pool, app.state.redis = settings, pool, redis
+        app.state.turns = DefaultTurnService(settings, pool, redis, make_llm(settings))
         yield
     finally:
         await redis.aclose()

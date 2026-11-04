@@ -12,9 +12,9 @@ def make_llm(settings: AppSettings) -> LLMProvider:
 
             return GeminiProvider(settings)
         case "fake":
-            from app.agent.fakes import ScriptedLLM
+            from app.agent.fakes import SmokeLLM
 
-            return ScriptedLLM([])
+            return SmokeLLM()
         case "replay":
             from app.agent.replay import DEFAULT_REPLAY, ReplayLLM
 

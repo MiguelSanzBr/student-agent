@@ -11,12 +11,11 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache
-from itertools import islice, product
 
 from app.config import load_slo_targets
 from app.guards.fallback import domain_of
 from app.guards.sentences import split_sentences
-from app.guards.tokens import Tok, tokenize
+from app.guards.tokens import tokenize
 from app.guards.types import Failure, FailureKind, GuardResult
 from app.rules.commitments import commitment_sources, conditions_in
 from app.tools.base import Domain, EntityRecord, ToolCallTrace, find_entity
@@ -444,19 +443,18 @@ def _check_sentence(c: _Ctx, idx: int, text: str, imported: bool) -> list[Failur
     def fail(kind: FailureKind, token: str, entity: str | None = None) -> None:
         out.append(Failure(kind, idx, token, entity))
 
-    # menções de entidade, com o trecho casado (registros no mesmo trecho são alternativas)
+    # menções de entidade
     cited: list[EntityRecord] = []
-    spans: list[list[tuple[int, int]]] = []
     for r in c.records.values():
         names = [
             *r.aliases,
             *([r.id] if len(r.id) >= 4 and any(ch.isdigit() for ch in r.id) else []),
         ]
-        hits = [m.span() for a in names
-                for m in re.finditer(rf"(?<!\w){re.escape(fold(a))}(?!\w)", f)]  # fmt: skip
-        if hits and r not in cited:
+        if (
+            any(re.search(rf"(?<!\w){re.escape(fold(a))}(?!\w)", f) for a in names)
+            and r not in cited
+        ):
             cited.append(r)
-            spans.append(hits)
     enrs = {t.norm for t in toks if t.kind == "enr"}
     for n in sorted(enrs - set(c.enrollments)):
         fail("entity_without_record", f"matrícula {n}")
@@ -465,51 +463,6 @@ def _check_sentence(c: _Ctx, idx: int, text: str, imported: bool) -> list[Failur
             fold(a) == m[0] for r in cited for a in r.aliases
         ):
             fail("entity_without_record", text[m.start() : m.end()])
-    # vale a escolha de registros que sustenta tudo; senão, a que tem menos falhas
-    tries = [_claims(c, idx, text, f, toks, enrs, imported, alt)
-             for alt in _anchors(cited, spans, f, toks)]  # fmt: skip
-    return out + min(tries, key=len)
-
-
-def _anchors(
-    cited: Sequence[EntityRecord], spans: Sequence[Sequence[tuple[int, int]]], f: str,
-    toks: Sequence[Tok],
-) -> list[list[tuple[EntityRecord, bool]]]:  # fmt: skip
-    """Uma escolha de registro por trecho citado; (registro, veio de colisão de alias)."""
-
-    def overlap(i: int, j: int) -> bool:
-        return any(s1 < e2 and s2 < e1 for s1, e1 in spans[i] for s2, e2 in spans[j])
-
-    groups: list[list[int]] = []
-    for i in range(len(spans)):
-        hit = [g for g in groups if any(overlap(i, j) for j in g)]
-        groups = [g for g in groups if g not in hit] + [sorted([i, *(x for g in hit for x in g)])]
-    keys = [t.norm for t in toks if t.kind == "period"]
-    keys += [f"matricula {t.norm}" for t in toks if t.kind == "enr"]
-    keys += ["catalogo"] if re.search(r"\bcatalogo\b", f) else []
-    options: list[list[tuple[EntityRecord, bool]]] = []
-    for g in sorted(groups):
-        amb, pick = len(g) > 1, g
-        for k in keys:  # desambiguador ("2024/1", "matrícula 2", "catálogo") restringe o trecho
-            rx = rf"(?<![\w/]){re.escape(k)}(?![\w/])"
-            sub = [i for i in pick if re.search(rx, fold(" ".join(_rec_texts(cited[i]))))]
-            pick = sub if sub else pick
-        options.append([(cited[i], amb) for i in pick])
-    # shortcut: até 64 combinações (frase com muitas colisões); além disso bloqueia, nunca libera
-    return [list(x) for x in islice(product(*options), 64)]
-
-
-def _claims(
-    c: _Ctx, idx: int, text: str, f: str, toks: Sequence[Tok], enrs: set[str], imported: bool,
-    alt: Sequence[tuple[EntityRecord, bool]],
-) -> list[Failure]:  # fmt: skip
-    """Afirmações da frase contra uma escolha de registros citados."""
-    cited = [r for r, _ in alt]
-    out: list[Failure] = []
-
-    def fail(kind: FailureKind, token: str, entity: str | None = None) -> None:
-        out.append(Failure(kind, idx, token, entity))
-
     ent = cited[0].key if cited else None
     masked = c.lex.service_rx.sub(lambda m: " " * len(m[0]), f)
 
@@ -566,9 +519,9 @@ def _claims(
     # status no registro citado
     sts = _statuses(masked)
     if sts:
-        for r, amb in alt:
+        for r in cited:
             canon = _canon_status(r.fields.get("resultado") or r.fields.get("status") or "")
-            if (canon and canon not in sts) or (amb and not canon):  # colisão: tem que sustentar
+            if canon and canon not in sts:
                 fail("status", ",".join(sorted(sts)), r.key)
                 break
 
