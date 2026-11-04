@@ -54,7 +54,12 @@ def _real_evidence(d: Path) -> None:
     from evals.redteam.run import summarize as redteam
     from evals.stats import wilson
 
-    for tag, split in (("dev-r1", "dev"), ("dev-r2", "dev"), ("test-r1", "test")):
+    for tag, split in (
+        ("dev-r1", "dev"),
+        ("dev-r2", "dev"),
+        ("dev-r3", "dev"),
+        ("test-r1", "test"),
+    ):
         outs = [
             Outcome(
                 f"t{n}@s{n % 4}",
@@ -85,7 +90,14 @@ def _real_evidence(d: Path) -> None:
         "holdout": {"behavior": redteam(rs, random.Random(0))["behavior"]}
     }
     (d / "security.json").write_text(json.dumps(sec))
-    g = {"blind": {"recall": _d(wilson(8, 10)), "false_block": _w(0, 10)}}
+    weak = {t: {"k": 0, "n": 10} for t in ("status_word", "flip_negation")}
+    g = {
+        "blind": {
+            "recall": _d(wilson(8, 10)),
+            "false_block": _w(0, 10),
+            "recall_by_template": weak,
+        }
+    }
     (d / "quality" / "guard").mkdir()  # `make eval-guard`: EVIDENCE_DIR=docs/evidence/quality
     (d / "quality" / "guard" / "guard.json").write_text(json.dumps(g))
     xs = [
