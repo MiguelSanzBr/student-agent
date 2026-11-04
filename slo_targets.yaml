@@ -50,6 +50,7 @@ limits:  # plano, Global Constraints (Limites); perfil escolhido por LIMITS_PROF
     degrade_rounds: 2
   eval:  # sem degradação por custo; o teto duro aborta a rodada
     <<: *limits_default
+    tokens_per_day: 5000000  # alunos sintéticos fazem dezenas de turnos/dia; o teto de gasto protege
     global_ceiling_usd: 40
     degrade_at: null
   load:  # só no teste de carga (LLM_PROVIDER=loadtest): sem limite por aluno, para medir o balde e as vagas
