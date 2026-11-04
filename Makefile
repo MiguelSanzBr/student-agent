@@ -78,8 +78,8 @@ eval-guard:  # cego medido 1x (semente pré-registrada); ARGS="--dev-transcripts
 	$(EVAL_DC) build evals
 	$(EVALS) evals.guard.run $(ARGS)
 
-package:
-	$(NOT_YET)
+package:  # MODE=a|b (ver scripts/package.sh)
+	@bash scripts/package.sh
 
 eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] [MODEL=gemini-3.8-flash]
 	@test -n "$(WINDOW)" || { echo "use WINDOW=A|B|C" >&2; exit 1; }

@@ -21,3 +21,4 @@ __pycache__/
 docs/evidence/quality/**/transcripts.jsonl
 docs/evidence/quality/**/scorer_validation.csv
 docs/evidence/quality/**/conversations.md
+dist/
