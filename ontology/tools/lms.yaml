@@ -7,4 +7,4 @@ tools:
       simulados_com_tentativa_restante, pendentes, tentativas_nao_oficiais, aviso_tentativas,
       proxima_avaliacao, mensagem_proxima_avaliacao, provas, total_provas, data, tipo, fonte,
       disciplina, situacao, janela_inicio, janela_fim, tentativas, tentativas_permitidas,
-      vale_nota, acessos, proxima_data, proxima_tipo, proxima_fonte, desde]
+      vale_nota, aviso_limite, acessos, proxima_data, proxima_tipo, proxima_fonte, desde]

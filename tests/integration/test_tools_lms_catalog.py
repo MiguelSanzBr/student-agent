@@ -150,12 +150,13 @@ async def test_no_lms_account(make_ctx: Any, loaded_db: Loaded) -> None:
     assert "acessos_no_periodo" not in out.data and "simulados_abertos" not in out.data
 
 
-async def test_lms_before_coverage(make_ctx: Any) -> None:
+async def test_lms_before_coverage(make_ctx: Any, raw: o.Raw) -> None:
     out = await _lms(await make_ctx(1), period="2022")
     assert "Não há dados do AVA antes de 15/01/2023." in json.dumps(out.data, ensure_ascii=False)
     assert "acessos_no_periodo" not in out.data  # nunca "0"
     cob = _fact(out, "cobertura")
     assert [(r.id, r.fields["desde"]) for r in cob] == [("lms", "15/01/2023")]
+    assert cob[0].fields["desde"] == o.oracle_coverage(raw)["desde"]["lms"]
     assert cob[0].aliases == ("AVA", "LMS")
 
 
@@ -348,3 +349,113 @@ async def test_catalog_unknown_kind(make_ctx: Any) -> None:
 
     with pytest.raises(ToolError):
         await _cat(await make_ctx(1), "segredos")
+
+
+# ----------------------------------------------------------------------------- fix round 1
+@pytest.mark.parametrize(
+    "args",
+    [{"period": 2026}, {"enrollment": "9"}, {"enrollment": 1}, {"extra": "x"}],
+)
+async def test_lms_bad_args_tool_error(make_ctx: Any, args: dict[str, Any]) -> None:
+    from app.tools.base import ToolError
+
+    with pytest.raises(ToolError) as e:
+        await lms.TOOLS[0].handler(await make_ctx(1), args)
+    assert e.value.code == "ARGUMENTO_INVALIDO"
+
+
+@pytest.mark.parametrize(
+    "args",
+    [{}, {"kind": "preco", "modality": "hibrido"}, {"kind": "curso", "query": 5},
+     {"kind": ["curso"]}, {"kind": "curso", "enrollment": "7"}],
+)  # fmt: skip
+async def test_catalog_bad_args_tool_error(make_ctx: Any, args: dict[str, Any]) -> None:
+    from app.tools.base import ToolError
+
+    with pytest.raises(ToolError) as e:
+        await catalog.TOOLS[0].handler(await make_ctx(1), args)
+    assert e.value.code == "ARGUMENTO_INVALIDO"
+
+
+@pytest.mark.parametrize("period", ["2022", "2027/1"])  # antes da cobertura | sem login
+async def test_lms_record_never_zero_accesses(make_ctx: Any, period: str) -> None:
+    out = await _lms(await make_ctx(1), period=period)
+    assert "acessos_no_periodo" not in out.data and out.data["mensagem_acessos"]
+    assert "acessos" not in _fact(out, "lms")[0].fields
+
+
+async def test_lms_nullable_columns(make_ctx: Any, loaded_db: Loaded) -> None:
+    from app.tools.base import find_entity, index_records
+
+    ctx = await make_ctx(2)
+    ek = ctx.scope.enrollments[0].enrollment_key
+    base = await _lms(ctx)
+    with loaded_db.db.connect("postgres") as c:
+        c.execute(  # type: ignore[call-overload]
+            "UPDATE canon.lms_quiz SET subject_name_pt = NULL WHERE enrollment_key = %s"
+            " AND quiz_id IN (SELECT quiz_id FROM canon.lms_quiz WHERE enrollment_key = %s"
+            " ORDER BY quiz_id LIMIT 3)", (ek, ek),
+        )  # fmt: skip
+        c.execute(  # type: ignore[call-overload]
+            "UPDATE canon.lms_quiz SET opens_at = NULL WHERE enrollment_key = %s AND quiz_id ="
+            " (SELECT max(quiz_id) FROM canon.lms_quiz WHERE enrollment_key = %s)", (ek, ek),
+        )  # fmt: skip
+        c.execute(  # type: ignore[call-overload]
+            "UPDATE canon.lms_quiz SET closes_at = NULL WHERE enrollment_key = %s AND quiz_id ="
+            " (SELECT min(quiz_id) FROM canon.lms_quiz WHERE enrollment_key = %s)", (ek, ek),
+        )  # fmt: skip
+    out = await _lms(ctx)
+    assert out.data["total_provas"] == base.data["total_provas"] - 2  # datas nulas: ignoradas
+    assert all(isinstance(a, str) and a for r in out.records for a in r.aliases)
+    idx = index_records(out.records)
+    for p in out.data["provas"]:
+        assert find_entity(idx, p["disciplina"]) is not None
+
+
+async def test_lms_truncation_warning(make_ctx: Any) -> None:
+    out = await _lms(await make_ctx(2))
+    assert out.data["total_provas"] > 20 and len(out.data["provas"]) == 20
+    assert (
+        "20" in out.data["aviso_limite"]
+        and str(out.data["total_provas"]) in out.data["aviso_limite"]
+    )
+
+
+async def test_catalog_truncation_warning(make_ctx: Any) -> None:
+    out = await _cat(await make_ctx(1), "disciplina")
+    assert out.data["total"] > 20 and len(out.data["disciplinas"]) == 20
+    assert str(out.data["total"]) in out.data["aviso_limite"]
+    small = await _cat(await make_ctx(1), "disciplina", query="calculo")
+    assert "aviso_limite" not in small.data
+
+
+async def test_offered_course_without_price_row(make_ctx: Any, loaded_db: Loaded) -> None:
+    ctx = await make_ctx(1)
+    ok = await _cat(ctx, "preco")
+    acr = ok.data["precos"][0]["sigla"]
+    with loaded_db.db.connect("postgres") as c:
+        c.execute(  # type: ignore[call-overload]
+            "DELETE FROM canon.price WHERE brand_family = 'UniSaoPaulo' AND modality = 'CAMPUS'"
+            " AND course_id = (SELECT course_id FROM canon.course WHERE acronym = %s)", (acr,),
+        )  # fmt: skip
+    out = await _cat(ctx, "preco")
+    row = next(r for r in out.data["precos"] if r["sigla"] == acr)
+    assert row["oferta"] == "oferecido" and "mensalidade" not in row
+    assert "Preço não disponível" in row["mensagem_preco"]
+    rec = next(r for r in _fact(out, "curso") if r.id == acr)
+    assert rec.fields["preco"] == "indisponível"
+
+
+_KIND_KEY = {"curso": "cursos", "grade": "disciplinas", "disciplina": "disciplinas",
+             "calendario": "periodos", "unidade": "unidades", "servico": "servicos",
+             "preco": "precos"}  # fmt: skip
+
+
+@pytest.mark.parametrize("kind", list(_KIND_KEY))
+async def test_every_kind_has_populated_list(make_ctx: Any, kind: str) -> None:
+    out = await _cat(await make_ctx(1), kind)
+    items = out.data[_KIND_KEY[kind]]
+    assert items and out.data["total"] >= len(items) and out.data["marca"] == "Uni São Paulo"
+    assert "mensagem" not in out.data
+    if kind != "unidade":
+        assert out.records

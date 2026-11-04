@@ -16,6 +16,7 @@ from app.tools.base import (
     ToolSpec,
     resolve_enrollment,
     schema,
+    validate_args,
 )
 from core.format import fmt_date, fmt_instant
 from core.normalize import SP
@@ -28,6 +29,7 @@ _SITUACAO = {
     "encerrada_sem_tentativa": "encerrada sem tentativa",
     "futura": "futura",
 }
+_SEM_DISCIPLINA = "Disciplina não identificada"
 _AVISO_TENTATIVAS = "As tentativas feitas no AVA (inclusive simulados) não valem nota oficial."
 
 
@@ -66,9 +68,10 @@ def _prova(quiz: Quiz, subject: str, status: str, n: int) -> EntityRecord:
 
 
 async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
-    ref = resolve_enrollment(ctx.scope, args.get("enrollment"), None)
+    a = validate_args(TOOLS[0].spec, args)
+    ref = resolve_enrollment(ctx.scope, a.get("enrollment"), None)
     async with ctx.db() as conn:
-        label, start, end = await _window(conn, args.get("period"))
+        label, start, end = await _window(conn, a.get("period"))
         since = await q.lms_coverage(conn)
         n_accounts, last = await q.last_access(conn, ref.enrollment_key)
         data: dict[str, Any] = {"matricula": ref.label, "periodo": label}
@@ -87,13 +90,15 @@ async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOut
         cal = await q.calendar(conn) if ref.status == "ACTIVE" else {}
         n_logins = 0 if before else await q.logins(conn, ref.enrollment_key, start, end)
 
+    # colunas anuláveis (etl/schema.sql): sem janela, tipo ou limite a prova não se classifica
     quizzes = {
         str(r[0]): (
             Quiz(str(r[0]), r[2].astimezone(SP).date(), r[3].astimezone(SP).date(), int(r[4]),
                  r[1] != "simulado", r[1]),
-            r[5],
+            r[5] or _SEM_DISCIPLINA,
         )
         for r in rows
+        if None not in (r[1], r[2], r[3], r[4])
     }  # fmt: skip
     attempts = [Attempt(str(i)) for i in taken]
     s = lms_summary(
@@ -143,12 +148,21 @@ async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOut
         for r in recs
     ]
     data["total_provas"] = len(items)
+    shown = (
+        ("provas", len(recs), len(items)),
+        ("disciplinas", len(data["disciplinas"]), len(rooms)),
+    )
+    cut = [f"{n} de {t} {w}" for w, n, t in shown if t > n]
+    if cut:
+        data["aviso_limite"] = "Mostrando " + " e ".join(cut) + "."
     f = {
-        "acessos": str(n_logins), "ultimo_acesso": data["ultimo_acesso"],
+        "ultimo_acesso": data["ultimo_acesso"],
         "simulados_abertos": str(s.simulados_abertos),
         "simulados_com_tentativa_restante": str(s.simulados_com_tentativa_restante),
         "pendentes": str(s.pendentes), "tentativas_nao_oficiais": str(len(attempts)),
     }  # fmt: skip
+    if n_logins:  # nunca "0": sem acessos (ou antes da cobertura) a chave some
+        f["acessos"] = str(n_logins)
     if nxt:
         f |= {
             "proxima_data": fmt_date(nxt.date),

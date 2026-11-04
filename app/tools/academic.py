@@ -1,3 +1,4 @@
+import logging
 import unicodedata
 from collections.abc import Mapping
 from datetime import date, datetime
@@ -27,11 +28,26 @@ EMPTY = "Nenhum registro encontrado."
 DONE = ("APPROVED", "EXEMPT")  # dispensa conta como cumprida na matriz
 
 
+log = logging.getLogger(__name__)
+STRICT_ENUMS = False  # os testes ligam: enum sem rótulo PT falha em vez de vazar o código cru
+
+
 def _pt(enum: str, value: Any) -> str:
     try:
         return default_ontology().label_pt(enum, str(value))
     except KeyError:
+        if STRICT_ENUMS:
+            raise
+        log.warning("enum %s sem rótulo PT para %r", enum, value)
         return str(value)
+
+
+def _term_end(term: str) -> date | None:
+    """Fim do semestre "AAAA/S" (30/06 ou 31/12); None se não for um semestre."""
+    y, _, h = term.partition("/")
+    if not (y.isdigit() and h in ("1", "2")):
+        return None
+    return date(int(y), 6, 30) if h == "1" else date(int(y), 12, 31)
 
 
 def _ascii(s: str) -> str:
@@ -55,8 +71,17 @@ def _subject_filter(query: str, rows: list[q.Row], key_name: str) -> list[q.Row]
     return exact or hits
 
 
-def _subject_record(code: str, name: str, fields: Mapping[str, str]) -> EntityRecord:
-    return EntityRecord("disciplina", code, tuple(dict.fromkeys((name, _ascii(name)))), fields)
+def _subject_record(
+    code: str, name: str, fields: Mapping[str, str], term: str | None = None, latest: bool = True
+) -> EntityRecord:
+    """Tentativa mais recente: id = código e o nome puro como alias. As anteriores (repetência):
+    id `<código>@<semestre>` e só o alias "<nome> <semestre>", para o guard ancorar os números."""
+    names = [name, _ascii(name)] if latest else []
+    if term:
+        names += [f"{name} {term}", f"{_ascii(name)} {term}"]
+    return EntityRecord(
+        "disciplina", code if latest else f"{code}@{term}", tuple(dict.fromkeys(names)), fields
+    )
 
 
 def _date(v: date | datetime) -> str:
@@ -92,7 +117,6 @@ async def get_academic_profile(ctx: ToolContext, args: Mapping[str, Any]) -> Too
         "data_status": _date(e["status_date"]),
         "curso": e["course_name"],
         "matriz": e["curriculum_id"],
-        "unidade": e["unit_label"] or "",
         "modalidade": _pt("modality", e["modality"]),
         "turno": _pt("shift", e["shift"]),
         "semestre": str(int(e["semester"])),
@@ -100,6 +124,8 @@ async def get_academic_profile(ctx: ToolContext, args: Mapping[str, Any]) -> Too
         "semestre_ingresso": e["entry_term"],
         "tipo_ingresso": _pt("entry_type", e["entry_type"]),
     }
+    if e["unit_label"]:
+        d["unidade"] = e["unit_label"]
     if e["gpa"] is not None:
         d["cr"] = fmt_grade(e["gpa"])
     if e["completion_pct"] is not None:
@@ -152,7 +178,7 @@ async def list_course_results(ctx: ToolContext, args: Mapping[str, Any]) -> Tool
     records: list[EntityRecord] = []
     async with ctx.db() as conn:
         rows = await q.results(conn, ref.enrollment_key, term, a.get("result"))
-        first, since = await q.first_term_start(conn)
+        since = await q.sag_coverage(conn)
         grid = None
         if subject:
             e = await q.enrollment(conn, ref.enrollment_key)
@@ -160,7 +186,7 @@ async def list_course_results(ctx: ToolContext, args: Mapping[str, Any]) -> Tool
     if subject:
         rows = _subject_filter(subject, rows, "subject_name_pt")
     if not rows:
-        if term and term < first:
+        if term and (end := _term_end(term)) is not None and end < since:
             notes.append(coverage_note("SAG", since) + " Não há notas desse período.")
             records.append(EntityRecord("cobertura", "sag", ("SAG",), {"desde": fmt_date(since)}))
         elif subject and not _subject_filter(subject, grid or [], "name_pt"):
@@ -169,6 +195,7 @@ async def list_course_results(ctx: ToolContext, args: Mapping[str, Any]) -> Tool
             notes.append(EMPTY)
     shown = rows[:MAX_ITEMS]
     items: list[dict[str, str]] = []
+    seen: set[str] = set()
     for r in shown:
         it = {
             "disciplina": r["subject_name_pt"], "codigo": r["subject_code"], "semestre": r["term"],
@@ -187,8 +214,11 @@ async def list_course_results(ctx: ToolContext, args: Mapping[str, Any]) -> Tool
                 "sim: reprovado por frequência, mas a frequência registrada é de 75% ou mais"
             )
         items.append(it)
-        if r["subject_code"] not in {x.id for x in records}:  # 1º = tentativa mais recente
-            records.append(_subject_record(r["subject_code"], r["subject_name_pt"], it))
+        latest = r["subject_code"] not in seen  # 1ª linha do código = tentativa mais recente
+        seen.add(r["subject_code"])
+        rec = _subject_record(r["subject_code"], r["subject_name_pt"], it, r["term"], latest)
+        if rec.id not in {x.id for x in records}:
+            records.append(rec)
     d: dict[str, Any] = {"total": len(rows), "disciplinas": items}
     if len(rows) > len(shown):
         d["aviso_limite"] = f"Mostrando as {MAX_ITEMS} mais recentes de {len(rows)}."
@@ -228,14 +258,16 @@ async def get_curriculum_progress(ctx: ToolContext, args: Mapping[str, Any]) -> 
     d: dict[str, Any] = {
         "curso": e["course_name"],
         "matriz": e["curriculum_id"],
-        "conclusao": fmt_pct(e["completion_pct"]) if e["completion_pct"] is not None else "",
         "disciplinas_cumpridas": str(len(done & {s["subject_code"] for s in grid})),
         "disciplinas_na_matriz": str(len(grid)),
         "carga_cumprida_horas": str(int(hours_done)),
-        "carga_total_horas": str(int(total_hours)) if total_hours is not None else "",
         "pendentes_total": len(pending),
         "pendentes": items,
     }
+    if e["completion_pct"] is not None:
+        d["conclusao"] = fmt_pct(e["completion_pct"])
+    if total_hours is not None:
+        d["carga_total_horas"] = str(int(total_hours))
     if len(pending) > len(items):
         d["aviso_limite"] = f"Mostrando as {MAX_ITEMS} primeiras de {len(pending)} pendentes."
     if e["status"] == "ACTIVE":  # semestre corrente conta: já cursados = nível - 1

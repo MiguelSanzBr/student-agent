@@ -26,6 +26,25 @@ G9_GRAD = ("UniSaoPaulo_EAD", "011843")
 G3 = ("UniSaoPaulo_EAD", "014214")
 
 
+@pytest.fixture(autouse=True)
+def _strict_enums(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.tools import academic
+
+    monkeypatch.setattr(academic, "STRICT_ENUMS", True)  # enum sem rótulo PT falha nos testes
+
+
+def _pending_oracle(enr: tuple[str, str]) -> int:
+    """Obrigatórias da matriz que não constam como aprovadas/dispensadas, direto do CSV."""
+    cur = oracle.enrollments(RAW)[enr]["CURRICULUM_ID"]
+    done = {
+        d["disciplina"]
+        for d in oracle.oracle_courses(RAW, enr).disciplinas
+        if d["resultado"] in ("APPROVED", "EXEMPT")
+    }
+    rows = [r for r in RAW["sag/curriculum_subject"] if r["CURRICULUM_ID"] == cur]
+    return sum(1 for r in rows if r["MANDATORY"] == "Y" and r["SUBJECT_CODE"] not in done)
+
+
 @pytest.fixture
 async def pool(loaded_db: Loaded) -> AsyncIterator:  # type: ignore[type-arg]
     pw = (loaded_db.db.secrets / "agent_app_password").read_text().strip()
@@ -210,17 +229,17 @@ async def test_progress_forecast(pool, loaded_db: Loaded, enr, want) -> None:  #
     out = await call(pool, loaded_db, enr, "get_curriculum_progress")
     assert oracle.oracle_forecast(RAW, enr).previsao == want
     assert out.data["previsao"] == f"{want}, se cursar regularmente"
-    assert (
-        out.data["pendentes_total"] == len(out.data["pendentes"])
-        or out.data["pendentes_total"] > 20
-    )
+    total = out.data["pendentes_total"]
+    assert total == _pending_oracle(enr) and len(out.data["pendentes"]) == min(total, 20)
+    assert ("aviso_limite" in out.data) == (total > 20)
     assert all(p["situacao"] in ("pendente", "cursando") for p in out.data["pendentes"])
 
 
 async def test_progress_no_forecast_when_not_active(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
     out = await call(pool, loaded_db, G9, "get_curriculum_progress", on=G9_GRAD)
     assert "previsao" not in out.data
-    assert out.data["pendentes_total"] == 0 or out.data["pendentes"]
+    total = out.data["pendentes_total"]
+    assert total == _pending_oracle(G9_GRAD) and len(out.data["pendentes"]) == min(total, 20)
 
 
 async def test_full_list_for_term(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
@@ -242,7 +261,10 @@ async def test_result_filter(pool, loaded_db: Loaded) -> None:  # type: ignore[n
 async def test_sag_coverage_note(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
     out = await call(pool, loaded_db, G1, "list_course_results", {"term": "2019/1"})
     assert out.data["disciplinas"] == []
-    assert "Não há dados do SAG antes de 01/02/2021." in out.data["aviso"]
+    since = min(
+        date.fromisoformat(t["START_DATE"]) for t in RAW["sag/term"]
+    )  # oracle_coverage não tem "notas"
+    assert f"Não há dados do SAG antes de {since:%d/%m/%Y}." in out.data["aviso"]
     assert any(
         r.kind == "cobertura" and r.id == "sag" and r.fields["desde"] == "01/02/2021"
         for r in out.records
@@ -279,7 +301,10 @@ async def test_records_are_entity_records(pool, loaded_db: Loaded) -> None:  # t
 async def test_no_raw_ids_leak(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
     out = await call(pool, loaded_db, G1, "list_course_results")
     assert "class_id" not in str(out.data) and "enrollment_key" not in str(out.data)
-    assert out.data["total"] > len(out.data["disciplinas"]) or out.data["total"] <= 20
+    total = out.data["total"]
+    assert total == len(oracle.oracle_courses(RAW, G1).disciplinas)
+    assert len(out.data["disciplinas"]) == min(total, 20)
+    assert ("aviso_limite" in out.data) == (total > 20)
 
 
 async def test_invalid_enrollment(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
@@ -289,3 +314,63 @@ async def test_invalid_enrollment(pool, loaded_db: Loaded) -> None:  # type: ign
         await call(pool, loaded_db, G1, "get_academic_profile", {"enrollment": "3"})
     with pytest.raises(ToolError):
         await call(pool, loaded_db, G1, "get_academic_profile", {"enrollment": "9"})
+
+
+async def test_sag_coverage_uses_coverage_table(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
+    with loaded_db.db.connect("postgres") as c:  # a fonte é canon.coverage, não canon.term
+        c.execute("UPDATE canon.coverage SET starts_on = '2022-02-01' WHERE domain = 'notas'")
+    out = await call(pool, loaded_db, G1, "list_course_results", {"term": "2021/2"})
+    assert "Não há dados do SAG antes de 01/02/2022." in out.data["aviso"]
+    inside = await call(pool, loaded_db, G1, "list_course_results", {"term": "2022/1"})
+    assert "SAG" not in inside.data.get("aviso", "")
+
+
+async def test_retake_older_attempts_have_records(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
+    from app.tools.base import find_entity, index_records
+
+    with loaded_db.db.connect("postgres") as c:
+        c.execute(
+            "INSERT INTO canon.class_result (person_key, enrollment_key, class_id, curriculum_id,"
+            " is_retake, grade_av1, grade_av2, final_grade, attendance_pct, result, professor,"
+            " subject_code, subject_name_pt, term, section, divergencia)"
+            " SELECT person_key, enrollment_key, class_id || '9', curriculum_id, false, 4, 5, 4.5,"
+            " 70, 'FAILED', professor, subject_code, subject_name_pt, '2021/1', section, false"
+            " FROM canon.class_result WHERE subject_code = 'CON0103' AND enrollment_key ="
+            " (SELECT enrollment_key FROM canon.enrollment WHERE ra = '181722'"
+            "  AND brand = 'UniSaoPaulo') LIMIT 1"
+        )
+    out = await call(
+        pool, loaded_db, G1, "list_course_results", {"subject": "Introdução à Contabilidade"}
+    )
+    rows = {d["semestre"]: d for d in out.data["disciplinas"]}
+    assert len(rows) >= 2 and rows["2021/1"]["media_final"] == "4,5"
+    idx = index_records(out.records)
+    old = find_entity(idx, "Introdução à Contabilidade 2021/1")
+    assert old is not None and old.id == "CON0103@2021/1"
+    assert old.fields["media_final"] == "4,5" and old.fields["frequencia"] == "70,0%"
+    latest = find_entity(idx, "Introdução à Contabilidade")
+    assert latest is not None and latest.id == "CON0103" and latest.fields["semestre"] != "2021/1"
+    assert len(out.records) == len(rows)  # um registro por tentativa
+
+
+async def test_no_empty_string_fields(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
+    with loaded_db.db.connect("postgres") as c:
+        c.execute("UPDATE canon.enrollment SET unit_label = NULL, completion_pct = NULL"
+                  " WHERE ra = '181722' AND brand = 'UniSaoPaulo'")  # fmt: skip
+    for tool in ("get_academic_profile", "get_curriculum_progress"):
+        out = await call(pool, loaded_db, G1, tool)
+        assert "" not in out.data.values(), tool
+        assert all(v != "" for r in out.records for v in r.fields.values())
+    prof = await call(pool, loaded_db, G1, "get_academic_profile")
+    assert "unidade" not in prof.data and "conclusao" not in prof.data
+
+
+def test_pt_unknown_enum_strict_and_prod_fallback(monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
+    from app.tools import academic
+
+    with pytest.raises(KeyError):
+        academic._pt("enrollment_status", "NAO_EXISTE")
+    monkeypatch.setattr(academic, "STRICT_ENUMS", False)
+    with caplog.at_level("WARNING"):
+        assert academic._pt("enrollment_status", "NAO_EXISTE") == "NAO_EXISTE"
+    assert "NAO_EXISTE" in caplog.text

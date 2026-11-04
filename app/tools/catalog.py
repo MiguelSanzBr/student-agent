@@ -7,7 +7,6 @@ from app.tools.base import (
     EntityRecord,
     Tool,
     ToolContext,
-    ToolError,
     ToolOutput,
     ToolSpec,
     default_ontology,
@@ -15,6 +14,7 @@ from app.tools.base import (
     resolve_enrollment,
     schema,
     service_record,
+    validate_args,
 )
 from core.format import fmt_brl, fmt_date
 
@@ -33,6 +33,8 @@ def _match(query: str | None, *names: str) -> bool:
 def _page(items: list[Any], what: str, query: str | None) -> dict[str, Any]:
     """Até MAX_ITEMS + total; lista vazia diz que está vazia (nunca só '0')."""
     out: dict[str, Any] = {"total": len(items)}
+    if len(items) > MAX_ITEMS:
+        out["aviso_limite"] = f"Mostrando {MAX_ITEMS} de {len(items)} resultados; refine a busca."
     if not items:
         out["mensagem"] = f"Nenhum(a) {what} encontrado(a)" + (
             f' para "{query}".' if query else "."
@@ -54,12 +56,11 @@ def _disciplina(row: tuple[Any, ...]) -> tuple[dict[str, Any], EntityRecord]:
 
 
 async def get_catalog(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
-    kind: str = args["kind"]
-    if kind not in _KINDS:
-        raise ToolError("ARGUMENTO_INVALIDO")
-    query: str | None = args.get("query")
-    ref = resolve_enrollment(ctx.scope, args.get("enrollment"), None)
-    modality = args.get("modality") or ref.modality
+    a = validate_args(TOOLS[0].spec, args)
+    kind: str = a["kind"]
+    query: str | None = a.get("query")
+    ref = resolve_enrollment(ctx.scope, a.get("enrollment"), None)
+    modality = a.get("modality") or ref.modality
     family = ref.brand_family
     onto = default_ontology()
     data: dict[str, Any] = {"marca": onto.label_pt("brand_family", family)}
@@ -92,14 +93,15 @@ async def get_catalog(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
                 row: dict[str, Any] = {"curso": name, "sigla": acronym, "oferta": f["oferta"]}
                 if units and kind == "curso":
                     row["unidades"] = f["unidades"] = "; ".join(units)
-                if units and kind == "preco" and (p := prices.get(course_id)):
-                    row |= {
-                        "mensalidade": fmt_brl(p[0]),
-                        "ano": p[1],
-                        "parcelas_por_semestre": p[2],
-                    }
-                    f |= {"mensalidade": row["mensalidade"], "ano": str(p[1]),
-                          "parcelas_por_semestre": str(p[2])}  # fmt: skip
+                if units and kind == "preco":
+                    if p := prices.get(course_id):
+                        row |= {"mensalidade": fmt_brl(p[0]), "ano": p[1],
+                                "parcelas_por_semestre": p[2]}  # fmt: skip
+                        f |= {"mensalidade": row["mensalidade"], "ano": str(p[1]),
+                              "parcelas_por_semestre": str(p[2])}  # fmt: skip
+                    else:
+                        row["mensagem_preco"] = "Preço não disponível no catálogo para este curso."
+                        f["preco"] = "indisponível"
                 if kind == "preco" and not units:
                     absent.append(name)
                 else:

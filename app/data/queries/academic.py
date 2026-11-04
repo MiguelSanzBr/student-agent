@@ -67,12 +67,11 @@ async def current_term(conn: AsyncConnection) -> str:
     return str(rows[0]["term"])
 
 
-async def first_term_start(conn: AsyncConnection) -> tuple[str, date]:
-    """Início da cobertura do SAG: o primeiro semestre do calendário."""
-    rows = await _all(
-        conn, "SELECT term, start_date FROM canon.term ORDER BY start_date LIMIT 1", ()
-    )
-    return str(rows[0]["term"]), rows[0]["start_date"]
+async def sag_coverage(conn: AsyncConnection) -> date:
+    """Início da cobertura das notas (SAG), da tabela canon.coverage."""
+    rows = await _all(conn, "SELECT starts_on FROM canon.coverage WHERE domain = 'notas'", ())
+    since: date = rows[0]["starts_on"]
+    return since
 
 
 async def results(
