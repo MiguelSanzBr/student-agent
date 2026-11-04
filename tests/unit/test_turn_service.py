@@ -266,6 +266,25 @@ async def test_debug_only_dev_eval() -> None:
     s = AppSettings(app_env="dev", limits_profile="eval")
     _, _, ev = await turn(make_service(s, scripted(OK)))
     assert "debug" in kinds(ev)
+    assert "tool_values" in next(e for e in ev if e["event"] == "debug")
+
+
+def test_tool_values_slices_records_per_call() -> None:
+    from types import SimpleNamespace
+
+    from app.service.turn import DefaultTurnService
+    from app.tools.base import EntityRecord, ToolCallTrace
+
+    recs = (EntityRecord("fatura", "1", ("1",), {"saldo": "R$ 1,00", "status": "aberto"}),
+            EntityRecord("fatura", "2", ("2",), {"saldo": "R$ 2,00"}),
+            EntityRecord("protocolo", "9", ("9",), {"status": "em análise"}))  # fmt: skip
+    r = SimpleNamespace(
+        tool_calls=(ToolCallTrace("a", {}, 2), ToolCallTrace("falhou", {}, -1),
+                    ToolCallTrace("b", {}, 1)),
+        records=recs,
+    )  # fmt: skip
+    got = DefaultTurnService._tool_values(r)  # type: ignore[arg-type]
+    assert got == {"a": ["R$ 1,00", "aberto", "R$ 2,00"], "falhou": [], "b": ["em análise"]}
 
 
 async def test_typed_outputs_cached_for_feedback() -> None:

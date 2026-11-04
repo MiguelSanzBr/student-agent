@@ -1,16 +1,18 @@
 """Guard x scorer (spec §6.4, "Medição"): perturbação cega 1x (IC agrupado por template de
 mutação), rascunhos do dev perturbados, cruzamento guard x scorer e bloqueio indevido com IC.
 
-    uv run python -m evals.guard.run --blind-seed N [--dev-transcripts transcripts.jsonl]
+    python -m evals.guard.run [--dev-transcripts transcripts.jsonl]   (make eval-guard)
 
-Escreve `guard.json` + `guard.md`. O conjunto cego (`perturb_blind`) é medido UMA vez: o
-runner grava a semente e se recusa a repetir a medição se o `guard.json` já existe.
+Escreve `guard.json` + `guard.md`. O conjunto cego (`perturb_blind`) é medido UMA vez, com a
+semente pré-registrada `BLIND_SEED`: o marcador `<EVAL_OUT_DIR>/guard/.blind_measured` (caminho
+fixo, independente de --out) impede repetir; é gravado ANTES de medir.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sys
 from collections import defaultdict
@@ -23,18 +25,14 @@ from app.tools.base import EntityRecord, ToolCallTrace, index_records
 from core.ontology import Ontology
 from evals import oracle as o
 from evals.golden.score import TurnRecord, score_item
-from evals.guard.perturb_blind import build_blind_set
+from evals.guard.perturb_blind import MUTATION_TEMPLATES, build_blind_set
 from evals.guard.perturb_dev import _FACT_KEYS, PREFIX
-from evals.stats import CI, wilson
+from evals.stats import CI, _percentile, wilson
 
 ROOT = Path(__file__).resolve().parents[2]
+BLIND_SEED = 20261106  # pré-registrada (analysis_plan.md §19); não é argumento
 ZERO_CARD = {"1.total_para_quitar": "R$ 0,00", "1.faturas_vencidas": "0"}
 EMPTY_TOOLS = {"oracle_protocols": "list_protocols"}
-
-
-def _percentile(xs: list[float], q: float) -> float:
-    xs = sorted(xs)
-    return xs[min(len(xs) - 1, int(q * (len(xs) - 1) + 0.5))]
 
 
 def cluster_ci(groups: Mapping[str, Sequence[bool]], *, n_boot: int, seed: int) -> CI:
@@ -95,6 +93,7 @@ def blind_report(raw: o.Raw, onto: Ontology, *, seed: int, n_boot: int) -> dict[
         "seed": seed, "n_mutated": sum(map(len, by_t.values())), "n_controls": len(ctl),
         "recall": _d(cluster_ci(by_t, n_boot=n_boot, seed=seed)),
         "recall_by_template": {t: _w(sum(v), len(v)) for t, v in sorted(by_t.items())},
+        "empty_templates": [t for t in MUTATION_TEMPLATES if not by_t.get(t)],
         "false_block": _w(sum(ctl), len(ctl)), "caught": caught,
     }  # fmt: skip
 
@@ -151,6 +150,8 @@ def render_md(g: Mapping[str, Any]) -> str:
           f"- bloqueio indevido nos controles: {b['false_block']['k']}/{b['false_block']['n']} "
           f"{f(b['false_block'])}", "", "## Recall por template (Wilson)"]  # fmt: skip
     md += [f"- {t}: {w['k']}/{w['n']} {f(w)}" for t, w in b["recall_by_template"].items()]
+    if b["empty_templates"]:
+        md.append("- templates sem nenhum item gerado: " + ", ".join(b["empty_templates"]))
     d = g.get("dev")
     md += ["", "## Rascunhos do dev x scorer"]
     if d:
@@ -163,19 +164,29 @@ def render_md(g: Mapping[str, Any]) -> str:
     return "\n".join(md) + "\n"
 
 
+def blind_marker() -> Path:
+    return Path(os.environ.get("EVAL_OUT_DIR", "/eval-out")) / "guard" / ".blind_measured"
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--blind-seed", type=int, required=True)
     ap.add_argument("--data", type=Path, default=ROOT / "data/dados.zip")
     ap.add_argument("--dev-transcripts", type=Path)
-    ap.add_argument("--out", type=Path, default=ROOT / "docs/evidence/guard")
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=Path(os.environ.get("EVIDENCE_DIR", ROOT / "docs/evidence")) / "guard",
+    )  # noqa: E501
     ap.add_argument("--n-boot", type=int, default=10_000)
     a = ap.parse_args(argv)
-    if (a.out / "guard.json").exists():
-        print("conjunto cego já medido (guard.json existe): 1x só", file=sys.stderr)
+    marker = blind_marker()
+    if marker.exists():
+        print(f"conjunto cego já medido ({marker} existe): 1x só", file=sys.stderr)
         return 2
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(f"semente {BLIND_SEED}\n")  # antes de medir: uma medição que morre conta
     raw, onto = o.load_csv(a.data), Ontology.load(ROOT / "ontology")
-    g: dict[str, Any] = {"blind": blind_report(raw, onto, seed=a.blind_seed, n_boot=a.n_boot)}
+    g: dict[str, Any] = {"blind": blind_report(raw, onto, seed=BLIND_SEED, n_boot=a.n_boot)}
     if a.dev_transcripts:
         from evals.golden.build import build_items, load_shared
 
@@ -183,7 +194,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         enr = {f"caso{c['case']}": (c["brand"], c["ra"]) for c in golden}
         items = {i.id: i for i in build_items(load_shared(), [], enr, raw)}
         rows = [json.loads(x) for x in a.dev_transcripts.read_text().splitlines()]
-        g["dev"] = dev_report(rows, items, raw, onto, seed=a.blind_seed)
+        g["dev"] = dev_report(rows, items, raw, onto, seed=BLIND_SEED)
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / "guard.json").write_text(json.dumps(g, indent=2, ensure_ascii=False))
     (a.out / "guard.md").write_text(render_md(g), encoding="utf-8")

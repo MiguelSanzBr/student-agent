@@ -69,3 +69,9 @@ services:
     command: ["python", "-m", "evals.redteam.run"]
     depends_on:
       init-secrets: {condition: service_completed_successfully}
+
+  evals:  # runner da qualidade (golden): fala com a API real (api-eval), perfil de limites "eval"
+    environment:
+      EVAL_API_URL: http://api-eval:8000
+    depends_on: !override
+      api-eval: {condition: service_started}

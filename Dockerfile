@@ -21,6 +21,10 @@ FROM base AS eval
 COPY evals/client.py evals/stats.py evals/preflight.py evals/tokens.py ./evals/
 COPY evals/golden ./evals/golden
 COPY evals/redteam ./evals/redteam
+COPY evals/guard ./evals/guard
+# o guard importa perturb_dev, que usa estes fixtures de teste
+COPY tests/__init__.py ./tests/__init__.py
+COPY tests/fixtures/__init__.py tests/fixtures/entity_records.py ./tests/fixtures/
 USER 10001
 
 FROM base AS api

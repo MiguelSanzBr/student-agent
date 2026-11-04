@@ -16,3 +16,8 @@ __pycache__/
 .env
 .superpowers/
 .worktrees/
+
+# texto de pergunta do teste (test_only) nunca no git
+docs/evidence/quality/**/transcripts.jsonl
+docs/evidence/quality/**/scorer_validation.csv
+docs/evidence/quality/**/conversations.md

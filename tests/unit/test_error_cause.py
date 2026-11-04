@@ -36,3 +36,14 @@ def test_refusal_expected_is_not_unduly():
     it = DatasetItem("i", "t", "c", "dev", (Check("q", expect_refusal=True),))
     t = TurnTrace(answer=f"{REFUSAL_PREFIX} x")
     assert attribute_cause(it, t, FAIL) == "redacao"
+
+
+def test_dados_from_tool_values_and_guard_rule_needs_different_text():
+    # fato exigido ("ativa") ausente dos valores da ferramenta esperada que foi chamada
+    assert cause(tool_values={"get_status": ["TRANCADA"]}, tool_outputs={}, oracle_outputs={}) \
+        == "dados"  # fmt: skip
+    assert cause(tool_values={"get_status": ["ativa"]}, tool_outputs={}, oracle_outputs={}) \
+        == "redacao"  # fmt: skip
+    # rascunho pré-guard igual ao final: o guard não alterou nada, não é "bloqueou certa"
+    same = "A matrícula está ativa."
+    assert cause(pre_guard_answer=same, answer=same) == "redacao"

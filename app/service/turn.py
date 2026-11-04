@@ -240,7 +240,8 @@ class DefaultTurnService:
             await self.outputs.put(sub, trace_id, self._typed(r))
             if s.app_env == "dev" and s.limits_profile == "eval":
                 await emit({"event": "debug", **self._typed(r), "timings_ms": dict(r.timings_ms),
-                            "pre_guard_answer": r.pre_guard_answer})  # fmt: skip
+                            "pre_guard_answer": r.pre_guard_answer,
+                            "tool_values": self._tool_values(r)})  # fmt: skip
             return await self._done(r, emit, trace_id, channel)
 
     async def _persist(self, sub: UUID, channel: Channel, cid: str, r: TurnResult) -> None:
@@ -261,6 +262,18 @@ class DefaultTurnService:
             "tool_calls": [dataclasses.asdict(c) for c in r.tool_calls],
             "records": [dataclasses.asdict(x) for x in r.records],
         }  # fmt: skip
+
+    @staticmethod
+    def _tool_values(r: TurnResult) -> dict[str, list[str]]:
+        """Só dev+eval: valores dos campos que cada chamada devolveu (causa de erro `dados`)."""
+        out: dict[str, list[str]] = {}
+        i = 0
+        for c in r.tool_calls:  # os registros entram na ordem das chamadas
+            n = max(c.returned_records, 0)
+            out.setdefault(c.name, []).extend(v for x in r.records[i : i + n]
+                                              for v in x.fields.values())  # fmt: skip
+            i += n
+        return out
 
     async def _done(self, r: TurnResult, emit: Emit, trace_id: str, channel: Channel) -> TurnResult:
         m = METRICS

@@ -125,10 +125,19 @@ services:
     build: .
     user: "10001:10001"
     profiles: [eval]
-    command: ["python", "-m", "evals"]
+    command: ["python", "-m", "evals.golden.run", "--help"]
+    environment:
+      EVAL_DATA: /data/dados.zip
+      ETL_OUT_DIR: /etl-out
+      EVAL_OUT_DIR: /eval-out
+      EVIDENCE_DIR: /evidence
     volumes:
       - secrets-evals:/run/secrets/evals:ro
-      - eval-out:/out
+      - secrets-app:/run/secrets/app:ro  # só para `evals.tokens.mint` (jwt) e o hmac do aluno
+      - etl-out:/etl-out:ro
+      - eval-out:/eval-out
+      - ${DATA_DIR:-./data}:/data:ro
+      - ./docs/evidence/quality:/evidence  # só json/md sem texto de pergunta (make cria o diretório)
     depends_on:
       api-redteam: {condition: service_started}
 

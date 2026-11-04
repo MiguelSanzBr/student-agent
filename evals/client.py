@@ -43,7 +43,7 @@ class ChatClient:
         timeout: float = 60.0,
     ) -> None:  # fmt: skip
         self._http = httpx.AsyncClient(base_url=base_url, transport=transport, timeout=timeout)
-        self.last_meta: dict[str, str] = {}  # meta do último `ask` (trace_id, span_id em dev+eval)
+        self.last_meta: dict[str, Any] = {}  # meta do último `ask` (trace_id, span_id em dev+eval)
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -71,12 +71,20 @@ class ChatClient:
                 draft = True
             elif ev == "meta":
                 trace_id = d.get("trace_id", trace_id)
-                self.last_meta = {k: str(v) for k, v in d.items() if k in ("trace_id", "span_id")}
+                self.last_meta.update(
+                    {k: str(v) for k, v in d.items() if k in ("trace_id", "span_id")}
+                )
             elif ev == "debug":
-                tools = tuple(d.get("tools", ()))
+                tools = (
+                    tuple(c["name"] for c in d["tool_calls"])
+                    if "tool_calls" in d
+                    else tuple(d.get("tools", ()))
+                )
+                self.last_meta["tool_values"] = d.get("tool_values")
                 pre, degraded = d.get("pre_guard_answer"), bool(d.get("cost_degraded"))
             elif ev == "done":
                 status, trace_id = d.get("status", status), d.get("trace_id", trace_id)
+                self.last_meta["model"] = str(d.get("model", ""))
             elif ev == "error":
                 status = "error"
         return TurnRecord(answer, tools, draft, status, trace_id, pre, degraded)

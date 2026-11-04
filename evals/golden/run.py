@@ -1,10 +1,16 @@
 """Runner da qualidade (analysis_plan.md §1-§15): perfil `eval`, preflight, SHA e rodada
 registrados, turno inválido refeito 1x, teto duro aborta, anotação no Phoenix, quality.json/md.
 
-    uv run python -m evals.golden.run --split dev --model gemini-3.8-flash --record --round 1
+Roda no container `evals` (ver `make eval-dev|eval-test`; ops/compose.eval.yml): tokens por
+`evals.tokens.mint` (segredos em /run/secrets/app), dados em /data, ETL em /etl-out e /eval-out.
 
-Roda no container `evals` (docker compose --profile eval): tokens via `evals.tokens.mint`.
-`--model` só documenta/precifica: o modelo servido é o `LLM_MODEL` da API.
+    python -m evals.golden.run --split dev --model gemini-3.8-flash --record --round 1
+    python -m evals.golden.run --resummarize DIR [--labels L --utility U --judge J --dev-dir D]
+
+`--model` precisa casar com o modelo que a API serve (`done.model` do 1º turno; senão aborta).
+No teste não há graus de liberdade: --record, --dev-json, --spend-today e --rpd-left exigidos,
+n_boot fixo, sem --allow-dirty/--paraphrase (só com --rehearsal, que não é contado). As saídas
+com texto de pergunta (transcripts, scorer_validation) ficam fora do repositório.
 """
 
 from __future__ import annotations
@@ -14,8 +20,10 @@ import asyncio
 import csv
 import hashlib
 import json
+import math
 import os
 import random
+import shutil
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -53,6 +61,7 @@ CEILING_WAIT_S = 300.0  # Retry-After >= isto = teto de gasto (503 "spend" da ad
 MAX_WAITS = 120  # esperas consecutivas por Retry-After num turno antes de desistir
 PROVIDER_FAIL = frozenset({"error", "llm_unavailable"})
 META_TARGET = 0.85
+N_BOOT = 10_000  # §2
 Sleep = Callable[[float], Awaitable[None]]
 Annotate = Callable[[str, str, str, float | None, str | None], None]
 
@@ -86,6 +95,7 @@ class RoundResult:
     abort_reason: str = ""
     redone: int = 0
     waited_s: float = 0.0
+    served_models: dict[str, int] = field(default_factory=dict)  # `done.model` por turno
 
     @property
     def valid(self) -> list[Outcome]:
@@ -99,7 +109,8 @@ class RoundResult:
 async def _turn(
     client: ChatClient, token: str, cid: str, text: str, sleep: Sleep, rr: RoundResult
 ) -> TurnRecord | None:
-    """None = falha do provedor/transporte (429/5xx, timeout). Rejeição antes do stream espera."""
+    """None = falha do provedor/transporte (5xx, timeout; o 429 do provedor chega como evento
+    `error` do stream). 429/503 de admissão antes do stream = `Rejected`: espera."""
     for _ in range(MAX_WAITS):
         try:
             return await client.ask(token, cid, text)
@@ -110,7 +121,7 @@ async def _turn(
             rr.waited_s += wait
             await sleep(wait)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 429 or e.response.status_code >= 500:
+            if e.response.status_code >= 500:
                 return None
             raise
         except httpx.TransportError:
@@ -119,22 +130,30 @@ async def _turn(
 
 
 async def _item(
-    item: DatasetItem, token: str, client: ChatClient, sleep: Sleep, rr: RoundResult
-) -> Outcome:
+    item: DatasetItem, token: str, client: ChatClient, sleep: Sleep, rr: RoundResult,
+    expect_model: str | None,
+) -> Outcome:  # fmt: skip
     sid = item.id.rsplit("@", 1)[-1]
     base: dict[str, Any] = dict(
         item_id=item.id, student=sid, template=item.template_id, category=item.category,
         split=item.split, expect_refusal=any(c.expect_refusal for c in item.steps),
     )  # fmt: skip
     for attempt in (1, 2):  # refeito 1x, a conversa inteira (id novo); §5
-        cid, turns, span, bad = uuid4().hex, [], None, False
+        cid, turns, metas, span, bad = uuid4().hex, [], [], None, False
         for step in item.steps:
             rec = await _turn(client, token, cid, step.text, sleep, rr)
-            span = getattr(client, "last_meta", {}).get("span_id") or span
+            meta = dict(getattr(client, "last_meta", {}))
+            span = meta.get("span_id") or span
             if rec is None or rec.cost_degraded or rec.status in PROVIDER_FAIL:
                 bad = True
                 break
+            served = str(meta.get("model") or "")
+            if served:
+                rr.served_models[served] = rr.served_models.get(served, 0) + 1
+                if expect_model and not rr.outcomes and not turns and served != expect_model:
+                    raise _Abort(f"modelo servido {served!r} != --model {expect_model!r}")
             turns.append(rec)
+            metas.append(meta)
         if bad:
             rr.redone += attempt == 1
             continue
@@ -145,8 +164,9 @@ async def _item(
         if not sc.passed:
             step_i = next((int(r[1 : r.index(":")]) - 1 for r in sc.reasons if r[0] == "t"), 0)
             t = turns[min(step_i, len(turns) - 1)]
+            tv = metas[min(step_i, len(metas) - 1)].get("tool_values")
             trace = TurnTrace(t.answer, t.tools_called, pre_guard_answer=t.pre_guard_answer,
-                              step=step_i)  # fmt: skip
+                              step=step_i, tool_values=tv)  # fmt: skip
             cause = attribute_cause(item, trace, sc)
         return Outcome(**base, status="pass" if sc.passed else "fail", attempts=attempt,
                        reasons=sc.reasons, cause=cause, refused_unduly=unduly,
@@ -155,15 +175,24 @@ async def _item(
 
 
 async def run_round(
-    items: Sequence[DatasetItem], tokens: Mapping[str, str], client: ChatClient,
-    *, sleep: Sleep = asyncio.sleep, annotate: Annotate | None = None,
+    items: Sequence[DatasetItem], tokens: Mapping[str, str] | Callable[[str], str],
+    client: ChatClient, *, sleep: Sleep = asyncio.sleep, annotate: Annotate | None = None,
+    expect_model: str | None = None,
 ) -> RoundResult:  # fmt: skip
-    rr = RoundResult()
+    """`tokens`: aluno -> token (mapa ou função; chamada só quando o aluno aparece).
+    Qualquer exceção inesperada aborta a rodada, mantendo o que já foi medido."""
+    rr, cache = RoundResult(), {}
     for item in items:
+        sid = item.id.rsplit("@", 1)[-1]
         try:
-            o = await _item(item, tokens[item.id.rsplit("@", 1)[-1]], client, sleep, rr)
+            if sid not in cache:
+                cache[sid] = tokens(sid) if callable(tokens) else tokens[sid]
+            o = await _item(item, cache[sid], client, sleep, rr, expect_model)
         except _Abort as e:
             rr.aborted, rr.abort_reason = True, str(e)
+            break
+        except Exception as e:  # noqa: BLE001 - a rodada é contada: aborta e declara
+            rr.aborted, rr.abort_reason = True, f"exceção {type(e).__name__}: {str(e)[:200]}"
             break
         rr.outcomes.append(o)
         if annotate and o.span_id and o.status != "invalid":
@@ -173,16 +202,47 @@ async def run_round(
     return rr
 
 
-def append_round(path: Path, rec: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+class RoundExists(Exception):
+    pass
 
 
 def read_rounds(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+
+
+def _append(path: Path, rec: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
+def claim_round(path: Path, rec: Mapping[str, Any]) -> None:
+    """Linha `started` ANTES de rodar: uma rodada que morre no meio continua contada."""
+    if any(r["split"] == rec["split"] and r["round"] == rec["round"] for r in read_rounds(path)):
+        raise RoundExists(f"rodada {rec['round']} do {rec['split']} já registrada")
+    _append(path, {**rec, "status": "started"})
+
+
+def close_round(path: Path, rec: Mapping[str, Any]) -> None:
+    _append(path, {**rec, "status": "aborted" if rec.get("aborted") else "done"})
+
+
+def frozen_sha(root: Path = ROOT) -> str | None:
+    """SHA congelado do código: arquivo `evals/golden/FROZEN_SHA` ou tag git `eval-frozen`."""
+    f = GOLD / "FROZEN_SHA"
+    if f.exists():
+        return f.read_text().strip() or None
+    try:
+        return _git("rev-list", "-n", "1", "eval-frozen")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def is_primary(frozen: str | None, sha: str, *, prior: Sequence[Mapping[str, Any]]) -> bool:
+    """Primário = 1ª rodada do teste, no SHA congelado (§1, §15)."""
+    return frozen is not None and sha == frozen and not prior
 
 
 # ----------------------------------------------------------------------------- amostras
@@ -228,13 +288,20 @@ def _results(outs: Sequence[Outcome]) -> list[ItemResult]:
             for o in outs]  # fmt: skip
 
 
-def _ci(outs: Sequence[Outcome], strata: Mapping[str, str], n_boot: int) -> dict[str, Any] | None:
+def _ci(
+    outs: Sequence[Outcome], strata: Mapping[str, str], n_boot: int, *, strict: bool = False
+) -> dict[str, Any] | None:
+    """`strict` (primário): falha alto. Subconjuntos pequenos caem para o ponto sem IC."""
     res = _results(outs)
     if not res:
+        if strict:
+            raise ValueError("primário sem itens válidos")
         return None
     try:
         ci = two_way_bootstrap_ci(res, strata=strata, n_boot=n_boot, seed=BOOT_SEED)
-    except (IndexError, ValueError):  # subconjunto pequeno demais para reamostrar
+    except (IndexError, ValueError, KeyError):  # subconjunto pequeno demais para reamostrar
+        if strict:
+            raise
         return {"n": len(res), "point": sum(r.passed for r in res) / len(res)}
     return {"n": len(res), "low": ci.low, "high": ci.high, "point": ci.point}
 
@@ -260,7 +327,7 @@ def estimate_icc(results: Sequence[ItemResult]) -> float:
 
 
 def p_meta_table(
-    icc: float, p0: float, *, n_students: int, n_templates: int, n_sim: int = 100,
+    icc: float, p0: float, *, n_students: int, n_templates: int, n_sim: int = 200,
     seed: int = BOOT_SEED,
 ) -> dict[str, Any]:  # fmt: skip
     """§4: P(limite inferior >= 85%) sob o pass@1 do dev e +/- 5 p.p.; gravada antes da rodada."""
@@ -268,8 +335,9 @@ def p_meta_table(
     for d in (-0.05, 0.0, 0.05):
         p = min(0.999, max(0.001, p0 + d))
         rows[f"{p:.3f}"] = p_target(icc, n_students, n_templates, p, n_sim=n_sim, seed=seed)
+    se = {k: math.sqrt(v * (1 - v) / n_sim) for k, v in rows.items()}  # erro de Monte Carlo
     return {"icc": icc, "p_dev": p0, "n_students": n_students, "n_templates": n_templates,
-            "n_sim": n_sim, "p_meta": rows}  # fmt: skip
+            "n_sim": n_sim, "p_meta": rows, "se": se}  # fmt: skip
 
 
 def _bool(x: str) -> bool | None:
@@ -294,7 +362,7 @@ def summarize(
     valid = rr.valid
     single = [o for o in valid if o.category != "multiturno"]
     multi = [o for o in valid if o.category == "multiturno"]
-    prim = _ci(single, strata, n_boot)
+    prim = _ci(single, strata, n_boot, strict=True)
     out: dict[str, Any] = {
         **(meta or {}),
         "aborted": rr.aborted,
@@ -396,7 +464,10 @@ def render_md(s: Mapping[str, Any]) -> str:
             f"ICC {pm['icc']:.3f}, "
             f"n={pm['n_students']} alunos x {pm['n_templates']} templates, {pm['n_sim']} sim.",
         ]
-        h += [f"- pass@1 verdadeiro {p}: P = {v:.2f}" for p, v in pm["p_meta"].items()]
+        h += [
+            f"- pass@1 verdadeiro {p}: P = {v:.2f} (EP Monte Carlo {pm['se'][p]:.3f})"
+            for p, v in pm["p_meta"].items()
+        ]
     h += ["", "## Por categoria (n sempre)"]
     h += [f"- {c}: {v['k']}/{v['n']}" for c, v in s["by_category"].items()]
     h += ["", "## Por causa de erro"] + [f"- {c}: {n}" for c, n in s["by_cause"].items()]
@@ -450,11 +521,6 @@ def pick_enrollment(enrs: Sequence[tuple[str, str]], status: Mapping[tuple[str, 
     return min(pool or enrs)
 
 
-def _git(*a: str) -> str:
-    return subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True,
-                          check=True).stdout.strip()  # fmt: skip
-
-
 def load_dataset(split: str, *, raw: Any, hmac_key: bytes, holdout_yaml: Path | None
                  ) -> tuple[list[DatasetItem], dict[str, UUID], dict[str, str], list[Any]]:  # fmt: skip  # noqa: E501
     """(itens, aluno -> person_key, aluno -> estrato, templates shared)."""
@@ -492,15 +558,26 @@ def load_dataset(split: str, *, raw: Any, hmac_key: bytes, holdout_yaml: Path | 
     return build.build_items(templates, scripts, enr, raw), pk, strata, templates
 
 
-# ----------------------------------------------------------------------------- CLI
-def _transcripts(rr: RoundResult, items: Mapping[str, DatasetItem]) -> str:
+# ----------------------------------------------------------------------------- saídas
+def write_private(
+    out: Path, rr: RoundResult, items: Mapping[str, DatasetItem], strata: Mapping[str, str]
+) -> None:
+    """`transcripts.jsonl`: texto das perguntas (pode ser `test_only`): NUNCA no git. Carrega o
+    bastante para re-sumarizar offline (`--resummarize`)."""
     rows = []
-    for o in rr.valid:
+    for o in rr.outcomes:
         it = items[o.item_id]
-        rows.append({"item_id": o.item_id, "category": o.category, "status": o.status,
-                     "turns": [{"q": c.text, "a": t.answer, "pre_guard": t.pre_guard_answer}
-                               for c, t in zip(it.steps, o.turns, strict=False)]})  # fmt: skip
-    return "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n"
+        rows.append({
+            "item_id": o.item_id, "student": o.student, "stratum": strata.get(o.student, ""),
+            "template": o.template, "category": o.category, "split": o.split, "status": o.status,
+            "attempts": o.attempts, "reasons": list(o.reasons), "cause": o.cause,
+            "expect_refusal": o.expect_refusal, "refused_unduly": o.refused_unduly,
+            "turns": [{"q": c.text, "a": t.answer, "pre_guard": t.pre_guard_answer}
+                      for c, t in zip(it.steps, o.turns, strict=False)],
+        })  # fmt: skip
+    (out / "transcripts.jsonl").write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n", encoding="utf-8"
+    )
 
 
 def _validation_csv(path: Path, sample: Sequence[ItemResult], rr: RoundResult,
@@ -514,32 +591,162 @@ def _validation_csv(path: Path, sample: Sequence[ItemResult], rr: RoundResult,
             w.writerow([r.item_id, items[r.item_id].steps[-1].text, o.turns[-1].answer, ""])
 
 
+def publish(out: Path, evidence: Path | None, tag: str) -> None:
+    """Só o que não tem texto de pergunta vai para docs/evidence (quality.json/md, p_meta.json)."""
+    if evidence is None or not evidence.parent.exists():
+        return
+    dest = evidence / tag
+    dest.mkdir(parents=True, exist_ok=True)
+    for n in ("quality.json", "quality.md", "p_meta.json"):
+        if (out / n).exists():
+            shutil.copyfile(out / n, dest / n)
+
+
+def _read_util(path: Path | None) -> list[bool]:
+    if path is None or not path.exists():
+        return []
+    with path.open(encoding="utf-8", newline="") as fh:
+        return [v for r in csv.DictReader(fh) if (v := _bool(r.get("util", ""))) is not None]
+
+
+def _read_judge(path: Path | None) -> dict[str, bool] | None:
+    if path is None or not path.exists():
+        return None
+    rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    return {r["item_id"]: bool(r["verdict"]) for r in rows}
+
+
+def build_summary(
+    rr: RoundResult, strata: Mapping[str, str], meta: Mapping[str, Any], *, n_boot: int,
+    labels: Path | None, utility: Path | None, judge: Path | None, dev_dir: Path | None,
+    p_meta: Mapping[str, Any] | None,
+) -> dict[str, Any]:  # fmt: skip
+    outs = {x.item_id: x for x in rr.outcomes}
+    s = summarize(
+        rr, strata=strata, n_boot=n_boot, labels=read_labels(labels, outs) if labels else [],
+        utility=_read_util(utility), judge_verdicts=_read_judge(judge), p_meta=p_meta, meta=meta,
+    )  # fmt: skip
+    if meta.get("split") == "dev":
+        res = _results([x for x in rr.valid if x.category != "multiturno"])
+        s["k"], s["n"] = sum(r.passed for r in res), len(res)
+        s["icc"] = estimate_icc(res) if res else None
+    if dev_dir is not None:
+        dev = json.loads((dev_dir / "quality.json").read_text(encoding="utf-8"))
+        s["dev_vs_test"] = f"dev {_fmt(dev['primary'])} x teste {_fmt(s['primary'])}"
+    return s
+
+
+def write_summary(out: Path, s: Mapping[str, Any]) -> None:
+    (out / "quality.json").write_text(json.dumps(s, indent=2, ensure_ascii=False))
+    (out / "quality.md").write_text(render_md(s), encoding="utf-8")
+
+
+_META_KEYS = ("split", "round", "model", "sha", "dirty", "paraphrase", "perfil", "rehearsal",
+              "primary_run", "frozen_sha", "served_models", "test_rounds")  # fmt: skip
+
+
+def resummarize(
+    d: Path, *, labels: Path | None = None, utility: Path | None = None,
+    judge: Path | None = None, dev_dir: Path | None = None, n_boot: int = 10_000,
+) -> dict[str, Any]:  # fmt: skip
+    """Reconstrói quality.json/md de uma rodada já feita, sem chamar a API."""
+    old = json.loads((d / "quality.json").read_text(encoding="utf-8"))
+    rows = [json.loads(x) for x in (d / "transcripts.jsonl").read_text().splitlines() if x.strip()]
+    outs = [
+        Outcome(
+            r["item_id"], r["student"], r["template"], r["category"], r["split"], r["status"],
+            r["attempts"], tuple(r["reasons"]), r["cause"], r["expect_refusal"],
+            r["refused_unduly"],
+            tuple(TurnRecord(t["a"], pre_guard_answer=t["pre_guard"]) for t in r["turns"]),
+        )
+        for r in rows
+    ]  # fmt: skip
+    rr = RoundResult(outs, old["aborted"], old["abort_reason"], old["redone"])
+    strata = {r["student"]: r["stratum"] for r in rows}
+    meta = {k: old[k] for k in _META_KEYS if k in old}
+    s = build_summary(rr, strata, meta, n_boot=n_boot, labels=labels, utility=utility, judge=judge,
+                      dev_dir=dev_dir, p_meta=old.get("p_meta"))  # fmt: skip
+    write_summary(d, s)
+    return s
+
+
+# ----------------------------------------------------------------------------- CLI
 def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--split", choices=("dev", "test"), required=True)
-    ap.add_argument("--model", required=True)
-    ap.add_argument("--round", type=int, required=True)
+    ap.add_argument("--split", choices=("dev", "test"))
+    ap.add_argument("--model")
+    ap.add_argument("--round", type=int)
     ap.add_argument("--record", action="store_true", help="registra a rodada e anota no Phoenix")
+    ap.add_argument("--rehearsal", action="store_true", help="ensaio: nada é registrado/contado")
     ap.add_argument("--paraphrase", action="store_true", help="rodada secundária de robustez")
-    ap.add_argument("--base-url", default=os.environ.get("EVAL_API_URL", "http://api-redteam:8000"))
-    ap.add_argument("--data", type=Path, default=ROOT / "data/dados.zip")
+    ap.add_argument("--base-url", default=os.environ.get("EVAL_API_URL", "http://api-eval:8000"))
+    ap.add_argument(
+        "--data", type=Path, default=Path(os.environ.get("EVAL_DATA", ROOT / "data/dados.zip"))
+    )
     ap.add_argument(
         "--holdout-yaml", type=Path, help="templates test_only decifrados (fora do git)"
     )
     ap.add_argument("--dev-json", type=Path, help="quality.json do dev (ICC para P(meta))")
+    ap.add_argument("--dev-dir", type=Path, help="pasta da rodada do dev (comparativo)")
     ap.add_argument("--labels", type=Path, default=GOLD / "labels.csv")
-    ap.add_argument("--utility-labels", type=Path, default=GOLD / "utility_labels.csv")
-    ap.add_argument("--out", type=Path)
+    ap.add_argument("--utility", type=Path, default=GOLD / "utility_labels.csv")
+    ap.add_argument("--judge", type=Path, help="judge.jsonl: {item_id, verdict}")
+    ap.add_argument("--resummarize", type=Path, metavar="DIR", help="refaz quality.json/md offline")
+    ap.add_argument("--out", type=Path, help="saída privada (teste: fora do repositório)")
+    ap.add_argument(
+        "--evidence", type=Path, help="docs/evidence/quality (só json/md sem perguntas)"
+    )
     ap.add_argument("--phoenix-url", default=os.environ.get("PHOENIX_URL"))
-    ap.add_argument("--spend-today", type=Decimal, default=Decimal(0))
-    ap.add_argument("--rpd-left", type=int)
+    ap.add_argument("--spend-today", type=Decimal, help="gasto real do dia (obrigatório no teste)")
+    ap.add_argument("--rpd-left", type=int, help="RPD restante real (obrigatório no teste)")
     ap.add_argument("--tokens-per-call", type=int, default=3000)
-    ap.add_argument("--n-boot", type=int, default=10_000)
+    ap.add_argument("--n-boot", type=int, default=N_BOOT)
     ap.add_argument("--allow-dirty", action="store_true")
     return ap.parse_args(argv)
 
 
+def validate_args(a: argparse.Namespace) -> str | None:
+    """Sem liberdade de ajuste no teste (§4, §15): o que muda o resultado exige --rehearsal."""
+    if a.resummarize:
+        return None
+    if not (a.split and a.model and a.round):
+        return "--split, --model e --round são obrigatórios"
+    if a.split != "test":
+        return None
+    if a.out is not None and a.out.resolve().is_relative_to(ROOT):
+        return "teste: --out dentro do repositório vazaria o texto dos itens test_only"
+    if a.rehearsal:
+        return None
+    for ok, msg in (
+        (a.record, "teste exige --record (a rodada é contada)"),
+        (a.dev_json, "teste exige --dev-json (P(meta) é gravada antes da rodada)"),
+        (a.spend_today is not None, "teste exige --spend-today (gasto real do dia)"),
+        (a.rpd_left is not None, "teste exige --rpd-left (RPD restante real)"),
+        (not a.allow_dirty, "--allow-dirty só com --rehearsal"),
+        (not a.paraphrase, "--paraphrase só com --rehearsal (não é o primário)"),
+        (a.n_boot == N_BOOT, f"--n-boot fixo em {N_BOOT} no teste (só com --rehearsal)"),
+    ):
+        if not ok:
+            return msg
+    return None
+
+
+def _git(*a: str) -> str:
+    return subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True,
+                          check=True).stdout.strip()  # fmt: skip
+
+
 async def amain(a: argparse.Namespace) -> int:
+    if err := validate_args(a):
+        print(err, file=sys.stderr)
+        return 2
+    evidence = a.evidence or Path(os.environ.get("EVIDENCE_DIR", EVIDENCE))
+    if a.resummarize:
+        s = resummarize(a.resummarize, labels=a.labels, utility=a.utility, judge=a.judge,
+                        dev_dir=a.dev_dir, n_boot=a.n_boot)  # fmt: skip
+        publish(a.resummarize, evidence, f"{s['split']}-r{s['round']}")
+        print(render_md(s))
+        return 0
     from app.config import AppSettings, load_slo_targets
     from evals import oracle as o
     from evals.preflight import project_round
@@ -548,14 +755,12 @@ async def amain(a: argparse.Namespace) -> int:
     slo, settings = load_slo_targets(), AppSettings()
     sha, dirty = _git("rev-parse", "HEAD"), bool(_git("status", "--porcelain"))
     if a.split == "test" and dirty and not a.allow_dirty:
-        print(
-            "teste exige árvore limpa (SHA congelado); use --allow-dirty só em ensaio",
-            file=sys.stderr,
-        )
+        print("teste exige árvore limpa (SHA congelado)", file=sys.stderr)
         return 2
-    rounds_path = EVIDENCE / "rounds.jsonl"
-    prior = [r for r in read_rounds(rounds_path) if r["split"] == a.split]
-    if a.record and any(r["round"] == a.round for r in prior):
+    counted = a.record and not a.rehearsal
+    ledger = evidence / "rounds.jsonl"
+    prior = [r for r in read_rounds(ledger) if r["split"] == a.split]
+    if counted and any(r["round"] == a.round for r in prior):
         print(f"rodada {a.round} do {a.split} já registrada", file=sys.stderr)
         return 2
     raw = o.load_csv(a.data)
@@ -564,16 +769,17 @@ async def amain(a: argparse.Namespace) -> int:
     )
     if a.paraphrase:
         items = apply_paraphrases(items, templates)
-    turns = sum(len(i.steps) for i in items)
     proj = project_round(
-        turns, slo.admission.est_requests, a.tokens_per_call, a.model,
-        spend_today=a.spend_today, ceiling=Decimal(str(slo.limits["eval"].global_ceiling_usd)),
+        sum(len(i.steps) for i in items), slo.admission.est_requests, a.tokens_per_call, a.model,
+        spend_today=a.spend_today or Decimal(0),
+        ceiling=Decimal(str(slo.limits["eval"].global_ceiling_usd)),
         rpd_left=a.rpd_left or slo.quotas[a.model].rpd,
     )  # fmt: skip
     print(f"preflight: ~US$ {proj.cost_usd:.2f}, {proj.calls} chamadas, ok={proj.ok}")
     if not proj.ok:
         return 2
-    out = a.out or EVIDENCE / f"{a.split}-r{a.round}"
+    tag = f"{a.split}-r{a.round}"
+    out = a.out or Path(os.environ.get("EVAL_OUT_DIR", "/eval-out")) / "quality" / tag
     out.mkdir(parents=True, exist_ok=True)
     p_meta = None
     if a.split == "test" and a.dev_json:  # gravada ANTES da execução (§4)
@@ -581,6 +787,15 @@ async def amain(a: argparse.Namespace) -> int:
         p_meta = p_meta_table(dev["icc"], dev["k"] / dev["n"], n_students=len(pks),
                               n_templates=len({i.template_id for i in items}))  # fmt: skip
         (out / "p_meta.json").write_text(json.dumps(p_meta, indent=2))
+        publish(out, evidence, tag)
+    frozen = frozen_sha()
+    primary = a.split == "test" and counted and is_primary(frozen, sha, prior=prior)
+    meta = {"split": a.split, "round": a.round, "model": a.model, "sha": sha, "dirty": dirty,
+            "paraphrase": a.paraphrase, "perfil": "eval", "rehearsal": a.rehearsal,
+            "frozen_sha": frozen, "primary_run": primary}  # fmt: skip
+    if counted:  # ANTES de rodar: se o processo morrer, a rodada continua contada
+        claim_round(ledger, {"split": a.split, "round": a.round, "sha": sha, "model": a.model,
+                             "primary_run": primary, "items": len(items)})  # fmt: skip
     annotate: Annotate | None = None
     if a.record and a.phoenix_url:
         from app.obs import annotations
@@ -589,41 +804,33 @@ async def amain(a: argparse.Namespace) -> int:
         annotate = annotations.annotate_span
     client = ChatClient(a.base_url, timeout=90.0)
     try:
-        rr = await run_round(items, {s: mint(u, "chat") for s, u in pks.items()}, client,
-                             annotate=annotate)  # fmt: skip
+        rr = await run_round(items, lambda sid: mint(pks[sid], "chat"), client,
+                             annotate=annotate, expect_model=a.model)  # fmt: skip
     finally:
         await client.aclose()
     if annotate:
         await annotations.drain()
+    if counted:
+        close_round(ledger, {"split": a.split, "round": a.round, "sha": sha, "model": a.model,
+                             "aborted": rr.aborted, "abort_reason": rr.abort_reason,
+                             "invalid": rr.invalid, "items": len(rr.outcomes)})  # fmt: skip
     by_id = {i.id: i for i in items}
-    meta = {"split": a.split, "round": a.round, "model": a.model, "sha": sha, "dirty": dirty,
-            "paraphrase": a.paraphrase, "perfil": "eval"}  # fmt: skip
-    outs = {x.item_id: x for x in rr.outcomes}
-    util = []
-    if a.utility_labels.exists():
-        util = [v for r in csv.DictReader(a.utility_labels.open(encoding="utf-8", newline=""))
-                if (v := _bool(r.get("util", ""))) is not None]  # fmt: skip
-    summary = summarize(rr, strata=strata, n_boot=a.n_boot, labels=read_labels(a.labels, outs),
-                        utility=util, p_meta=p_meta, meta=meta)  # fmt: skip
-    if a.split == "dev":
-        res = _results([x for x in rr.valid if x.category != "multiturno"])
-        summary["k"], summary["n"] = sum(r.passed for r in res), len(res)
-        summary["icc"] = estimate_icc(res) if res else None
+    write_private(out, rr, by_id, strata)  # parcial também fica gravado
+    meta["served_models"] = rr.served_models
     if a.split == "test":
-        summary["test_rounds"] = [*prior, {"round": a.round, "sha": sha, "aborted": rr.aborted}]
-        if a.round == 1 and not rr.aborted:
+        meta["test_rounds"] = [
+            {"round": r["round"], "sha": r["sha"], "aborted": r.get("aborted", False)}
+            for r in read_rounds(ledger) if r["split"] == "test" and r["status"] != "started"
+        ]  # fmt: skip
+        if rr.valid and not rr.aborted and a.round == 1:
             valid = _results([x for x in rr.valid if x.category != "multiturno"])
-            _validation_csv(
-                out / "scorer_validation.csv", sample_scorer_validation(valid), rr, by_id
-            )
-    (out / "quality.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
-    (out / "quality.md").write_text(render_md(summary), encoding="utf-8")
-    (out / "transcripts.jsonl").write_text(_transcripts(rr, by_id), encoding="utf-8")
-    if a.record:
-        append_round(rounds_path, {"split": a.split, "round": a.round, "sha": sha,
-                                   "model": a.model, "aborted": rr.aborted,
-                                   "invalid": rr.invalid, "items": len(rr.outcomes)})  # fmt: skip
-    print((out / "quality.md").read_text(encoding="utf-8"))
+            _validation_csv(out / "scorer_validation.csv", sample_scorer_validation(valid), rr,
+                            by_id)  # fmt: skip
+    s = build_summary(rr, strata, meta, n_boot=a.n_boot, labels=a.labels, utility=a.utility,
+                      judge=a.judge, dev_dir=a.dev_dir, p_meta=p_meta)  # fmt: skip
+    write_summary(out, s)
+    publish(out, evidence, tag)
+    print(render_md(s))
     return 1 if rr.aborted else 0
 
 

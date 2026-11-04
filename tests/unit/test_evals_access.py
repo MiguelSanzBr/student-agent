@@ -77,3 +77,17 @@ def test_mint_uses_issue_token(app_secrets: object) -> None:
     pk = uuid4()
     tok = mint(pk, "chat")
     assert verify_token(tok, "chat", AppSettings()) == pk  # type: ignore[call-arg]
+
+
+async def test_ask_reads_debug_tool_calls_values_and_served_model() -> None:
+    body = sse(
+        ("meta", {"trace_id": "t1", "span_id": "s1"}),
+        ("debug", {"tool_calls": [{"name": "get_x"}], "tool_values": {"get_x": ["v"]}}),
+        ("answer", {"text": "ok"}), ("done", {"status": "ok", "model": "m1", "trace_id": "t1"}),
+    )  # fmt: skip
+    c = ChatClient("http://api", transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, content=body.encode())))  # fmt: skip
+    rec = await c.ask("jwt", "conv", "oi")
+    assert rec.tools_called == ("get_x",)
+    assert c.last_meta == {"trace_id": "t1", "span_id": "s1", "tool_values": {"get_x": ["v"]},
+                           "model": "m1"}  # fmt: skip

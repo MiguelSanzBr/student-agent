@@ -11,3 +11,6 @@ tests
 .*_cache
 .lanes
 !tests/fixtures/golden.json
+!tests/__init__.py
+!tests/fixtures/__init__.py
+!tests/fixtures/entity_records.py

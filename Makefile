@@ -51,14 +51,22 @@ lint:
 
 check: lint test
 
-# Runner da qualidade: no host (precisa de EVAL_API_URL, ETL_OUT_DIR, EVAL_OUT_DIR e dos segredos do
-# app para `evals.tokens.mint`). make eval-dev MODEL=gemini-3.8-flash ROUND=1 [ARGS="--paraphrase"]
+# Runner da qualidade (Task 31): no container `evals` (segredos em /run/secrets, dados e ETL por
+# volume). Antes: o ETL precisa ter rodado (eval_students.json, golden_login.json). No teste, passe
+# ARGS="--dev-json ... --spend-today X --rpd-left N --holdout-yaml ..." (ver o docstring do runner).
+#   make eval-dev  MODEL=gemini-3.8-flash ROUND=1 [ARGS=...]
+#   make eval-test MODEL=gemini-3.8-flash ROUND=1 ARGS="..."
+EVALS = $(EVAL_DC) run --rm evals python -m
 eval-dev eval-test:
-	uv run python -m evals.golden.run --split $(patsubst eval-%,%,$@) --model $(MODEL) \
-	  --round $(ROUND) --record $(ARGS)
+	@test -n "$(MODEL)" -a -n "$(ROUND)" || { echo "use MODEL=... ROUND=N" >&2; exit 1; }
+	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
+	$(EVAL_DC) up -d --build --wait api-eval
+	$(EVALS) evals.golden.run --split $(patsubst eval-%,%,$@) --model $(MODEL) --round $(ROUND) \
+	  --record $(ARGS)
 
-eval-guard:  # make eval-guard SEED=<semente do cego> [ARGS="--dev-transcripts .../transcripts.jsonl"]
-	uv run python -m evals.guard.run --blind-seed $(SEED) $(ARGS)
+eval-guard:  # conjunto cego medido 1x (semente pré-registrada); ARGS="--dev-transcripts /eval-out/quality/dev-rN/transcripts.jsonl"
+	mkdir -p docs/evidence/quality && chmod a+rwx docs/evidence/quality
+	$(EVALS) evals.guard.run $(ARGS)
 
 package:
 	$(NOT_YET)

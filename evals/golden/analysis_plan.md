@@ -137,3 +137,8 @@ Leniência residual, nas duas direções (o 24/6 da seção 12 mede ambas como V
 2026-11-04: o carimbo OpenTimestamps (`dataset.sha256.ots`) está **pendente por decisão do
 autor** (publica o hash em servidores externos). Até o carimbo existir, o commit git que
 contém este arquivo e o `dataset.sha256` é a única prova temporal do pré-registro.
+
+## 19. Adendo datado: semente do conjunto cego do guard
+2026-11-04: a semente da perturbação cega do guard é a constante `BLIND_SEED = 20261106` em
+`evals/guard/run.py`, fixa antes de qualquer medição e não configurável por linha de comando. O
+conjunto cego é medido uma única vez (marcador `<EVAL_OUT_DIR>/guard/.blind_measured`).

@@ -48,6 +48,7 @@ class TurnTrace:
     pre_guard_answer: str | None = None
     gabarito_marked: bool = False
     step: int = 0  # passo reprovado (multi-turno)
+    tool_values: Mapping[str, Sequence[str]] | None = None  # debug.tool_values; None = não visto
 
 
 def wilson(k: int, n: int) -> CI:
