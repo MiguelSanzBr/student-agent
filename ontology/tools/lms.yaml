@@ -1,3 +1,10 @@
 # Campos de saída declarados por ferramenta (T7 cria vazio; as tarefas 16-19 preenchem).
+# Chaves de `data`, chaves aninhadas e campos dos registros.
 tools:
-  get_lms_activity: {outputs: []}
+  get_lms_activity:
+    outputs: [matricula, periodo, mensagem, cobertura, ultimo_acesso, acessos_no_periodo,
+      mensagem_acessos, disciplinas, total_disciplinas, simulados_abertos,
+      simulados_com_tentativa_restante, pendentes, tentativas_nao_oficiais, aviso_tentativas,
+      proxima_avaliacao, mensagem_proxima_avaliacao, provas, total_provas, data, tipo, fonte,
+      disciplina, situacao, janela_inicio, janela_fim, tentativas, tentativas_permitidas,
+      vale_nota, acessos, proxima_data, proxima_tipo, proxima_fonte, desde]

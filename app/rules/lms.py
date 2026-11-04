@@ -63,7 +63,7 @@ def lms_summary(
     graded = [q for q in quizzes if q.counts_for_grade]
     in_window = [q for q in practice if q.opens <= today <= q.closes]
     abertos = sum(_n_attempts(q, attempts) == 0 for q in in_window)
-    restante = sum(0 < _n_attempts(q, attempts) < q.allowed_attempts for q in in_window)
+    restante = sum(_n_attempts(q, attempts) < q.allowed_attempts for q in in_window)
     status = {q.id: quiz_status(q, attempts, today) for q in graded}
     todo = sorted(
         (

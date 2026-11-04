@@ -269,6 +269,6 @@ def test_guard_lexicon_sections() -> None:
 
 def test_tool_yaml_agrees_with_registry() -> None:
     assert set(ONTO.tools()) == set(TOOL_NAMES)
-    assert ONTO.tool_outputs("get_catalog") == frozenset()  # T16-19 preenchem
+    assert "mensalidade" in ONTO.tool_outputs("get_catalog")  # T19 preencheu
     with pytest.raises(KeyError):
         ONTO.tool_outputs("nope")

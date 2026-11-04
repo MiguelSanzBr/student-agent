@@ -36,7 +36,7 @@ def test_open_practice_definition():
         q("b", date(2026, 10, 1), date(2026, 11, 5)),
     ]
     s = lms_summary(quizzes, [Attempt("b")], T, modality="ead", calendar={})
-    assert (s.simulados_abertos, s.simulados_com_tentativa_restante) == (1, 1)
+    assert (s.simulados_abertos, s.simulados_com_tentativa_restante) == (1, 2)
 
 
 def test_presencial_next_assessment_from_calendar():

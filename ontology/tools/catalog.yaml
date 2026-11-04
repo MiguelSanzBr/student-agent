@@ -1,3 +1,9 @@
 # Campos de saída declarados por ferramenta (T7 cria vazio; as tarefas 16-19 preenchem).
+# Chaves de `data`, chaves aninhadas e campos dos registros.
 tools:
-  get_catalog: {outputs: []}
+  get_catalog:
+    outputs: [marca, modalidade, total, mensagem, cursos, precos, nao_oferecidos, disciplinas,
+      periodos, unidades, servicos, curso, sigla, oferta, mensalidade, ano,
+      parcelas_por_semestre, disciplina, horas, creditos, na_sua_matriz, semestre, obrigatoria,
+      periodo, inicio, fim, av1, av2, atual, unidade, tipo, uf, servico, rotulo_na_interface,
+      o_agente_abre_o_pedido, orientacao, prazo, taxa, canais, porque_agente_nao_executa]
