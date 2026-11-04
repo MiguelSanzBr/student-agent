@@ -9,6 +9,7 @@ from app.agent import make_llm
 from app.api import ROUTERS
 from app.config import AppSettings
 from app.data.db import Pool, assert_safe_role, create_pool
+from app.infra.bodylimit import BodyLimit
 from app.infra.redis import RealRedis
 from app.obs import annotations
 from app.obs.logging import configure_logging
@@ -53,5 +54,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="student-agent", lifespan=lifespan)
+app.add_middleware(BodyLimit)
 for _router in ROUTERS:
     app.include_router(_router)

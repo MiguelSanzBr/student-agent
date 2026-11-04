@@ -20,7 +20,9 @@ def _stages() -> dict[str, list[str]]:
 
 def test_golden_cpfs_nunca_na_imagem_da_api() -> None:
     st = _stages()
-    com_golden = {k for k, v in st.items() if any("golden.json" in ln for ln in v if not ln.startswith("#"))}
+    com_golden = {
+        k for k, v in st.items() if any("golden.json" in ln for ln in v if not ln.startswith("#"))
+    }
     assert com_golden == {"etl", "eval"}  # quem lê; base (e portanto api) não leva
 
 

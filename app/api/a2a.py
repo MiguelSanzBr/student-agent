@@ -2,6 +2,7 @@
 são escopados pelo `sub` do JWT; exceções nunca vazam a mensagem original."""
 
 import logging
+import re
 from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
@@ -32,7 +33,7 @@ from a2a.types.a2a_pb2 import (
     Task,
     TaskState,
 )
-from a2a.utils.errors import InternalError
+from a2a.utils.errors import InternalError, InvalidParamsError
 from fastapi import APIRouter, HTTPException
 from starlette.requests import Request
 from starlette.responses import Response
@@ -40,6 +41,7 @@ from starlette.responses import Response
 from app.api.auth import get_person_a2a
 from app.config import AppSettings
 from app.data.db import load_scope, with_scope
+from app.infra.stores import CONV_ID_PATTERN
 from app.infra.stores.a2a_tasks import RedisTaskStore
 from app.infra.stores.labels import LabelCache
 from app.service.turn import TurnService
@@ -137,6 +139,10 @@ class StudentAgentExecutor(AgentExecutor):
         self.state = state
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
+        if not all(
+            re.fullmatch(CONV_ID_PATTERN, i) for i in (context.context_id, context.task_id) if i
+        ):
+            raise InvalidParamsError("contextId/taskId inválido")
         msg = context.message
         assert msg is not None  # noqa: S101  (o SDK só chama execute com mensagem)
         if context.current_task is None:

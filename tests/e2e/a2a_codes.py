@@ -11,3 +11,4 @@ EXTENDED_CARD_NOT_CONFIGURED = (
 )  # só com extended_agent_card=True sem card estendido (ver spike)
 INTERNAL_ERROR = -32603
 METHOD_NOT_FOUND = -32601
+INVALID_PARAMS = -32602  # contextId fora de ^[A-Za-z0-9_-]{1,64}$

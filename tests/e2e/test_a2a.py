@@ -436,3 +436,22 @@ async def test_cancellation_settles_and_releases(settings: AppSettings) -> None:
     ((adm, result, cancelled),) = spy.calls
     assert cancelled and result is None
     assert await slots_in_use(svc) == 0 and not await _ticket_open(svc, adm)
+
+
+@pytest.mark.parametrize("bad", ["x" * 65, "a b", "../x", "ç"])
+def test_context_id_must_match_web_regex(
+    client: TestClient, settings: AppSettings, bad: str
+) -> None:
+    r = rpc(client, "SendMessage", msg("oi", contextId=bad), bearer(settings))
+    assert code(r) == C.INVALID_PARAMS
+
+
+def test_task_id_must_match_web_regex(client: TestClient, settings: AppSettings) -> None:
+    r = rpc(client, "SendMessage", msg("oi", taskId="x" * 65), bearer(settings))
+    assert code(r) == C.TASK_NOT_FOUND
+    assert code(rpc(client, "GetTask", {"id": "a b"}, bearer(settings))) == C.TASK_NOT_FOUND
+
+
+def test_valid_ids_still_work(client: TestClient, settings: AppSettings) -> None:
+    t = send(client, bearer(settings), contextId="ctx_ok-1")
+    assert t["contextId"] == "ctx_ok-1"

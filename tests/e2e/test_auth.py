@@ -321,7 +321,7 @@ def test_prod_requires_cookie_secure(app_secrets: Path) -> None:
 
     with pytest.raises(ValidationError):
         AppSettings(app_env="prod", cookie_secure=False)
-    AppSettings(app_env="prod", cookie_secure=True)
+    AppSettings(app_env="prod", cookie_secure=True, llm_provider="gemini")
     assert AppSettings(app_env="dev").cookie_secure is False
 
 

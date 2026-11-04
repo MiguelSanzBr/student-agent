@@ -1,5 +1,6 @@
 """TaskStore do A2A no Redis: toda chave e todo índice são do dono (sub do JWT), com TTL."""
 
+import re
 from uuid import UUID
 
 from a2a.server.context import ServerCallContext
@@ -8,6 +9,7 @@ from a2a.server.tasks import TaskStore
 from a2a.types.a2a_pb2 import ListTasksRequest, ListTasksResponse, Task, TaskState
 
 from app.infra.redis import RedisClient
+from app.infra.stores import CONV_ID_PATTERN
 from core.clock import wall_now
 from core.rkey import RKey, rkey
 
@@ -43,6 +45,8 @@ class RedisTaskStore(TaskStore):
         await self.redis.eval(_ADD, [self._idx(o)], [task.id, wall_now().timestamp(), self.ttl])
 
     async def get(self, task_id: str, context: ServerCallContext) -> Task | None:
+        if not re.fullmatch(CONV_ID_PATTERN, task_id):  # id de cliente fora do formato: não existe
+            return None
         raw = await self.redis.get(self._key(self._owner(context), task_id))
         return Task.FromString(raw) if raw else None
 
