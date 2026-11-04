@@ -183,6 +183,14 @@ async def test_tool_then_answer() -> None:
     assert r.records == (FIN_REC,)
 
 
+async def test_llm_call_durations_typed_by_kind() -> None:
+    r = await run(ScriptedLLM([R(None, C("get_financial_summary")), R(OK)]))
+    assert [k for k, _ in r.llm_calls_s] == ["tool_call", "answer_call"]
+    assert all(isinstance(s, float) and s >= 0 for _, s in r.llm_calls_s)
+    r = await run(ScriptedLLM([R(OK)]))
+    assert [k for k, _ in r.llm_calls_s] == ["answer_call"]
+
+
 async def test_parallel_tools() -> None:
     r = await run(ScriptedLLM([R(None, C("get_financial_summary"), C("get_lms_activity")), R(OK)]))
     assert r.tools_class == "2+" and r.llm_calls == 2

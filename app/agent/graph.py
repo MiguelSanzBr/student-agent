@@ -80,6 +80,7 @@ class TurnResult:
     became_tainted: bool = False  # T25 chama HistoryStore.mark_tainted
     offered_other_enrollment: bool = False  # T25 chama mark_other_enrollment_offered
     cost_degraded: bool = False
+    llm_calls_s: tuple[tuple[str, float], ...] = ()  # (tool_call|answer_call, s) por chamada
 
 
 log = logging.getLogger(__name__)
@@ -144,6 +145,7 @@ class _S(TypedDict, total=False):
     executed: int  # chamadas cujo handler rodou
     rest_empty: bool
     t_llm: float
+    llm_calls_s: list[tuple[str, float]]
     t_tools: float
     t_guard: float
 
@@ -190,10 +192,12 @@ async def _llm_node(state: _S, config: RunnableConfig) -> _S:
         METRICS["agent_llm_errors_total"].labels(kind=e.reason).inc()  # type: ignore[union-attr]
         return {"abort": "budget_exceeded" if e.reason == "timeout" else "llm_unavailable"}
     u, calls = state["usage"], resp.tool_calls if offer else ()
+    dur = monotonic() - t0
     out: _S = {
         "text": resp.text, "calls": calls, "meta": resp.provider_meta, "model": resp.model,
         "llm_calls": state["llm_calls"] + 1, "feedback": None, "abort": None,
-        "t_llm": state["t_llm"] + (monotonic() - t0) * 1000,
+        "t_llm": state["t_llm"] + dur * 1000,
+        "llm_calls_s": [*state["llm_calls_s"], ("tool_call" if calls else "answer_call", dur)],
         "usage": Usage(u.input_tokens + resp.usage.input_tokens,
                        u.output_tokens + resp.usage.output_tokens,
                        u.thinking_tokens + resp.usage.thinking_tokens,
@@ -523,7 +527,7 @@ async def run_turn(
         "executed": 0, "rest_empty": False, "retries": 0, "feedback": None, "pre_guard": None,
         "fail_domain": None, "answer": "",
         "guard": "n/a", "status": "ok", "abort": None, "t_llm": 0.0, "t_tools": 0.0,
-        "t_guard": 0.0,
+        "t_guard": 0.0, "llm_calls_s": [],
     }  # fmt: skip
     first: float | None = None
     final: _S = init
@@ -559,4 +563,5 @@ async def run_turn(
         first_event_ms=total if n == 0 else first, pre_guard_answer=final["pre_guard"],
         new_messages=tuple(final["new"]), records=tuple(final["records"]),
         became_tainted=tainted, offered_other_enrollment=final["offered"], cost_degraded=degraded,
+        llm_calls_s=tuple(final["llm_calls_s"]),
     )  # fmt: skip

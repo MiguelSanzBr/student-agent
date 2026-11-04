@@ -266,7 +266,11 @@ async def test_debug_only_dev_eval() -> None:
     s = AppSettings(app_env="dev", limits_profile="eval", llm_provider="gemini")
     _, _, ev = await turn(make_service(s, scripted(OK)))
     assert "debug" in kinds(ev)
-    assert "tool_values" in next(e for e in ev if e["event"] == "debug")
+    dbg = next(e for e in ev if e["event"] == "debug")
+    assert "tool_values" in dbg
+    # tempo por chamada ao LLM: só tipo e segundos, nada de conteúdo
+    assert [k for k, _ in dbg["llm_calls_s"]] == ["answer_call"]
+    assert all(isinstance(s, float) for _, s in dbg["llm_calls_s"])
 
 
 def test_tool_values_slices_records_per_call() -> None:

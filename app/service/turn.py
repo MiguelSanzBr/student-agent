@@ -284,7 +284,8 @@ class DefaultTurnService:
                             "pre_guard_answer": r.pre_guard_answer,
                             "tool_values": self._tool_values(r),
                             "usage": dataclasses.asdict(r.usage),
-                            "llm_calls": r.llm_calls})  # fmt: skip
+                            "llm_calls": r.llm_calls,
+                            "llm_calls_s": [[k, s] for k, s in r.llm_calls_s]})  # fmt: skip
             return await self._done(r, emit, trace_id, channel)
 
     async def _persist(self, sub: UUID, channel: Channel, cid: str, r: TurnResult) -> None:
