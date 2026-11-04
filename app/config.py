@@ -15,7 +15,7 @@ from pydantic_settings import (
 )
 
 SLO_PATH = Path(__file__).resolve().parent.parent / "slo_targets.yaml"
-MIN_SECRET = 24
+MIN_SECRET = 32
 
 
 class Quota(BaseModel):
@@ -200,8 +200,16 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
             raise ValueError("dev_login não pode ficar ligado com app_env=prod")
         if self.app_env == "prod" and not self.cookie_secure:
             raise ValueError("app_env=prod exige cookie_secure=true")
-        if self.app_env == "prod" and self.llm_provider in ("fake", "loadtest"):
-            raise ValueError("llm_provider fake/loadtest não pode ser usado com app_env=prod")
+        if self.app_env == "prod":
+            if not (
+                self.llm_provider == "gemini"
+                or (self.llm_provider == "auto" and self.gemini_api_key)
+            ):
+                raise ValueError(
+                    "app_env=prod exige llm_provider=gemini (ou auto com gemini_api_key)"
+                )
+            if self.limits_profile != "default":
+                raise ValueError("app_env=prod exige limits_profile=default")
         return self
 
     @model_validator(mode="after")

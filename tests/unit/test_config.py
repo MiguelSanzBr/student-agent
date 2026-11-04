@@ -28,10 +28,10 @@ def test_placeholder_secret_rejected(app_secrets: Path) -> None:
 
 def test_short_secret_rejected(app_secrets: Path) -> None:
     with pytest.raises(ValidationError):
-        AppSettings(jwt_secret="x" * 23)
+        AppSettings(jwt_secret="x" * 31)
     with pytest.raises(ValidationError):
         AppSettings(jwt_secret="")
-    AppSettings(jwt_secret="x" * 24)
+    AppSettings(jwt_secret="x" * 32)
 
 
 def test_canary_32_hex(app_secrets: Path) -> None:
@@ -108,3 +108,26 @@ def test_default_model_has_quota_and_price(app_secrets: Path) -> None:
     assert s.llm_model == "gemini-3.8-flash"
     for m in (s.llm_model, s.llm_fallback_model):
         assert m in s.slo.quotas and m in _PRICES
+
+
+PROD = {"app_env": "prod", "cookie_secure": True}
+
+
+@pytest.mark.parametrize("provider", ["replay", "fake", "loadtest", "auto"])
+def test_prod_rejects_scripted_or_keyless_provider(app_secrets: Path, provider: str) -> None:
+    with pytest.raises(ValidationError):
+        AppSettings(llm_provider=provider, **PROD)  # type: ignore[arg-type]
+
+
+def test_prod_accepts_gemini_or_auto_with_key(app_secrets: Path) -> None:
+    (app_secrets / "gemini_api_key").write_text("AIza-whatever\n")
+    AppSettings(llm_provider="gemini", **PROD)  # type: ignore[arg-type]
+    AppSettings(llm_provider="auto", **PROD)  # type: ignore[arg-type]
+
+
+def test_prod_requires_default_limits(app_secrets: Path) -> None:
+    (app_secrets / "gemini_api_key").write_text("AIza-whatever\n")
+    for prof in ("eval", "load"):
+        with pytest.raises(ValidationError):
+            AppSettings(limits_profile=prof, **PROD)  # type: ignore[arg-type]
+    AppSettings(**PROD)  # type: ignore[arg-type]
