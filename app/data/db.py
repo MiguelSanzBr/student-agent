@@ -25,6 +25,7 @@ async def _reset(conn: AsyncConnection) -> None:
 
 async def _configure(conn: AsyncConnection) -> None:
     await conn.set_autocommit(True)
+    conn.prepare_threshold = None  # DISCARD ALL no reset derruba os prepared statements
 
 
 def conninfo(settings: AppSettings) -> str:

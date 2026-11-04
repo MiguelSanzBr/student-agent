@@ -1,5 +1,8 @@
 # Campos de saída declarados por ferramenta (T7 cria vazio; as tarefas 16-19 preenchem).
 tools:
-  get_financial_summary: {outputs: []}
-  list_invoices: {outputs: []}
-  list_agreements: {outputs: []}
+  get_financial_summary:
+    outputs: [total_para_quitar, principal_vencido, encargos, faturas_vencidas, proximo_vencimento, valor_proximo_vencimento, dias_para_proximo_vencimento, descontos, matriculas, total_geral]
+  list_invoices:
+    outputs: [faturas, total, mensagem, nota, fatura, competência, status, vencimento, valor, saldo, para_quitar]
+  list_agreements:
+    outputs: [acordos, total, mensagem, acordo, status, parcelas, divida_original, abatimento, valor_acordado, criado_em, faturas_incluidas]
