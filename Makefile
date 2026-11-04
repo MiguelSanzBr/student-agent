@@ -1,4 +1,4 @@
-.PHONY: stamp up down lane-up lane-down smoke login a2a-demo investigate phoenix-import test test-full \
+.PHONY: stamp up down lane-up lane-down smoke login a2a-demo phoenix-import test test-full \
         test-live lint check eval-dev eval-test eval-guard eval-security eval-latency load-test package
 
 LANE ?=
@@ -51,13 +51,17 @@ lint:
 
 check: lint test
 
-investigate eval-dev eval-test eval-guard eval-security \
+eval-dev eval-test eval-guard eval-security \
 eval-latency load-test package:
 	$(NOT_YET)
 
 phoenix-import:  # make phoenix-import FILE=docs/evidence/phoenix/<run>.json (PHOENIX_URL)
 	@test -n "$(FILE)" || { echo "use FILE=...json" >&2; exit 1; }
 	uv run python -m scripts.phoenix_export import $(FILE)
+
+investigate:  # make investigate TRACE=<id> [LANE=x]; lê turn_output como ops_audit
+	@test -n "$(TRACE)" || { echo "use TRACE=<id>" >&2; exit 1; }
+	uv run python -m scripts.investigate --trace $(TRACE)
 
 smoke:  # make smoke LANE=x, em série; sobe a raia e a derruba ao fim
 	@test -n "$(call lv,API_PORT)" || { echo "use LANE=a|b|c|d" >&2; exit 1; }

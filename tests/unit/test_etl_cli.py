@@ -12,4 +12,4 @@ def test_missing_golden_fails_loudly(tmp_path: Path) -> None:
 
 def test_command_is_optional_and_validated() -> None:
     with pytest.raises(SystemExit):
-        main(["purge"])
+        main(["bogus"])

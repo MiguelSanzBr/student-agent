@@ -1,4 +1,4 @@
-"""`python -m etl [load] --source <zip|dir> --database <nome>`: carga (padrões do compose)."""
+"""`python -m etl [load|purge] --source <zip|dir> --database <nome>`: carga (padrões do compose)."""
 
 import argparse
 import sys
@@ -14,7 +14,7 @@ from etl.report import write_report
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="etl")
-    ap.add_argument("cmd", nargs="?", choices=["load"], default="load")
+    ap.add_argument("cmd", nargs="?", choices=["load", "purge"], default="load")
     ap.add_argument("--source", type=Path, default=Path("/data/dados.zip"))
     ap.add_argument("--database", default=None)
     ap.add_argument("--out", type=Path, default=Path("/out"))
@@ -22,6 +22,13 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--golden", type=Path, default=Path("tests/fixtures/golden.json"))
     ap.add_argument("--report-dir", type=Path, default=None, help="cópia extra do data-quality")
     args = ap.parse_args(sys.argv[1:] if argv is None else argv)
+    if args.cmd == "purge":
+        from etl.purge import purge
+
+        settings = EtlSettings()
+        n = purge(settings, database=args.database or settings.db_name)
+        print(f"purga ok: {n} saídas tipadas expiradas apagadas")
+        return
     if not args.golden.is_file():
         raise SystemExit(f"golden.json ausente: {args.golden} (o arquivo de login depende dele)")
     from evals import oracle

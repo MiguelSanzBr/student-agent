@@ -9,6 +9,7 @@ from app.rules.coverage import coverage_note
 from app.rules.eligibility import (
     EligibilityFacts,
     Eligible,
+    NotEligible,
     OpenRequest,
     SubjectFact,
     eligibility,
@@ -198,6 +199,41 @@ def _refusal(motivo: str, alt: str | None = None) -> ToolOutput:
     return ToolOutput(data, (service_record(alt),))
 
 
+async def check_eligibility(
+    conn: Any,
+    code: str,
+    svc: Any,
+    enr: Any,
+    subject: str | None,
+    today: date,
+    rows: list[tuple[Any, ...]],
+    term: str | None,
+) -> Eligible | NotEligible:
+    """Regras de elegibilidade (spec §5.5) com os fatos do banco; usada no rascunho e na confirmação."""  # noqa: E501
+    invs = [
+        Invoice(str(i), int(n), s, d) for i, n, s, d in await q.invoices(conn, enr.enrollment_key)
+    ]
+    pays = [
+        Payment(str(i), int(p), 0, 0, s) for i, p, s in await q.payments(conn, enr.enrollment_key)
+    ]
+    pos = financial_position(invs, pays, [], today)
+    facts = EligibilityFacts(
+        today=today,
+        sla_hours=svc.sla_hours,
+        enrollment_status=enr.status,
+        diploma_issued=await q.diploma_issued(conn, enr.enrollment_key),
+        has_open_invoice=any(i.status in COUNTED for i in invs),
+        overdue_principal=pos.overdue_principal,
+        subjects=_subject_facts(rows, term),
+        open_requests=tuple(
+            OpenRequest(c, None, "secretaria", _brt(at))
+            for c, at in await q.open_secretary(conn, enr.enrollment_key)
+        )
+        + tuple(OpenRequest(c, s, "SA", d) for c, s, d in await q.open_sa(conn, enr.index)),
+    )  # noqa: E501
+    return eligibility(code, facts, subject=subject)
+
+
 async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     args = _args("draft_protocol", args)
     code, onto = str(args["service_code"]), default_ontology()
@@ -224,30 +260,7 @@ async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
         key = DraftKey(code, subject)
         if await ctx.drafts.same_pending(sub, ctx.conversation_id, key) is not None:
             return ToolOutput({"rascunho_ja_exibido": True})
-        invs = [
-            Invoice(str(i), int(n), s, d)
-            for i, n, s, d in await q.invoices(conn, enr.enrollment_key)
-        ]
-        pays = [
-            Payment(str(i), int(p), 0, 0, s)
-            for i, p, s in await q.payments(conn, enr.enrollment_key)
-        ]
-        pos = financial_position(invs, pays, [], ctx.today)
-        facts = EligibilityFacts(
-            today=ctx.today,
-            sla_hours=svc.sla_hours,
-            enrollment_status=enr.status,
-            diploma_issued=await q.diploma_issued(conn, enr.enrollment_key),
-            has_open_invoice=any(i.status in COUNTED for i in invs),
-            overdue_principal=pos.overdue_principal,
-            subjects=_subject_facts(rows, term),
-            open_requests=tuple(
-                OpenRequest(c, None, "secretaria", _brt(at))
-                for c, at in await q.open_secretary(conn, enr.enrollment_key)
-            )
-            + tuple(OpenRequest(c, s, "SA", d) for c, s, d in await q.open_sa(conn, enr.index)),
-        )  # noqa: E501
-    verdict = eligibility(code, facts, subject=subject)
+        verdict = await check_eligibility(conn, code, svc, enr, subject, ctx.today, rows, term)
     if not isinstance(verdict, Eligible):
         return _refusal(verdict.motivo_pt, verdict.alternativa)
     due = fmt_date(sla_due(ctx.today, svc.sla_hours))
