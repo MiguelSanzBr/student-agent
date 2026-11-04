@@ -1,5 +1,5 @@
 .PHONY: stamp up down lane-up lane-down smoke login a2a-demo langflow-demo langflow-down phoenix-import test test-full \
-        test-live lint check eval-dev eval-test eval-guard eval-security eval-security-blind eval-latency load-test publish-evidence package
+        test-live lint check eval-dev eval-test eval-guard eval-security eval-security-blind eval-latency refit-window-a load-test publish-evidence package
 
 LANE ?=
 lane = $(shell echo $(LANE) | tr a-z A-Z)
@@ -95,6 +95,13 @@ eval-latency:  # make eval-latency WINDOW=A|B|C [N=100] MODEL=claude-haiku-5-5 [
 	@test -n "$(WINDOW)" || { echo "use WINDOW=A|B|C" >&2; exit 1; }
 	$(LAT).bench --window $(WINDOW) --per-class $(or $(N),100) --data /data/dados.zip \
 	  --base-url $(or $(API_URL),http://api-eval:8000) --model $(or $(MODEL),claude-haiku-5-5) $(ARGS)
+
+# Reajuste único da janela A (no host): depois do eval-latency WINDOW=A, `make publish-evidence`
+# copia o latency-A-samples.jsonl do volume eval-out para docs/evidence/; então
+# make refit-window-a SAMPLES=docs/evidence/latency-A-samples.jsonl (edita só 4 seções do slo_targets.yaml).
+refit-window-a:
+	@test -n "$(SAMPLES)" || { echo "use SAMPLES=<latency-A-samples.jsonl>" >&2; exit 1; }
+	uv run python -m evals.latency.refit --samples $(SAMPLES)
 
 # Escadas (a) e (b) contra a API (LLM_PROVIDER=loadtest, Redis e limitador reais), sem gastar:
 # make load-test LANE=d [LADDER=a|b] [WORKERS=1|2] [CPUS=1.0] [ARGS=--duration 30]; roda sozinho na

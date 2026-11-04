@@ -1,5 +1,7 @@
 import random
 
+import pytest
+
 from evals.latency.bench import Sample, summarize
 
 
@@ -93,6 +95,7 @@ async def test_ask_timed_reads_sse_debug_and_ttfe() -> None:
 
     dbg = {"tools_class": "1", "model": "gemini-3.8-flash", "timings_ms": {
         "total": 5, "llm": 3000, "tools": 100, "guard": 5},
+        "llm_calls_s": [["tool_call", 1.0], ["answer_call", 2.0]],
         "usage": {"input_tokens": 1000, "output_tokens": 100, "thinking_tokens": 0,
                   "cached_tokens": 200}}  # fmt: skip
 
@@ -109,7 +112,11 @@ async def test_ask_timed_reads_sse_debug_and_ttfe() -> None:
         s = await ask_timed(h, "tok", "c", "oi", student="s1", on=date(2026, 10, 31))
     assert s is not None and s.cls == "1" and s.status == "ok" and s.model == "gemini-3.8-flash"
     assert 0 <= s.ttfe_s <= s.total_s and s.cached == 200 and s.input_tokens == 1000
-    assert s.components_s["llm"] == 3.0 and s.cost_usd > 0
+    assert s.cost_usd > 0
+    assert s.llm_calls_s == (("tool_call", 1.0), ("answer_call", 2.0))
+    c = s.components_s
+    assert c["tool_call"] == 1.0 and c["answer_call"] == 2.0
+    assert c["overhead"] >= 0 and c["overhead"] == pytest.approx(max(s.total_s - 3.0, 0.0))
 
     def rej(req: httpx.Request) -> httpx.Response:
         return httpx.Response(503, headers={"Retry-After": "3"})
@@ -128,3 +135,37 @@ def test_served_model_must_equal_the_requested_one_unless_allow_sim() -> None:
         with pytest.raises(SystemExit, match="--allow-sim"):
             check_served_model(bad, "gemini-3.8-flash", allow_sim=False)
         assert check_served_model(bad, "gemini-3.8-flash", allow_sim=True) is True  # simulated
+
+
+def test_samples_jsonl_next_to_summary_without_text(tmp_path) -> None:
+    import json
+
+    from evals.latency.bench import main
+
+    out = tmp_path / "latency-A.json"
+    assert (
+        main(
+            [
+                "--per-class",
+                "4",
+                "--window",
+                "A",
+                "--runner",
+                "sim",
+                "--allow-sim",
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    rows = [json.loads(x) for x in (tmp_path / "latency-A-samples.jsonl").read_text().splitlines()]
+    assert len(rows) == 12
+    keys = {"student", "cls", "status", "total_s", "ttfe_s", "llm_calls_s", "overhead_s", "model"}
+    assert all(set(r) == keys for r in rows)
+    assert {r["cls"] for r in rows} == {"card", "1", "2+"}
+    assert [k for k, _ in next(r for r in rows if r["cls"] == "2+")["llm_calls_s"]] == [
+        "tool_call",
+        "tool_call",
+        "answer_call",
+    ]

@@ -8,7 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
-PUBLIC = re.compile(r"security\.(json|md)|latency-[ABC]\.json|load-a-w\d+\.json")
+PUBLIC = re.compile(r"security\.(json|md)|latency-[ABC](-samples\.jsonl|\.json)|load-a-w\d+\.json")
 
 
 def publish(src: Path, dst: Path) -> list[str]:

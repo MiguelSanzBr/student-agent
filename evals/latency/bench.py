@@ -45,6 +45,7 @@ class Sample:
     cached: int = 0
     input_tokens: int = 0
     model: str = ""
+    llm_calls_s: tuple[tuple[str, float], ...] = ()  # (tool_call|answer_call, s) por chamada
 
 
 def _q(xs: Sequence[float], p: float) -> float:
@@ -128,7 +129,18 @@ async def _sim_runner(per_class: int, seed: int) -> list[Sample]:
             ans, ovh = llm.sample("answer_call"), llm.sample("overhead")
             total = sum(calls) + ans + ovh
             comps = {"tool_call": sum(calls), "answer_call": ans, "overhead": ovh}
-            out.append(Sample(f"s{i % 10}", cls, total, calls[0] if calls else total, comps))
+            per_call = (*(("tool_call", c) for c in calls), ("answer_call", ans))
+            out.append(
+                Sample(
+                    f"s{i % 10}",
+                    cls,
+                    total,
+                    calls[0] if calls else total,
+                    comps,
+                    model="sim",
+                    llm_calls_s=per_call,
+                )
+            )
     return out
 
 
@@ -199,12 +211,13 @@ async def ask_timed(
     from app.obs.cost import cost_usd
 
     u = Usage(**debug["usage"])
-    t = debug["timings_ms"]
+    calls = tuple((str(k), float(s)) for k, s in debug["llm_calls_s"])
+    by_kind = {k: sum(s for kk, s in calls if kk == k) for k in ("tool_call", "answer_call")}
+    comps = {**by_kind, "overhead": max(total - sum(by_kind.values()), 0.0)}
     return Sample(
-        student, debug["tools_class"], total, ttfe if ttfe is not None else total,
-        {"llm": t["llm"] / 1000, "tools": t["tools"] / 1000, "guard": t["guard"] / 1000},
+        student, debug["tools_class"], total, ttfe if ttfe is not None else total, comps,
         status, float(cost_usd(u, debug["model"], on)), u.cached_tokens, u.input_tokens,
-        debug["model"],
+        debug["model"], calls,
     )  # fmt: skip
 
 
@@ -264,6 +277,16 @@ def check_served_model(served: str, wanted: str, *, allow_sim: bool) -> bool:
     return True
 
 
+def samples_jsonl(samples: Sequence[Sample]) -> str:
+    """Uma linha por turno, sem texto: insumo de `evals.latency.refit` (janela A)."""
+    return "".join(
+        json.dumps({"student": x.student, "cls": x.cls, "status": x.status, "total_s": x.total_s,
+                    "ttfe_s": x.ttfe_s, "llm_calls_s": x.llm_calls_s,
+                    "overhead_s": x.components_s.get("overhead", 0.0), "model": x.model}) + "\n"
+        for x in samples
+    )  # fmt: skip
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="bench")
     ap.add_argument("--per-class", type=int, required=True)
@@ -295,6 +318,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text)
+    out.with_name(f"latency-{a.window}-samples.jsonl").write_text(samples_jsonl(samples))
     print(text)
     return 0
 
