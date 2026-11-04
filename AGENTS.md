@@ -10,7 +10,7 @@ Agente de atendimento ao aluno (case técnico). Spec e plano em `docs/superpower
 
 ## Regras
 - Relógio só em `core/clock.py` (`reference_today`, `wall_now`, `monotonic`); `test_clock_rule` varre o resto.
-- Segredos só por arquivo (`/run/secrets/<consumidor>`), gerados por `scripts/init_secrets.py`; nunca em env/`.env` (exceto `GEMINI_API_KEY`, copiada).
+- Segredos só por arquivo (`/run/secrets/<consumidor>`), gerados por `scripts/init_secrets.py`; nunca em env/`.env` (exceto `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` e `OPENAI_API_KEY`, copiadas).
 - Números operacionais só em `slo_targets.yaml`.
 - Identificadores em inglês; prompt, respostas e docs em PT-BR. Linha de 100 colunas.
 

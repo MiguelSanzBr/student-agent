@@ -1,10 +1,10 @@
 # Arquitetura do agente de atendimento ao aluno
 
-Este documento explica o que foi decidido, por que, e o que cada decisão custa. Ele vale para o escopo do case: um agente para o aluno **já autenticado**, sobre 5 marcas, 4 sistemas (SAG, LMS, secretaria, financeiro) e cerca de <!-- num:data.persons -->1000<!-- /num --> alunos, com data de referência 31/10/2026.
+Este documento explica o que foi decidido, por que, e o que custa. Vale para o escopo do case: um agente para o aluno **já autenticado**, sobre 5 marcas, 4 sistemas (SAG, LMS, secretaria, financeiro) e cerca de <!-- num:data.persons -->1000<!-- /num --> alunos, com data de referência 31/10/2026.
 
-O agente consulta, explica e orienta sobre vida acadêmica, financeiro, protocolos, LMS e catálogo. Ele abre protocolos, mas só como rascunho que o próprio aluno confirma com um clique. Pelo A2A ele só consulta e orienta.
+O agente consulta, explica e orienta sobre vida acadêmica, financeiro, protocolos, LMS e catálogo. Ele abre protocolos só como rascunho, que o próprio aluno confirma com um clique. Pelo A2A ele só consulta e orienta.
 
-A tese que organiza tudo: **o que precisa ser garantido não pode depender do comportamento do modelo.** Isolamento entre alunos, ausência de dado corporativo, limites de capacidade e correção de valores são propriedades da arquitetura, testadas sem LLM. O modelo é medido onde ele realmente decide: roteamento, redação e recusa.
+A tese que organiza tudo: **o que precisa ser garantido não pode depender do comportamento do modelo.** Isolamento entre alunos, ausência de dado corporativo, limites de capacidade e correção de valores são da arquitetura, testados sem LLM. O modelo é medido onde ele realmente decide: roteamento, redação e recusa.
 
 ## 1. Visão geral
 
@@ -15,7 +15,7 @@ flowchart LR
   ADM --> TS[TurnService<br/>limites · histórico · taint]
   TS --> CARD[Cartão do aluno]
   TS --> G[LangGraph StateGraph]
-  G -->|LLM| GEM[Gemini · AI Studio ou Vertex]
+  G -->|LLM| GEM[LLM · Gemini / Claude / GPT]
   G -->|TOOL| T[Ferramentas tipadas] --> PG[(Postgres<br/>canon RLS FORCE · agent_rw · util)]
   G -->|GUARDRAIL| EG[EvidenceGuard] --> OUT[SSE / tarefa A2A]
   API -.-> OBS[OTel → Phoenix · Prometheus]
@@ -29,11 +29,11 @@ Um turno funciona assim:
 2. O `TurnService` monta a requisição ao modelo: prompt fixo, as 11 declarações de ferramenta fixas, e o **cartão do aluno** como resposta sintética de uma chamada `get_student_card`.
 3. O grafo alterna `llm` e `tools`. Cada chamada de ferramenta abre uma conexão própria de banco, já com a identidade do aluno no RLS.
 4. O texto gerado pelo modelo passa pelo EvidenceGuard. Reprovado, o modelo tenta mais uma vez com o feedback; reprovado de novo, as frases reprovadas são removidas (degradação por tipo) ou, se nada sobra, o texto vira um fallback montado a partir dos registros.
-5. O mesmo `TurnService` atende o SSE do chat e o A2A, então nenhum canal tem limites próprios.
+5. O mesmo `TurnService` atende o chat e o A2A: nenhum canal tem limites próprios.
 
 ## 2. As dez decisões centrais
 
-Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 3.
+Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 ### D1. Ferramentas tipadas sobre um modelo canônico
 
@@ -46,16 +46,16 @@ Cada uma responde a uma pergunta que a banca faria. As demais estão na seção 
 
 **Trade-off.** Perguntas fora do desenho das ferramentas não têm resposta, e o agente diz isso e oferece "Falar com a secretaria". Em troca, a superfície de ataque é enumerável: o teste do "LLM comprometido" exercita toda ferramenta com argumentos fuzzados, o que é inviável com SQL livre. Também fica determinístico o que importa para precisão: a regra de dívida, de elegibilidade e de prazo mora em código puro, testável contra um oráculo, e não numa conta que o modelo refaz a cada resposta. Uma pergunta comum custa 0 ou 1 ferramenta, o que mantém a latência na meta.
 
-### D2. LangGraph chamando o SDK do Gemini direto
+### D2. LangGraph chamando os SDKs dos provedores direto
 
 
 **Pergunta difícil:** por que um grafo, e por que não um framework de agentes completo?
 
-**Decisão.** Um `StateGraph` explícito com três nós (`llm`, `tools`, `guard`; a degradação é uma função do `guard`) que chama o `google-genai` atrás de um contrato `LLMProvider`. Sem checkpointer: o histórico fica no Redis, com chave do servidor. Sem `interrupt()`: a confirmação humana acontece fora do grafo (D8).
+**Decisão.** Um `StateGraph` explícito com três nós (`llm`, `tools`, `guard`; a degradação é uma função do `guard`) que chama os SDKs do Gemini, Anthropic e OpenAI atrás de um contrato `LLMProvider`. Sem checkpointer: o histórico fica no Redis, com chave do servidor. Sem `interrupt()`: a confirmação humana acontece fora do grafo (D8).
 
 **Alternativas.** Loop próprio; `AgentExecutor` do LangChain; `langchain-google-genai`.
 
-**Trade-off.** O grafo dá um desenho publicável (`draw_mermaid`), `recursion_limit` (2·rodadas + 6) e eventos de progresso pelo stream writer. Ligar o SDK direto evita uma camada que esconderia `thought_signature`, contagem de tokens de cache e raciocínio, e timeouts por chamada, justamente o que a latência e o custo exigem. O contrato `LLMProvider` também é o que permite os modos Scripted, Replay, Adversarial (nos testes) e LoadTest sem tocar no resto. O custo é manter o adaptador do Gemini (retry do SDK e chamada automática de funções desligados de propósito).
+**Trade-off.** O grafo dá um desenho publicável (`draw_mermaid`), `recursion_limit` (2·rodadas + 6) e eventos de progresso pelo stream writer. Ligar o SDK direto evita uma camada que esconderia `thought_signature`, contagem de tokens de cache e raciocínio, e timeouts por chamada, justamente o que a latência e o custo exigem. O raciocínio (assinatura do Gemini, blocos do Claude com `drop_block`, itens cifrados do GPT) volta só ao mesmo modelo. O contrato `LLMProvider` também permite os modos Scripted, Replay, Adversarial e LoadTest sem tocar no resto. O custo é manter três adaptadores (retry dos SDKs desligado; política comum em `app/agent/retry.py`).
 
 ### D3. Isolamento em camadas
 
@@ -163,7 +163,7 @@ O spike com o cliente real do SDK mostrou três fatos que moldaram o desenho:
 
 **Alternativas.** Só ferramentas (uma chamada a mais em toda pergunta); cartão como texto da mensagem do usuário.
 
-**Trade-off.** Um `functionResponse` não pode ser forjado pelo aluno, que um texto de usuário poderia imitar. O custo é que o Gemini pode exigir a declaração da função sintética e a assinatura de pensamento; isso é checado no portão do primeiro dia (**pendente: sem chave do Gemini**). Se exigido, a função entra sem parâmetros e devolve o mesmo cartão.
+**Trade-off.** Um `functionResponse` não pode ser forjado pelo aluno, que um texto de usuário poderia imitar. O custo é que o provedor pode exigir a declaração da função sintética e a assinatura de pensamento; isso é checado no portão do primeiro dia (**pendente: teste live com chave**). Se exigido, a função entra sem parâmetros e devolve o mesmo cartão.
 
 ## 3. Decisões menores
 
@@ -180,7 +180,7 @@ O motivo de não serem centrais: ou são consequência direta de uma central, ou
 | D13 | JWT HS256 com algoritmo fixo e `aud` por canal | Identidade no corpo | Padrão; em produção, token exchange (RFC 8693) |
 | D14 | `person_key` = HMAC-SHA256(segredo, CPF) | UUIDv5 | UUIDv5 é reversível por quem conhece o CPF |
 | D18 | AI Studio ou Vertex, com o mesmo código | Só um | Portabilidade |
-| D19 | `LLM_PROVIDER=auto`: sem chave, replay roteirizado que chama as ferramentas de verdade (`app/agent/replay.py`) | Exigir chave | Quem avalia roda sem chave (modo local/dev). `app_env=prod` exige Gemini com chave e limites default; `replay`, `fake`, `loadtest` e `auto` sem chave são recusados na subida |
+| D19 | `LLM_PROVIDER=auto`: sem chave, replay roteirizado que chama as ferramentas de verdade (`app/agent/replay.py`) | Exigir chave | Quem avalia roda sem chave (modo local/dev). `app_env=prod` exige um provedor real com chave e limites default; `replay`, `fake`, `loadtest` e `auto` sem chave são recusados na subida |
 | D20 | Só `core/clock.py` lê relógio | Relógio livre | Respostas iguais depois de 10/11; testado por regex |
 | D22 | `enrollment` é um enum estável "1", "2" ou "3" | Rótulos por aluno | Cache e escopo |
 | D23 | `init-secrets` gera todos os segredos, um volume por consumidor, lidos só de arquivo | `.env` de exemplo | Segredo público permite forjar JWT |
@@ -297,7 +297,7 @@ Resultado, quando existir: ataques de comportamento bem-sucedidos (desenvolvimen
 ## 7. Qualidade
 
 
-O método está em D11. Aqui ficam os resultados e o que eles não dizem. Nada desta seção foi medido ainda (sem chave do Gemini); os marcadores abaixo mostram "a medir".
+O método está em D11. Aqui ficam os resultados e o que eles não dizem. Nada desta seção foi medido ainda (sem chave de LLM); os marcadores abaixo mostram "a medir".
 
 | Medida | Desenvolvimento | Teste |
 |---|---|---|
@@ -310,7 +310,7 @@ O método está em D11. Aqui ficam os resultados e o que eles não dizem. Nada d
 | Bloqueio indevido do guard | | <!-- num:guard.false_block -->a medir<!-- /num --> |
 | Recall do guard (perturbação cega) | | <!-- num:guard.blind_recall -->a medir<!-- /num --> |
 
-A meta é um limite inferior de 85% no pass@1 primário. Meta é compromisso, não resultado: se o número ficar abaixo, ele é publicado como está, com a análise de erro por causa.
+A meta é um limite inferior de 85% no pass@1 primário. Meta é compromisso, não resultado: abaixo dela, o número é publicado como está, com a análise de erro por causa.
 
 O que esta avaliação **não** garante: a amostra é de 40 alunos de teste com cotas (enriquecida em casos raros, o que o IC estratificado reconhece mas não elimina); o scorer foi validado com 30 respostas, então o pass@1 corrigido é sensibilidade, não o resultado; e o holdout só é cego para quem não viu o código, não para o autor. O gabarito de algumas áreas (acadêmico e LMS) não tem fonte externa, e por isso 20 itens sorteados são conferidos à mão.
 
@@ -319,9 +319,9 @@ O que esta avaliação **não** garante: a amostra é de 40 alunos de teste com 
 
 **Latência** é medida por classe de turno: `card` (nenhuma ferramenta, caminho nominal de uma chamada), `1` (uma ferramenta) e `2+`. As metas vêm de uma fórmula registrada antes das medições: uma lognormal por componente (chamada que emite ferramenta, chamada que responde e overhead, que reúne SQL, guard e infraestrutura), com Monte Carlo por classe e modelo, **incluindo o retry do guard no sorteio**, aplicada a todos os quantis e ao tempo até o primeiro evento (TTFE). A meta de cada quantil é o maior valor entre a meta inicial e a prevista. A fórmula é atualizada uma única vez, depois da primeira rodada de desenvolvimento, e congelada. A fonte única dos números é `slo_targets.yaml`.
 
-Dois trade-offs são declarados. O TTFE da classe `card` é igual à latência total, porque o guard precisa do texto inteiro antes de qualquer byte da resposta. E o orçamento do grafo é derivado (p99 previsto da classe `2+` vezes 1,2), de modo que uma chamada nunca ultrapassa o que o turno ainda tem.
+Dois trade-offs: o TTFE da classe `card` é igual à latência total, porque o guard precisa do texto inteiro antes de qualquer byte da resposta. E o orçamento do grafo é derivado (p99 previsto da classe `2+` vezes 1,2), de modo que uma chamada nunca ultrapassa o que o turno ainda tem.
 
-Hoje a fórmula roda com **priors**, não com amostras: o portão do Gemini depende de chave e ainda não foi executado. As janelas de medição são A (primeira rodada de desenvolvimento, a única que reajusta a fórmula), B e C (esta, no SHA congelado); as tabelas abaixo ficam vazias até lá.
+Hoje a fórmula roda com **priors**, não amostras: o portão do LLM depende de chave e ainda não foi executado. Os priors são do Gemini; com outro modelo, a janela A reajusta para ele, dito com os números. Janelas: A (rodada de desenvolvimento, a única que reajusta a fórmula), B e C (esta, no SHA congelado); as tabelas ficam vazias até lá.
 
 | Classe | p50 | p95 | TTFE p95 |
 |---|---|---|---|
@@ -331,7 +331,7 @@ Hoje a fórmula roda com **priors**, não com amostras: o portão do Gemini depe
 
 Overhead de infraestrutura (tudo que não é modelo): <!-- num:latency.overhead.p95 -->a medir<!-- /num -->. Turnos que estouraram o orçamento do grafo na janela A: <!-- num:latency.budget_exceeded -->a medir<!-- /num -->.
 
-**Capacidade.** A premissa de "milhares simultâneos" é traduzida em alunos ativos, mensagens por minuto, RPM e TPM contra a cota do modelo, e só depois em réplicas, pela CPU por turno. O TPM limita antes da CPU. Vagas de turno e pool de conexões são dimensionados pela lei de Little. A carga é gerada por um `LoadTestLLM` com latências sorteadas das lognormais do portão, em duas escadas de laço aberto contra a API: (a) com o limitador ligado e uma cota simulada derivada das vagas (platô de goodput, 503 com `Retry-After`, retries e cortes dentro de um teto, e o motivo da rejeição por degrau: cota ou vagas) e (b) sem limitador, para achar o joelho e a CPU por turno. `make load-test` e `make eval-latency` rodam em container. Resultado: <!-- num:latency.load.plateau -->a medir<!-- /num -->.
+**Capacidade.** "Milhares simultâneos" vira alunos ativos, mensagens por minuto, RPM e TPM contra a cota do modelo, e só depois réplicas, pela CPU por turno. O TPM limita antes da CPU. Vagas de turno e pool de conexões são dimensionados pela lei de Little. A carga é gerada por um `LoadTestLLM` com latências sorteadas das lognormais do portão, em duas escadas de laço aberto contra a API: (a) com o limitador ligado e uma cota simulada derivada das vagas (platô de goodput, 503 com `Retry-After`, retries e cortes dentro de um teto, e o motivo da rejeição por degrau: cota ou vagas) e (b) sem limitador, para achar o joelho e a CPU por turno. Resultado: <!-- num:latency.load.plateau -->a medir<!-- /num -->.
 
 **Custo.** Medido por turno, por índice de turno e por aluno ao mês, com tokens de entrada, saída, raciocínio e cache. Custo médio por turno: <!-- num:latency.cost.per_turn -->a medir<!-- /num -->. O relatório informa a tabela de preços usada.
 
@@ -370,13 +370,13 @@ Esta seção descreve o caminho, não algo já feito. Fora do escopo: deploy em 
 - Sem classificador de jailbreak: a defesa é a arquitetura, e o comportamento do modelo é medido, não garantido.
 - A latência depende da cota e do provedor no dia da medição; os números valem para as janelas descritas.
 - Com a data de referência fixa em 31/10/2026, o agente não representa o "hoje" real; é uma escolha para que a banca receba as mesmas respostas depois do prazo.
-- **Pendente: sem chave do Gemini.** O portão de latência, o cache do prefixo, a chamada sintética do cartão e as cotas ainda não foram medidos. Nada nas seções 7 e 8 é resultado.
+- **Pendente: sem chave de LLM.** O portão de latência, o cache do prefixo, a chamada sintética do cartão e as cotas ainda não foram medidos. Nada nas seções 7 e 8 é resultado.
 
 ## 12. Como foi construído
 
 <!-- autor: escolha da opção (a) de transparência. Se for (a), descomente a proposta abaixo; se não, deixe a seção vazia ou remova-a.
 Proposta (factual, até 8 linhas):
-O projeto foi feito em etapas: uma especificação de projeto, um plano de tarefas e a implementação tarefa a tarefa, cada uma com teste escrito antes do código. A implementação foi delegada a agentes de IA, e cada tarefa foi revisada por uma revisão independente antes de entrar. Do autor: as decisões de arquitetura e de escopo; a verificação dos dados contra os CSV de origem; a rotulagem às cegas de 30 respostas para validar o scorer; a conferência manual de 20 itens do gabarito; e a curadoria do que entra nas evidências. Os números são gerados por script a partir dos arquivos de evidência, e nenhum é digitado à mão.
+O projeto foi feito em etapas: especificação, plano de tarefas e implementação tarefa a tarefa, cada uma com teste antes do código. A implementação foi delegada a agentes de IA, e cada tarefa foi revisada por uma revisão independente antes de entrar. Do autor: as decisões de arquitetura e escopo; a verificação dos dados contra os CSV de origem; a rotulagem às cegas de 30 respostas para validar o scorer; a conferência manual de 20 itens do gabarito; e a curadoria das evidências. Os números são gerados por script a partir dos arquivos de evidência, e nenhum é digitado à mão.
 -->
 
 ## Apêndice. Estatística

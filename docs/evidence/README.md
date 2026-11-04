@@ -7,7 +7,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 | Arquivo | Conteúdo | Estado |
 |---|---|---|
 | `data-quality` | Contagens da carga (SQL contra memória), resolução por regra, invariantes, cobertura | Gerado |
-| `spikes` | Comportamento medido do A2A 1.0, do LangGraph e do Phoenix; versões fixadas | Gerado; o Gemini está pendente por falta de chave (`GEMINI_API_KEY`) |
+| `spikes` | Comportamento medido do A2A 1.0, do LangGraph e do Phoenix; versões fixadas | Gerado; o LLM real está pendente por falta de chave |
 | `quality` | pass@1 com IC, vistos e não vistos, recusa, cruzamento, erro por causa | A gerar (`make eval-dev`, `make eval-test`; exige chave) |
 | `guard` | Recall por tipo, bloqueio indevido, perturbação cega | A gerar (`make eval-guard`); ver a nota sobre o conjunto cego |
 | `security` | Testes de arquitetura e ataques com LLM real | A gerar (`make eval-security`; exige chave) |
@@ -42,7 +42,7 @@ Em 2026-11-04, um smoke do runner do guard mediu o conjunto cego real em um volu
 
 ![Chat do caso 4 com LLM fake](img/chat-golden4-fake.jpg)
 
-Captura do chat web para o aluno do caso 4, rodada com o LLM fake dos testes. Mostra o fluxo (interface, cartão e resposta), e não o comportamento do Gemini; nenhum número de qualidade sai dela.
+Captura do chat web para o aluno do caso 4, rodada com o LLM fake dos testes. Mostra o fluxo (interface, cartão e resposta), e não o comportamento do LLM real; nenhum número de qualidade sai dela.
 
 ## Como as avaliações rodam
 
