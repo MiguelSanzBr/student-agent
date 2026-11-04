@@ -155,7 +155,6 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     dev_login: bool = False
     cookie_secure: bool = False  # True atrás de HTTPS
     etl_out_dir: Path = Path("/etl-out")  # golden_login.json (caso -> person_key)
-    demo_mode: bool = False  # setado por make_llm quando o LLM é replay; /me devolve ao front
     otel_capture_content: bool = False
     otel_exporter_otlp_endpoint: str | None = None  # Phoenix: http://phoenix:6006/v1/traces
     phoenix_project: str = "student-agent"  # projeto do Phoenix (export/import por rodada)

@@ -152,6 +152,6 @@ async def me(request: Request, scope: Annotated[StudentScope, Depends(_scope)]) 
     return {
         "first_name": await _first_name(request, scope),
         "enrollments": [e.label for e in scope.enrollments],
-        "demo_mode": st.settings.demo_mode,
+        "demo_mode": callable(suggested),  # só o LLM de replay sugere perguntas
         "suggested": list(suggested()) if callable(suggested) else [],
     }

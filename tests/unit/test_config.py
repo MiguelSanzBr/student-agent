@@ -99,7 +99,6 @@ def test_slo_components_and_estimates(app_secrets: Path) -> None:
     s = AppSettings()
     assert set(s.slo.components) >= {"tool_call", "answer_call", "overhead"}
     assert s.slo.admission.est_requests > 0 and s.slo.admission.est_tokens > 0
-    assert AppSettings().demo_mode is False
 
 
 def test_default_model_has_quota_and_price(app_secrets: Path) -> None:

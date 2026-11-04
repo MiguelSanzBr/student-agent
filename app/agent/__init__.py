@@ -30,7 +30,6 @@ def _make_provider(settings: AppSettings) -> LLMProvider:
         case "replay":
             from app.agent.replay import DEFAULT_REPLAY, ReplayLLM
 
-            settings.demo_mode = True  # a faixa "modo demonstração" da UI depende disto
             return ReplayLLM(DEFAULT_REPLAY)
         case other:
             raise NotImplementedError(f"llm_provider={other!r}")

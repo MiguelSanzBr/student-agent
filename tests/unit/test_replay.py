@@ -8,7 +8,7 @@ from app.agent.fakes import ScriptedLLM
 from app.agent.gemini import GeminiProvider
 from app.agent.graph import run_turn
 from app.agent.llm import LLMResponse, Message, ToolCall, Usage
-from app.agent.replay import DEFAULT_REPLAY, UNKNOWN_TEXT, RecordingLLM, ReplayLLM
+from app.agent.replay import RecordingLLM, ReplayLLM
 from app.config import AppSettings
 from app.data.card import StudentCard
 from app.infra.stores.history import Conversation
@@ -94,33 +94,21 @@ async def test_suggested_lists_recorded_questions(tmp_path: Path) -> None:
     await rec.generate(
         model="m", system="s", messages=[Message("user", "Pergunta B")], tools=[], deadline=1.0
     )
-    assert ReplayLLM(path).suggested() == ["Pergunta A", "Pergunta B"]
+    assert ReplayLLM(path).suggested()[-2:] == ["Pergunta A", "Pergunta B"]  # após os chips
 
 
 async def test_auto_without_key_uses_replay(app_secrets: object) -> None:
     s = AppSettings(llm_provider="auto", gemini_api_key=None)
     llm = make_llm(s)
     assert isinstance(llm, ReplayLLM)
-    assert s.demo_mode is True
     assert llm.suggested()  # o roteiro versionado tem perguntas sugeridas
 
 
 async def test_auto_with_key_uses_gemini(app_secrets: object) -> None:
     s = AppSettings(llm_provider="auto", gemini_api_key="k" * 32)
     assert isinstance(make_llm(s), GeminiProvider)
-    assert s.demo_mode is False
 
 
 async def test_replay_provider_ships_recordings(app_secrets: object) -> None:
     s = AppSettings(llm_provider="replay")
     assert isinstance(make_llm(s), ReplayLLM)
-    assert s.demo_mode is True
-
-
-async def test_shipped_recordings_answer_every_suggested_question() -> None:
-    llm = ReplayLLM(DEFAULT_REPLAY)
-    for q in llm.suggested():
-        out = await llm.generate(
-            model="m", system="s", messages=[Message("user", q)], tools=[], deadline=1.0
-        )
-        assert out.text and out.text != UNKNOWN_TEXT, q

@@ -1,16 +1,82 @@
 """Gravação e replay das respostas do LLM, para rodar a demo sem GEMINI_API_KEY (spec D19)."""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 from app.agent.llm import LLMProvider, LLMResponse, Message, ToolCall, Usage
-from app.tools.base import ToolSpec
+from app.tools.base import FERRAMENTA_INDISPONIVEL, ToolSpec
 
 DEFAULT_REPLAY = Path(__file__).resolve().parents[2] / "evals" / "replays" / "demo.jsonl"
 UNKNOWN_TEXT = "Modo demonstração: escolha uma das perguntas sugeridas."
+
+
+def _plural(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"
+
+
+def _fin_rows(data: Mapping[str, Any]) -> list[tuple[str, Mapping[str, Any]]]:
+    rows = data.get("matriculas")
+    return [(f"Matrícula {r['matrícula']}: ", r) for r in rows] if rows else [("", data)]
+
+
+def _s(lead: str, text: str) -> str:
+    return lead + text if lead else text[0].upper() + text[1:]
+
+
+# total_geral fica de fora: a ferramenta não o põe em registro e o EvidenceGuard o recusaria.
+def _fin_total(data: Mapping[str, Any]) -> str:
+    out = []
+    for lead, d in _fin_rows(data):
+        out.append(_s(lead, f"o total para quitar é {d['total_para_quitar']}."))
+        if d["faturas_vencidas"]:
+            n = _plural(d["faturas_vencidas"], "fatura vencida", "faturas vencidas")
+            out.append(f"Há {n}, com principal vencido de {d['principal_vencido']}.")
+    return " ".join(out)
+
+
+def _fin_next(data: Mapping[str, Any]) -> str:
+    out = []
+    for lead, d in _fin_rows(data):
+        if d["proximo_vencimento"] == "nenhum":
+            out.append(_s(lead, "não há próximo vencimento."))
+        else:
+            out.append(
+                _s(
+                    lead,
+                    f"o próximo vencimento é {d['proximo_vencimento']}, "
+                    f"no valor de {d['valor_proximo_vencimento']}.",
+                )
+            )
+    return " ".join(out)
+
+
+def _lms(data: Mapping[str, Any]) -> str:
+    if "mensagem" in data:  # matrícula sem conta no AVA
+        return str(data["mensagem"])
+    # sem "AVA"/"aberto"/data de acesso: o EvidenceGuard ancora essas palavras a outros registros
+    out = [
+        f"Você tem {_plural(data['pendentes'], 'pendência', 'pendências')} no período "
+        f"{data['periodo']}."
+    ]
+    if (nxt := data.get("proxima_avaliacao")) is not None:
+        out.append(f"A próxima avaliação é em {nxt['data']} ({nxt['tipo']}).")
+    return " ".join(out)
+
+
+# Roteiro: pergunta normalizada -> (ferramenta chamada no passo 0, molde do passo 1 preenchido
+# com a saída REAL da ferramenta: nenhum número vem do roteiro, então outro aluno vê os próprios).
+_SCRIPT: dict[str, tuple[str, Callable[[Mapping[str, Any]], str]]] = {
+    "quanto eu devo?": ("get_financial_summary", _fin_total),
+    "quanto falta para quitar?": ("get_financial_summary", _fin_total),  # scripts/a2a_demo
+    "qual é o meu próximo vencimento?": ("get_financial_summary", _fin_next),
+    "quais são minhas atividades no lms?": ("get_lms_activity", _lms),
+}
+# Chips do front (as demais chaves do roteiro respondem, mas não são sugeridas).
+_CHIPS = ["Quanto eu devo?", "Qual é o meu próximo vencimento?",
+          "Quais são minhas atividades no LMS?"]  # fmt: skip
 
 
 def _turn_key(messages: Sequence[Message]) -> tuple[str, int]:
@@ -57,7 +123,7 @@ class ReplayLLM:
 
     def __init__(self, path: Path) -> None:
         self._by_key: dict[tuple[str, int], LLMResponse] = {}
-        self._suggested: list[str] = []
+        self._suggested: list[str] = list(_CHIPS)
         for raw in path.read_text(encoding="utf-8").splitlines():
             if not raw.strip():
                 continue
@@ -80,7 +146,17 @@ class ReplayLLM:
         tools: Sequence[ToolSpec], deadline: float,
     ) -> LLMResponse:  # fmt: skip
         question, step = _turn_key(messages)
-        found = self._by_key.get((_norm(question), step))
+        key = _norm(question)
+        if key in _SCRIPT:
+            tool, render = _SCRIPT[key]
+            if step == 0:
+                return LLMResponse(None, (ToolCall(f"demo-{tool}", tool, {}),), Usage(), model)
+            last = messages[-1]
+            res = last.tool_result if last.role == "tool" and last.tool_name == tool else None
+            if not res or "erro" in res:
+                return LLMResponse(FERRAMENTA_INDISPONIVEL, (), Usage(), model, "STOP")
+            return LLMResponse(render(res), (), Usage(), model, "STOP")
+        found = self._by_key.get((key, step))
         if found is not None:
             return found
         return LLMResponse(UNKNOWN_TEXT, (), Usage(), model, "STOP")
