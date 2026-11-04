@@ -1,0 +1,195 @@
+{
+  "pins": {
+    "python": "3.12.16",
+    "a2a-sdk": "1.3.0 (extra http-server)",
+    "langgraph": "1.2.19",
+    "google-genai": "2.34.0",
+    "opentelemetry-api": "1.45.2",
+    "opentelemetry-sdk": "1.45.2",
+    "opentelemetry-exporter-otlp-proto-http": "1.45.2",
+    "openinference-semantic-conventions": "0.1.43",
+    "arize-phoenix-otel": "0.17.2",
+    "arize-phoenix-client": "3.6.0",
+    "httpx": "validado com o resolvido pelo uv em 2026-11-04",
+    "phoenix_image": "arizephoenix/phoenix:version-21.0.0@sha256:1f9a144a5357b4973e93a15718f050247cb7a4ee7b7c6c06ecb91b5eed3fbaad"
+  },
+  "a2a": {
+    "codes": {
+      "TASK_NOT_FOUND": -32001,
+      "TASK_NOT_CANCELABLE": -32002,
+      "PUSH_UNSUPPORTED": -32003,
+      "UNSUPPORTED": -32004,
+      "EXTENDED_CARD_NOT_CONFIGURED": -32007,
+      "GetExtendedAgentCard com extended_agent_card=False": -32004,
+      "METHOD_NOT_FOUND": -32601,
+      "INTERNAL_ERROR": -32603
+    },
+    "get_cancel_send_taskid_alheio": "TaskNotFound (-32001)",
+    "send_taskid_dono_terminal": "UnsupportedOperation (-32004)",
+    "listtasks_alheio": "lista vazia",
+    "contextid_alheio": "aceito: cria tarefa nova do chamador, mesmo context_id",
+    "rejected": "cliente recebe Task REJECTED; metadata.retry_after_s chega como Struct number (7.0)",
+    "excecoes": "executor/store/builder: InternalError(str(e)) vaza a mensagem; loggers a2a.* registram; setLevel(CRITICAL+1) em 'a2a' silencia tudo"
+  },
+  "langgraph": {
+    "ok": true,
+    "writer": "get_stream_writer + stream_mode=custom",
+    "cancel": "task.cancel() propaga CancelledError no nó em await",
+    "mermaid": "draw_mermaid() ok"
+  },
+  "phoenix": {
+    "ok": true,
+    "gotcha": "imagem usa PHOENIX_HOST=:: => auth ligada por padrão (401). Exige PHOENIX_ENABLE_AUTH=false (ou segredos).",
+    "flush": "BatchSpanProcessor.force_flush(2000) em asyncio.to_thread, timeout 2,5 s: ok",
+    "persistencia": "span e anotação sobreviveram a docker restart com volume em PHOENIX_WORKING_DIR=/mnt/data"
+  },
+  "gemini": "pendente: sem GEMINI_API_KEY",
+  "slo_targets_proposal": {
+    "status": "PRIORS (sem amostras medidas): substituir pelos lognormais ajustados no portão (Gemini pendente)",
+    "priors": {
+      "sigma": 0.35,
+      "overhead": "lognormal mediana 0,3 s sigma 0,2",
+      "p_guard_retry": 0.05,
+      "medianas_s": {
+        "gemini-3.5-flash-lite": {
+          "tool_call": 1.8,
+          "answer_call": 2.6
+        },
+        "gemini-3.8-flash": {
+          "tool_call": 2.6,
+          "answer_call": 3.8
+        }
+      },
+      "k_tool_calls": {
+        "card": [
+          0
+        ],
+        "1": [
+          1
+        ],
+        "2+": [
+          2,
+          2,
+          3,
+          4
+        ]
+      },
+      "n": 200000,
+      "seed": 42
+    },
+    "initial_targets": {
+      "card": {
+        "p50": 3.5,
+        "p95": 6.0
+      },
+      "1": {
+        "p95": 8.0
+      },
+      "2+": {
+        "p95": 12.0
+      },
+      "ttfe_p95_1_e_2+": 4.0
+    },
+    "por_modelo": {
+      "gemini-3.5-flash-lite": {
+        "predicted": {
+          "card": {
+            "p50": 2.963,
+            "p90": 4.731,
+            "p95": 5.501,
+            "p99": 7.251,
+            "ttfe_p95": 5.501
+          },
+          "1": {
+            "p50": 4.907,
+            "p90": 6.916,
+            "p95": 7.707,
+            "p99": 9.407,
+            "ttfe_p95": 3.204
+          },
+          "2+": {
+            "p50": 8.187,
+            "p90": 11.602,
+            "p95": 12.593,
+            "p99": 14.59,
+            "ttfe_p95": 3.199
+          }
+        },
+        "targets": {
+          "card": {
+            "p50": 3.5,
+            "p90": 4.73,
+            "p95": 6.0,
+            "p99": 7.25,
+            "ttfe_p95": 5.5
+          },
+          "1": {
+            "p50": 4.91,
+            "p90": 6.92,
+            "p95": 8.0,
+            "p99": 9.41,
+            "ttfe_p95": 4.0
+          },
+          "2+": {
+            "p50": 8.19,
+            "p90": 11.6,
+            "p95": 12.59,
+            "p99": 14.59,
+            "ttfe_p95": 4.0
+          }
+        },
+        "graph_budget_s": 17.51
+      },
+      "gemini-3.8-flash": {
+        "predicted": {
+          "card": {
+            "p50": 4.189,
+            "p90": 6.772,
+            "p95": 7.895,
+            "p99": 10.458,
+            "ttfe_p95": 7.895
+          },
+          "1": {
+            "p50": 6.997,
+            "p90": 9.923,
+            "p95": 11.078,
+            "p99": 13.556,
+            "ttfe_p95": 4.628
+          },
+          "2+": {
+            "p50": 11.739,
+            "p90": 16.682,
+            "p95": 18.121,
+            "p99": 21.013,
+            "ttfe_p95": 4.621
+          }
+        },
+        "targets": {
+          "card": {
+            "p50": 4.19,
+            "p90": 6.77,
+            "p95": 7.9,
+            "p99": 10.46,
+            "ttfe_p95": 7.9
+          },
+          "1": {
+            "p50": 7.0,
+            "p90": 9.92,
+            "p95": 11.08,
+            "p99": 13.56,
+            "ttfe_p95": 4.63
+          },
+          "2+": {
+            "p50": 11.74,
+            "p90": 16.68,
+            "p95": 18.12,
+            "p99": 21.01,
+            "ttfe_p95": 4.62
+          }
+        },
+        "graph_budget_s": 25.22
+      }
+    },
+    "quotas_rpm_tpm_rpd": "pendente: sem GEMINI_API_KEY / página de cotas"
+  }
+}
