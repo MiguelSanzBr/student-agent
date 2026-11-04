@@ -106,8 +106,7 @@ def test_default_model_has_quota_and_price(app_secrets: Path) -> None:
 
     s = AppSettings()
     assert s.llm_model == "gemini-3.8-flash"
-    for m in (s.llm_model, s.llm_fallback_model):
-        assert m in s.slo.quotas and m in _PRICES
+    assert s.llm_model in s.slo.quotas and s.llm_model in _PRICES
 
 
 PROD = {"app_env": "prod", "cookie_secure": True}

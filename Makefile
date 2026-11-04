@@ -16,7 +16,6 @@ LANE_COPY = for f in db/postgres_password db/etl_owner_password db/agent_app_pas
             db/ops_audit_password redis/redis_password; do \
             n=$${f\#*/}; cp /out/$$f /lane/$$n; \
             chown $(shell id -u):$(shell id -g) /lane/$$n; chmod 400 /lane/$$n; done
-NOT_YET = @echo "ainda não implementado: $@" >&2; exit 1
 
 up:
 	docker compose up -d --build --wait

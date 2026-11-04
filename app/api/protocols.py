@@ -127,8 +127,3 @@ async def confirm(
         log.exception("nota de confirmação não gravada (%s)", sa)
     METRICS["agent_draft_total"].labels(outcome="confirmado").inc()  # type: ignore[union-attr]
     return {"sa": sa, "prazo": due, "mensagem": CONFIRMED_TEMPLATE.format(sa=sa, prazo=due)}
-
-
-@router.get("/protocols")
-async def protocols_stub() -> None:
-    raise HTTPException(status_code=501, detail="não implementado")

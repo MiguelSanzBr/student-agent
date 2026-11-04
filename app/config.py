@@ -158,7 +158,6 @@ class AppSettings(SecretOnlyFromFile, BaseSettings):
     gcp_project: str | None = None
     gcp_location: str = "global"
     llm_model: str = "gemini-3.8-flash"
-    llm_fallback_model: str = "gemini-3.5-flash-lite"
     api_port: int = 8000
     a2a_public_url: str = "http://localhost:8000"  # URL do card (no compose: http://api:8000)
     db_host: str = "db"

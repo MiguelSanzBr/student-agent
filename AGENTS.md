@@ -1,12 +1,12 @@
 # student-agent
 
-Agente de atendimento ao aluno (case técnico). Spec e plano em `docs/superpowers/`.
+Agente de atendimento ao aluno (case técnico). Spec e plano em `docs/superpowers/` (pasta que não vai no pacote de entrega (b); ver `scripts/package.sh`).
 
 ## Comandos
 - `uv sync` · `make test` (unit) · `make test-full` · `make lint` (ruff + mypy --strict) · `make check`
 - `make up` / `make down` (stack completa); `make lane-up LANE=a|b|c|d` / `make lane-down LANE=...`
   sobem só `init-secrets db redis` com Postgres efêmero e portas próprias (`ops/lanes.env`).
-- Alvos ainda sem implementação (`smoke`, `eval-*`, ...) falham com mensagem explícita.
+- Todos os alvos do Makefile estão implementados: `smoke`, `eval-dev|test|guard|security|latency`, `load-test`, `package`, `login`, `a2a-demo`. `make package MODE=a|b` exige árvore limpa e HEAD na `main`.
 
 ## Regras
 - Relógio só em `core/clock.py` (`reference_today`, `wall_now`, `monotonic`); `test_clock_rule` varre o resto.
