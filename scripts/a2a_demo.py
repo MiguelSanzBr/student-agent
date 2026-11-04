@@ -20,7 +20,10 @@ async def main(case: str) -> str:
     except ValidationError as e:  # o pydantic ecoaria o valor do segredo: só os nomes dos campos
         campos = ", ".join(sorted({str(x["loc"][0]) for x in e.errors() if x["loc"]}))
         raise SystemExit(f"configuração inválida: {campos}") from None
-    pk = load_golden(s.etl_out_dir / "golden_login.json").get(case)
+    try:
+        pk = load_golden(s.etl_out_dir / "golden_login.json").get(case)
+    except FileNotFoundError as e:
+        raise SystemExit(str(e)) from None
     if pk is None:
         raise SystemExit(f"caso {case!r} não é golden")
     base = os.environ.get("A2A_DEMO_URL", "http://localhost:8000")

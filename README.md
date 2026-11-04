@@ -18,8 +18,10 @@ Método, limites e o que não foi medido: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 ## Como rodar
 
 ```
+mkdir -p data && cp /caminho/do/case/dados.zip data/dados.zip   # o zip do case; não vai no repositório
 cp .env.example .env    # GEMINI_API_KEY é opcional; sem ela (`LLM_PROVIDER=auto`, modo local/dev) o agente roda em modo demonstração; `APP_ENV=prod` exige a chave
 docker compose up -d --wait
+docker compose run --rm etl   # carga única: cria o banco e grava os logins dos casos golden
 make login CASE=4       # imprime uma URL de login de uso único
 make a2a-demo           # cliente A2A: lê o card e faz uma pergunta
 ```

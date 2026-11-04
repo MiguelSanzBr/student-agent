@@ -23,7 +23,10 @@ class DevCredentials(BaseModel):
 
 def load_golden(path: Path) -> dict[str, UUID]:
     """`golden_login.json` (Task 13): {cases: [{case, person_key}]}; sem CPF."""
-    data = json.loads(path.read_text())
+    try:
+        data = json.loads(path.read_text())
+    except FileNotFoundError:
+        raise FileNotFoundError(f"{path} não existe: rode o ETL: docker compose run --rm etl") from None
     return {str(c["case"]): UUID(c["person_key"]) for c in data["cases"]}
 
 

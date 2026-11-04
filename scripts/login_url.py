@@ -20,7 +20,10 @@ async def main(case: str) -> str:
         raise SystemExit(f"configuração inválida: {campos}") from None
     if not s.dev_login:
         raise SystemExit("DEV_LOGIN desligado")
-    pk = load_golden(s.etl_out_dir / "golden_login.json").get(case)
+    try:
+        pk = load_golden(s.etl_out_dir / "golden_login.json").get(case)
+    except FileNotFoundError as e:
+        raise SystemExit(str(e)) from None
     if pk is None:
         raise SystemExit(f"caso {case!r} não é golden")
     redis = RealRedis(s.redis_host, s.redis_port, s.redis_password)
