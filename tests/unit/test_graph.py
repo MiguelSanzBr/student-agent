@@ -352,7 +352,8 @@ async def test_guard_retry_pass() -> None:
     assert (r.guard, r.status, r.llm_calls, r.answer) == ("retry_pass", "ok", 2, OK)
     assert r.pre_guard_answer == "Você deve R$ 1,00."
     fb = llm.calls[1].messages[-1]
-    assert fb.role == "user" and "money" in (fb.text or "") and llm.calls[1].tool_choice == "none"
+    assert fb.role == "user" and llm.calls[1].tool_choice == "none"
+    assert 'em "Você deve R$ 1,00.": valor em R$' in (fb.text or "")  # frase e termo exatos
     assert llm.calls[1].tools == llm.calls[0].tools and len(llm.calls[1].tools) == 4
     assert llm.calls[0].tool_choice == "auto"
     assert [m.text for m in r.new_messages if m.role == "assistant"] == [OK]

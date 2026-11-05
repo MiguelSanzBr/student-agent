@@ -70,16 +70,16 @@ def test_iter2_rules_in_prompt() -> None:
     for frag in (
         "mesmo que o cartão ou uma resposta anterior já traga o número",
         "consulte o resumo financeiro",
-        "Só diga que não há previsão de conclusão ou registro depois de consultar a ferramenta",
+        "Só diga que não há previsão de conclusão ou registro depois de consultar essa ferramenta",
         "em algarismos e copiados da ferramenta",
         "quantos com tentativa restante (mesmo que 0)",
-        "total para quitar, quantas vencidas e o próximo vencimento",
+        "total para quitar, principal vencido, quantas vencidas e a data do próximo",
         "Pergunta do próprio atendimento sobre dado que não existe",
-        "sem citar nenhum valor em R$ nem outras datas",
+        "sem citar nenhum valor em R$ (nem o atual) nem outras datas",
         "ainda assim chame draft_protocol e avise que já existe esse protocolo",
         "quem decide é o aluno, no botão Confirmar",
         "ouvidoria, falar com a secretaria",  # regra de pedido de serviço preservada
-        "processos seletivos de outros cursos",
+        "seleção de mestrado ou de outros cursos",
         "Não cite valores, datas nem dados do aluno".replace("Não", "não"),
     ):
         assert frag in SYSTEM_PREFIX, frag
@@ -89,3 +89,19 @@ def test_iter2_rules_in_prompt() -> None:
         "Dado que não existe (ano futuro, regra sem registro): diga que não consta",
     ):
         assert gone not in SYSTEM_PREFIX, gone
+
+
+def test_iter3_rules_in_prompt() -> None:
+    """Iteração 3 (depois da r2, declarada): ferramenta certa, vários assuntos, continuação,
+    aluno sem dívida, recusa de fora de cobertura, valor futuro e premissa falsa."""
+    for frag in (
+        "disciplinas que faltam: get_curriculum_progress",
+        "chame na mesma rodada a ferramenta de cada assunto e responda a todos",
+        "chame de novo a ferramenta desse assunto antes de responder",
+        "Sem fatura vencida: diga que não há faturas vencidas nem valor a quitar",
+        "sem citar valores em R$ (nem R$ 0,00)",
+        "também é fora do escopo: use a frase de recusa",
+        "não use a frase de recusa e não chame ferramenta",
+        "não repita a premissa como verdade",
+    ):
+        assert frag in SYSTEM_PREFIX, frag

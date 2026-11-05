@@ -307,7 +307,8 @@ async def get_curriculum_progress(ctx: ToolContext, args: Mapping[str, Any]) -> 
 PROFILE = Tool(
     ToolSpec(
         "get_academic_profile",
-        "Perfil acadêmico da matrícula: curso, situação, período e progresso.",
+        "Perfil acadêmico da matrícula: curso, situação (ativa, trancada...), período e percentual "
+        "concluído. Previsão de conclusão e disciplinas que faltam: get_curriculum_progress.",
         schema({"enrollment": ENROLLMENT}),
     ),
     get_academic_profile,
@@ -332,7 +333,8 @@ RESULTS = Tool(
 PROGRESS = Tool(
     ToolSpec(
         "get_curriculum_progress",
-        "Progresso na matriz curricular da matrícula.",
+        "Progresso na matriz curricular da matrícula: percentual concluído, disciplinas cursadas e "
+        "que faltam, horas e previsão de conclusão (quando o aluno se forma).",
         schema({"enrollment": ENROLLMENT}),
     ),
     get_curriculum_progress,

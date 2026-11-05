@@ -175,7 +175,7 @@ async def get_lms_activity(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOut
             "proxima_tipo": nxt.kind,
             "proxima_fonte": nxt.source,
         }
-    lms_rec = EntityRecord("lms", label, (label,), f)
+    lms_rec = EntityRecord("lms", label, (label, "AVA", "ambiente virtual"), f)  # contagens do AVA
     # uma sala por registro (status "ativo"): a guarda só deixa citar disciplina com registro, e o
     # status impede "aprovado/reprovado/pendente em <disciplina>" só com evidência do AVA
     salas = tuple(

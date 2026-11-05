@@ -691,3 +691,26 @@ def test_catalog_and_academic_records_with_same_alias():
     r = chk_with("Sua média em Cálculo I no catálogo foi 8,5.", card={}, records=recs)
     assert r.kinds() == {"decimal"}
     assert chk_with("Cálculo I tem 90 horas.", card={}, records=recs).kinds() == {"int"}
+
+
+def test_count_label_from_tool_field_is_not_a_status_claim():
+    """'2 simulados abertos' é a contagem `simulados_abertos` da ferramenta, não a situação de
+    um registro; "AVA" também nomeia o registro agregado, não só a cobertura (r2: 75 falhas)."""
+    from app.tools.base import EntityRecord
+
+    counts = {"simulados_abertos": "2", "simulados_com_tentativa_restante": "4"}
+    agg = EntityRecord("lms", "2026/2", ("2026/2", "AVA", "ambiente virtual"), counts)
+    cob = EntityRecord("cobertura", "lms", ("AVA", "LMS"), {"desde": "15/01/2023"})
+    st = {"situacao": "aberta", "tentativas": "0", "tentativas_permitidas": "3"}
+    quiz = EntityRecord("prova", "Genética simulado 05/09/2026", ("Genética", "simulado"), st)
+    recs = index_records((agg, cob, quiz))
+    call = (ToolCallTrace("get_lms_activity", {}, 3),)
+    for ok in (
+        "Você tem 2 simulados abertos.",
+        "Você tem 2 simulados abertos no ambiente virtual.",
+        "No AVA, você tem 2 simulados abertos e 4 com tentativa restante.",
+    ):
+        assert chk_with(ok, card={}, records=recs, calls=call).ok, ok
+    assert not chk_with("Você tem 7 simulados abertos.", card={}, records=recs, calls=call).ok
+    bad = "No AVA, você tem 7 simulados abertos."
+    assert not chk_with(bad, card={}, records=recs, calls=call).ok

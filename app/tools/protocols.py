@@ -315,7 +315,7 @@ TOOLS: tuple[Tool, ...] = (
     Tool(
         ToolSpec(
             "list_protocols",
-            "Lista os protocolos do aluno (sem descrições).",
+            "Lista os protocolos do aluno: número, serviço, situação e datas (sem descrições).",
             schema({"status": {"type": "string", "description": "Situação do protocolo"}}),
         ),
         _list,

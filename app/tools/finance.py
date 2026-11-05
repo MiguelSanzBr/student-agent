@@ -40,7 +40,8 @@ INVOICES = schema(
 AGREEMENTS = schema({"enrollment": ENROLLMENT})
 SUMMARY_SPEC = ToolSpec(
     "get_financial_summary",
-    "Resumo financeiro da matrícula: total para quitar, vencidos e próximo vencimento.",
+    "Resumo financeiro da matrícula: dívida, total para quitar, faturas vencidas, encargos e "
+    "próximo vencimento.",
     SUMMARY,
 )
 INVOICES_SPEC = ToolSpec(

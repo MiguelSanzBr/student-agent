@@ -8,7 +8,7 @@ presente do indicativo não conta como ação (ambíguo com substantivo: "regist
 import re
 import unicodedata
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache
 from itertools import islice, product
@@ -202,6 +202,15 @@ def _statuses(f: str) -> set[str]:
     f = _PASSIVE_OPEN.sub(" ", f)
     out = {k for k, rx in _STATUS_RX.items() if k not in _STATE_ONLY and rx.search(f)}
     return out | {k for k, rx in _STATE_RX.items() if rx.search(f)}
+
+
+def _mask_count_labels(f: str, records: Iterable[EntityRecord]) -> str:
+    """'2 simulados abertos' é o campo `simulados_abertos` (contagem), não a situação de um
+    registro: o rótulo do campo sai antes de procurar palavras de situação."""
+    for k in sorted({k for r in records for k in r.fields if "_" in k}):
+        words = r"\s+".join(re.escape(w.rstrip("s")) + "s?" for w in k.split("_"))
+        f = re.sub(rf"(?<!\w){words}(?!\w)", lambda m: " " * len(m[0]), f)
+    return f
 
 
 def _canon_status(value: str) -> str | None:
@@ -564,7 +573,7 @@ def _claims(
                     fail("small_int", t.raw, ent)
 
     # status no registro citado
-    sts = _statuses(masked)
+    sts = _statuses(_mask_count_labels(masked, c.records.values()))
     if sts:
         for r, amb in alt:
             canon = _canon_status(r.fields.get("resultado") or r.fields.get("status") or "")

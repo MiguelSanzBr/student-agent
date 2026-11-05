@@ -32,6 +32,7 @@ from app.config import AppSettings
 from app.data.card import StudentCard
 from app.guards.evidence import check_evidence
 from app.guards.fallback import degrade, strip_markdown_and_codes, template_fallback
+from app.guards.sentences import split_sentences
 from app.guards.types import GuardResult
 from app.infra.stores.history import Conversation
 from app.obs.metrics import METRICS
@@ -378,12 +379,9 @@ async def _guard_inner(state: _S, config: RunnableConfig) -> _S:
         if res.ok:
             guard = "retry_pass" if state["retries"] else "pass"
         elif env.allow_retry and not state["retries"]:
-            kinds = ", ".join(sorted(res.kinds()))
             return {
                 "retries": 1, "pre_guard": rest, "fail_domain": res.domain, "text": rest,
-                "feedback": "Sua resposta foi reprovada na conferência com os dados "
-                f"({kinds}). Reescreva usando só valores, datas e fatos do cartão e das "
-                "ferramentas, sem prometer nada que não esteja lá.",
+                "feedback": retry_feedback(rest, res),
                 "t_guard": state["t_guard"] + (monotonic() - t0) * 1000,
             }  # fmt: skip
         else:
@@ -405,6 +403,37 @@ async def _guard_inner(state: _S, config: RunnableConfig) -> _S:
         "feedback": None, "rest_empty": rest_empty,
         "t_guard": state["t_guard"] + (monotonic() - t0) * 1000,
     }  # fmt: skip
+
+
+_KIND_PT = {
+    "money": "valor em R$", "date": "data", "period": "período", "pct": "percentual",
+    "id": "número de documento ou protocolo", "status": "situação",
+    "polarity": "afirmação de que não há ou de que é zero", "action": "ação que só o aluno faz",
+    "commitment": "promessa", "entity_without_record": "item sem registro nos dados",
+}  # fmt: skip
+
+
+def retry_feedback(answer: str, res: GuardResult) -> str:
+    """Diz ao LLM quais trechos não têm respaldo (frase e termo), para corrigir só eles."""
+    sents = split_sentences(answer)
+    lines: list[str] = []
+    for f in res.failures:
+        if f.kind in ("canary", "prompt_ngram"):
+            line = "- um trecho repete instruções internas: tire-o"
+        elif f.kind == "length":
+            line = "- a resposta está longa demais: encurte"
+        else:
+            frase = sents[f.sentence].strip() if f.sentence < len(sents) else ""
+            what = _KIND_PT.get(f.kind, "número")
+            line = f'- em "{frase}": {what} "{f.token}" não está nos dados'
+        lines.append(line)
+    return (
+        "Sua resposta foi reprovada na conferência com os dados. Trechos sem respaldo:\n"
+        + "\n".join(list(dict.fromkeys(lines))[:6])
+        + "\nReescreva a resposta inteira para o aluno: mantenha o que está certo, corrija esses "
+        "trechos com os valores exatos do cartão e das ferramentas ou tire-os, e não prometa nada "
+        "que não esteja lá. Não mencione esta conferência."
+    )
 
 
 def _after_llm(state: _S) -> str:
