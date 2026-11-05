@@ -311,7 +311,7 @@ O método está em D11. Modelo sob teste: `claude-haiku-5-5`, escolhido antes de
 2. Iteração 1: <!-- num:quality.dev.r2.pass1 -->62,4% [49,6%; 74,5%]<!-- /num -->. Consultar a ferramenta antes de responder, rascunho na hora, recusa só sem dado do aluno, nenhum valor em pedido vago; corrige a data de referência do cartão.
 3. Iteração 2: <!-- num:quality.dev.r3.pass1 -->70,4% [59,0%; 80,6%]<!-- /num -->. Ferramenta a cada pergunta, números em algarismos, recusa só fora do atendimento, rascunho mesmo com protocolo aberto do serviço.
 
-A meta (limite inferior de 85%) **não foi atingida** nem no desenvolvimento nem no teste; o número sai como está. Na dev 3 dominam falhas de redação (105) e respostas certas bloqueadas pelo guard (30); o multiturno, secundário, ficou em 44,2% (n=77) na dev e 35,0% (n=309) no teste. O P(meta) registrado antes do teste já era 0 com acerto real de 75%.
+A meta própria (limite inferior de 85%) **não foi atingida** nem no desenvolvimento nem no teste; o número sai como está. Na dev 3 dominam falhas de redação (105) e respostas certas bloqueadas pelo guard (30); o multiturno, secundário, ficou em 44,2% (n=77) na dev e 35,0% (n=309) no teste. O P(meta) registrado antes do teste já era 0 com acerto real de 75%.
 
 **Teste cego** (3.321 itens, 40 alunos fora da dev, `quality/test-r1`). O primário vale como rodou (§6 do plano de análise); duas sensibilidades e uma 2ª rodada mudam a leitura:
 
