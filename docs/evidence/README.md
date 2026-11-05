@@ -1,6 +1,6 @@
 # Evidências
 
-Cada arquivo de evidência é gerado por script, com um `.json` de números e um `.md` legível (os que ainda não existem estão marcados "A gerar"). Modelo sob teste: `claude-haiku-5-5`. Rodadas reais publicadas: dev 1 a 3, guard, ataques (dev e holdout cego), teste cego, janelas A, B e C de latência e carga. Os números de `README.md` e de `docs/ARCHITECTURE.md` vêm desses JSONs por `scripts/render_docs.py` (que também grava `numbers.json`); nenhum é digitado à mão. Os resultados de avaliação são publicados como saíram, inclusive quando ficam abaixo da meta. `make publish-evidence` copia as saídas públicas dos runners (security, latência, escada a) do volume para esta pasta; `python scripts/render_docs.py` renderiza os números (o guard grava em `quality/guard/`).
+Cada arquivo de evidência é gerado por script, com um `.json` de números e um `.md` legível. Modelo sob teste: `claude-haiku-5-5`. Rodadas reais publicadas: dev 1 a 3, guard, ataques (dev e holdout cego), teste cego, janelas A, B e C de latência e carga. Os números das tabelas e de capa de `README.md` e `docs/ARCHITECTURE.md` vêm desses JSONs por `scripts/render_docs.py` (que também grava `numbers.json`); números de contexto no texto citam os mesmos arquivos. Os resultados de avaliação são publicados como saíram, inclusive quando ficam abaixo da meta. `make publish-evidence` copia as saídas públicas dos runners (security, latência, escada a) do volume para esta pasta; `python scripts/render_docs.py` renderiza os números (o guard grava em `quality/guard/`).
 
 ## Arquivos
 
@@ -10,13 +10,12 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 | `spikes` | Comportamento medido do A2A 1.0, do LangGraph e do Phoenix; versões fixadas | Gerado |
 | `quality` | pass@1 com IC, vistos e não vistos, recusa, cruzamento, erro por causa | Dev 1 a 3 e teste gerados (`quality/dev-r{1,2,3}`, `quality/test-r1`, `rounds.jsonl`); sensibilidades do teste em `test-r1/quality.resummarized.*` (validação do scorer) e `test-r1/ferramenta-dominio/` (gabarito, com anexo) |
 | `guard` | Recall por tipo, bloqueio indevido, perturbação cega | Gerado (`quality/guard/`); ver a nota sobre o conjunto cego e o viés da seção "rascunhos do dev × scorer" |
-| `security` | Testes de arquitetura e ataques com LLM real | Gerado: dev, rodada plantada e holdout cego (`security-blind.md`); rótulos às cegas × juiz em `security-labels.md` |
+| `security` | Testes de arquitetura e ataques com LLM real | Gerado: dev, rodada plantada e holdout cego (`security-blind.md`); rótulos às cegas × juiz em `security-labels.md`; saída do pytest dos testes de arquitetura em `security-tests.txt` |
 | `latency` | Previsto contra medido por classe, cascata por componente, carga, custo | `latency.md` traz os critérios, escritos antes das rodadas; `latency-{A,B,C}.json` e escadas de carga `load-{a,b}-w*.json` gerados |
 | `conversations` | Roteiros do vídeo e falhas rotuladas | A gerar |
 | `video/demo.webm` | Demo ao vivo (chat, protocolo, recusas, A2A) gravada com Playwright contra o app real; tomadas fora do roteiro foram refeitas, como o próprio vídeo declara | Gerado |
-| `observability` | Spans, anotações e métricas | `observability.md` traz o smoke contra um Phoenix real; a rodada de teste fica a gerar |
+| `observability` | Spans, anotações e métricas | `observability.md` traz o smoke contra um Phoenix real; o export da rodada de teste não foi feito |
 | `graph.md` | Grafo gerado por `draw_mermaid` | Gerado |
-| `phoenix/` | Export dos spans e anotações da rodada de teste (`make phoenix-import` reimporta) | A gerar |
 | `langflow-a2a.json` | Pergunta do golden 4 respondida pelo agente através do fluxo do Langflow (`make langflow-demo`) | Gerado |
 | `img/chat-golden4-fake.jpg` | Captura do chat web (aluno do caso 4) | Gerado |
 | `img/langflow-a2a-flow.jpg`, `img/langflow-a2a-chat.jpg` | Fluxo Chat Input → A2A Agent → Chat Output no Langflow 1.13.1 e a resposta do agente ao golden 4 no Playground (replay, sem chave) | Gerado |
@@ -32,8 +31,8 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 | Cruzamento entre sistemas | Resolução por (marca, RA), contrato e regras de ligação | Contagens por regra e invariantes na carga (`test_resolve_*.py`, `tests/integration/test_full_counts.py`) | <!-- num:data.protocols_linked -->3911<!-- /num --> protocolos ligados, <!-- num:data.protocols_unlinked -->22<!-- /num --> sem vínculo |
 | Recusa correta e sem falsa promessa | Prompt fixo, compromisso exige fonte, fallback por domínio | Categorias de ataque (`make eval-security`) e itens de recusa do dataset; `tests/unit/test_score.py` | Recusa indevida <!-- num:quality.test.refusal_wrong -->0,0% [0,0%; 0,0%]<!-- /num --> |
 | Abrir protocolo com segurança | Rascunho do servidor com `draft_id` preso ao aluno e de uso único, clique humano, lock, `draft_id UNIQUE` | `tests/integration/test_turn_output.py` (`test_confirm_once_concurrent`, `test_two_drafts_same_service_concurrent_one_created`, chave do lock calculada no SQL e estável entre processos); `tests/e2e/test_confirm_feedback.py` (`draft_id` alheio); `SA-` digitado em `test_evidence_guard.py` | Sem número: teste de comportamento |
-| Latência medida e relatada | `slo_targets.yaml`, fórmula pré-registrada, três janelas (A, B, C) | `make eval-latency`; `tests/unit/test_formula.py`, `test_bench.py` | p95 `2+` <!-- num:latency.two_plus.p95 -->7,34 s<!-- /num --> |
-| Escala e custo | Admissão RPM+TPM a 90% da cota, vaga por turno, orçamento | Escadas de carga (a) com limitador e cota simulada e (b) sem limitador (`make load-test`); `tests/unit/test_admission.py`, `test_load_test.py` | Custo por turno <!-- num:latency.cost.per_turn -->US$ 0,0007<!-- /num --> |
+| Latência medida e relatada | `slo_targets.yaml`, fórmula pré-registrada, três janelas (A, B, C) | `make eval-latency`; `tests/unit/test_formula.py`, `test_bench.py` | p95 `2+` <!-- num:latency.two_plus.p95 -->7,29 s<!-- /num --> |
+| Escala e custo | Admissão RPM+TPM a 90% da cota, vaga por turno, orçamento | Escadas de carga (a) com limitador e cota simulada e (b) sem limitador (`make load-test`); `tests/unit/test_admission.py`, `test_load_test.py` | Custo por turno <!-- num:latency.cost.per_turn -->US$ 0,0008<!-- /num --> |
 | Integração com outros agentes | A2A 1.0 sobre o mesmo `TurnService` | `tests/e2e/test_a2a.py`: posse nos 11 métodos, com controle positivo do dono | Código de tarefa alheia <!-- num:a2a.TASK_NOT_FOUND -->-32001<!-- /num --> |
 | Depurar sem PII | Traces sem conteúdo, anotações por `trace_id`, saídas tipadas no 👎 | `tests/unit/test_obs.py`, `tests/e2e/test_observability.py` (com `PHOENIX_URL`), `tests/integration/test_turn_output.py` | Ver `observability` |
 

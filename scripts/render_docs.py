@@ -40,6 +40,11 @@ def _templates(g: Mapping[str, Any]) -> str:
     return f"{g['failed']}/{g['templates']} templates (Wilson 95%: {_pct(lo)} a {_pct(hi)})"
 
 
+def _count(k: int, n: int) -> str:
+    """Contagem com o total e a fração (respostas certas que o guard bloqueou, no teste)."""
+    return f"{k} de {n} itens ({_pct(k / n)})"
+
+
 def _s(v: float) -> str:
     return f"{v:.2f} s".replace(".", ",")
 
@@ -79,6 +84,9 @@ def _quality(evidence_dir: Path) -> dict[str, str]:
             "quality.test.refusal_ok": _ci(ref["correta"], "refusal.correta"),
             "quality.test.refusal_wrong": _ci(inv, "refusal.indevida"),
             "quality.test.cross": _ci(ref["cruzamento"], "refusal.cruzamento"),
+            "quality.test.guard_blocked_ok": _count(
+                t["by_cause"].get("guard_bloqueou_certa", 0), t["items"]
+            ),
         }
         d = evidence_dir / "quality" / f"test-r{t['round']}"
         if (r := _load(d / "quality.resummarized.json")) and (sens := r.get("sensitivity")):
@@ -130,7 +138,7 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
     Fontes (saídas reais dos runners, copiadas para docs/evidence por `make publish-evidence`):
     quality/<dev|test>-rN/quality.json (maior N sem ensaio; `make eval-dev|eval-test`),
     quality/guard/guard.json (`make eval-guard`), security.json (`make eval-security`, `holdout`
-    vem do holdout cego), latency-A.json (janela A de `make eval-latency`),
+    vem do holdout cego), latency-B.json (janela B; sem ela, a A) de `make eval-latency`,
     load-a-w1.json (`make load-test`)."""
     out: dict[str, str] = _quality(evidence_dir)
     if (g := _load(evidence_dir / "quality" / "guard" / "guard.json")) is not None:
@@ -143,9 +151,12 @@ def build_numbers(evidence_dir: Path) -> dict[str, str]:
                 out[f"guard.weak.{t}"] = f"{by_t[t]['k']}/{by_t[t]['n']}"
     if (sec := _load(evidence_dir / "security.json")) is not None:
         out |= _security(sec)
-    if (lat := _load(evidence_dir / "latency-A.json")) is not None:
+    # tabela de capa = janela B (prompt final, n=300); a A fica como base do reajuste
+    if (
+        lat := _load(evidence_dir / "latency-B.json") or _load(evidence_dir / "latency-A.json")
+    ) is not None:
         if lat.get("simulated"):
-            raise ValueError("latency-A.json tem simulated=true: ensaio, não medição")
+            raise ValueError("latência com simulated=true: ensaio, não medição")
         out |= _latency(lat, _load(evidence_dir / "load-a-w1.json"))
     if (dq := _load(evidence_dir / "data-quality.json")) is not None:
         checks = {c["name"]: c["legs"] for c in dq["checks"]}

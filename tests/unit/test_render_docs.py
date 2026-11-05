@@ -40,6 +40,7 @@ def test_build_numbers_from_real_evidence() -> None:
     # teste cego: sensibilidades ao lado do primário (validação do scorer e ferramenta-domínio)
     assert n["quality.test.corrected"].startswith("77,1% [")
     assert n["quality.test.domain_tools"].startswith("75,8% [")
+    assert n["quality.test.guard_blocked_ok"] == "124 de 3321 itens (3,7%)"
     assert all(isinstance(v, str) for v in n.values())
 
 

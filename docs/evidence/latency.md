@@ -60,8 +60,17 @@ O atraso do hedge é o p90 da 1ª chamada como mistura de `answer_call` (turnos 
 `hedge.card_share`) e `tool_call`; só `tool_call` dispararia em ~45% dos `card`.
 
 O mix de classes do bench sob LoadTestLLM só vale como fumaça (a classe vem do evento `debug`, e o
-fake sorteia as ferramentas); as janelas A/B/C rodam com o Gemini.
+fake sorteia as ferramentas); as janelas A/B/C rodaram com `claude-haiku-5-5`.
 
 ## Resultados
 
-A preencher (rodadas de sexta 19h–21h, domingo 7h e segunda 9h).
+Rodadas reais de 2026-11-04 com `claude-haiku-5-5`; resumo e leitura em `docs/ARCHITECTURE.md`, seção 8.
+
+| Arquivo | O que é | n (card / 1 / 2+) |
+|---|---|---|
+| `latency-A.json` | janela A, antes das iterações de prompt; base do reajuste único | 124 / 58 / 118 |
+| `latency-B.json` | janela B, prompt final | 72 / 71 / 157 |
+| `latency-C.json` | janela C, SHA congelado | 43 / 14 / 93 |
+| `load-a-w{1,2}.json`, `load-b-w{1,2}.json` | escadas de carga com `LoadTestLLM` (1 e 2 workers) | |
+
+Desvios em relação aos critérios acima: B e C ficaram abaixo de 100 turnos nas classes `card` e `1` (a mistura de classes vem das perguntas, não é controlada), então o p99 por classe é indicativo; e o guard degradou 20%, 10% e 17% dos turnos nas janelas A, B e C, contra os 5% (`p_guard_retry`) da fórmula. A carga mede o app com LLM falso, não o provedor.

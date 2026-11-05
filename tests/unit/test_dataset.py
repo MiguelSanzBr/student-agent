@@ -85,6 +85,7 @@ def test_template_counts() -> None:
     assert n_test_only >= 15 and len(shared) + n_test_only >= 50
 
 
+@pytest.mark.skipif(not (ROOT / ".git").exists(), reason="sem .git (pacote de entrega)")
 def test_holdout_only_encrypted_in_git() -> None:
     out = subprocess.run(["git", "ls-files", "evals/holdout"], cwd=ROOT, text=True,
                          capture_output=True, check=True).stdout.split()  # fmt: skip

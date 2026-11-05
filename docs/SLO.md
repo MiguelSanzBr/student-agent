@@ -19,14 +19,15 @@ latência e TTFE são em segundos, por classe de ferramentas do turno (`card` = 
 
 | Classe | p50 | p90 | p95 | p99 | TTFE p95 |
 |---|---|---|---|---|---|
-| `card` | 4,19 | 6,77 | 7,9 | 10,46 | 7,9 (= total) |
-| `1` | 7,0 | 9,92 | 11,08 | 13,56 | 4,63 |
-| `2+` | 11,74 | 16,68 | 18,12 | 21,01 | 4,62 |
+| `card` | 3,5 | 3,22 | 6,0 | 5,04 | 6,0 (= total) |
+| `1` | 3,62 | 4,79 | 8,0 | 6,54 | 4,0 |
+| `2+` | 6,07 | 8,41 | 12,0 | 10,22 | 4,0 |
 
 Métricas: `agent_turn_seconds{tools_class,llm_calls,guard,model}` e
 `agent_first_event_seconds{tools_class}` (POST → 1º `progress`/`answer`). Os números acima são os
-de `slo_targets.yaml` hoje (PRIORS; a atualização única vem depois da janela A): em caso de
-divergência, o YAML vale.
+de `slo_targets.yaml` depois do reajuste único da janela A (claude-haiku-5-5, 2026-11-04), congelado.
+p90 e p99 abaixo de p50 e p95 vêm da regra pré-registrada max(meta inicial, previsto) e são indicativos
+(ver `docs/ARCHITECTURE.md`, seção 8). Em caso de divergência, o YAML vale.
 
 ## Custo
 

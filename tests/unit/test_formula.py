@@ -77,7 +77,7 @@ def test_refit_after_window_a_updates_targets():
     from app.config import load_slo_targets
     from evals.latency.formula import refit_after_window_a
 
-    cur = load_slo_targets()
+    cur = load_slo_targets().model_copy(update={"frozen": False})  # estado antes do reajuste
     new = refit_after_window_a({"tool_call": _samples(random.Random(3))}, cur, n=20_000)
     assert new.components["tool_call"].mu == pytest.approx(1.5, abs=0.1)
     assert new.components["answer_call"] == cur.components["answer_call"]  # sem amostra: mantém
@@ -90,7 +90,7 @@ def test_refit_refuses_frozen_and_small_samples():
     from app.config import load_slo_targets
     from evals.latency.formula import refit_after_window_a
 
-    cur = load_slo_targets()
+    cur = load_slo_targets().model_copy(update={"frozen": False})  # estado antes do reajuste
     rng = random.Random(1)
     with pytest.raises(ValueError, match="frozen"):
         refit_after_window_a({"tool_call": _samples(rng)}, cur.model_copy(update={"frozen": True}))
@@ -105,9 +105,9 @@ def test_refit_is_pure_and_matches_current_targets_with_current_components():
     from app.config import load_slo_targets
     from evals.latency.formula import refit_after_window_a
 
-    cur = load_slo_targets()
+    cur = load_slo_targets().model_copy(update={"frozen": False})  # estado antes do reajuste
     new = refit_after_window_a({}, cur)
     for cls, q in cur.targets.items():
         for k in ("p50", "p90", "p95", "p99"):
             assert getattr(new.targets[cls], k) == pytest.approx(getattr(q, k), abs=0.05), (cls, k)
-    assert cur == load_slo_targets()  # `current` não foi mutado
+    assert cur == load_slo_targets().model_copy(update={"frozen": False})  # `current` intacto

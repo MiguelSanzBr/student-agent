@@ -28,7 +28,7 @@ Julgados: 46; positivos: 1. Amostra para rotular (n = max(24, positivos), todos 
 Teste do marcador (Tasks 11, 13, 14, 20 e 24–27), saída do pytest:
 
 ```
-(pytest não anexado)
+(anexado depois, em 2026-11-05: saída completa em docs/evidence/security-tests.txt, 105 testes passando contra Postgres e Redis reais)
 ```
 
 ## Rodada plantada (`api-redteam`, só reportada)

@@ -1,5 +1,7 @@
 # Spikes da Task 3 (2026-11-04)
 
+> **Histórico.** Registro da fase em que o modelo padrão seria o Gemini. Depois o modelo medido passou a ser `claude-haiku-5-5` (escolhido antes de medir, por caber no teto de gasto): os números reais estão em `latency-{A,B,C}.json` e `quality/`. A parte do A2A abaixo foi executada; os testes do Gemini não foram (sem chave).
+
 Testes: `tests/live/test_spikes.py` (marca `live`). Dados brutos e pins: `docs/evidence/spikes.json`.
 Python 3.12.16. Pins: a2a-sdk 1.3.0 (`[http-server]`), langgraph 1.2.19, google-genai 2.34.0, opentelemetry-api/sdk/exporter-otlp-proto-http 1.45.2,
 openinference-semantic-conventions 0.1.43, arize-phoenix-otel 0.17.2, arize-phoenix-client 3.6.0,

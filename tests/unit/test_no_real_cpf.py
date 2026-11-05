@@ -15,6 +15,7 @@ _CPF = re.compile(r"\d{3}\.\d{3}\.\d{3}-\d{2}|(?<!\d)\d{8,11}(?!\d)")  # com ou 
 
 
 @pytest.mark.skipif(not ZIP.exists(), reason="data/dados.zip ausente (CI sem dados)")
+@pytest.mark.skipif(not (ROOT / ".git").exists(), reason="sem .git (pacote de entrega)")
 def test_no_dataset_cpf_in_tracked_files() -> None:
     real: set[str] = set()
     with zipfile.ZipFile(ZIP) as z:

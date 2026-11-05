@@ -25,11 +25,11 @@ flowchart LR
 
 Um turno funciona assim:
 
-1. A API autentica o JWT (o canal define a audiência) e chama `admit()` **antes** de abrir o stream. Sem cota, o aluno recebe 429 ou 503 com `Retry-After`.
-2. O `TurnService` monta a requisição ao modelo: prompt fixo, as 11 declarações de ferramenta fixas, e o **cartão do aluno** como resposta sintética de uma chamada `get_student_card`.
-3. O grafo alterna `llm` e `tools`. Cada chamada de ferramenta abre uma conexão própria de banco, já com a identidade do aluno no RLS.
-4. O texto gerado pelo modelo passa pelo EvidenceGuard. Reprovado, o modelo tenta mais uma vez; reprovado de novo, as frases reprovadas são removidas ou, se nada sobra, vira um fallback montado dos registros.
-5. O mesmo `TurnService` atende o chat e o A2A: nenhum canal tem limites próprios.
+1. A API autentica o JWT (audiência por canal) e chama `admit()` **antes** do stream; sem cota, 429 ou 503 com `Retry-After`.
+2. O `TurnService` monta a requisição: prompt fixo, 11 ferramentas fixas e o **cartão do aluno** como resposta sintética de `get_student_card`.
+3. O grafo alterna `llm` e `tools`; cada ferramenta abre conexão própria, já com o aluno no RLS.
+4. O EvidenceGuard confere o texto. Reprovado, o modelo tenta de novo; reprovado outra vez, as frases sem evidência saem ou vira um fallback dos registros.
+5. Chat e A2A usam o mesmo `TurnService` e os mesmos limites.
 
 ## 2. As dez decisões centrais
 
@@ -78,13 +78,13 @@ Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 **Pergunta difícil:** como evitar que o agente invente um valor, uma data ou uma promessa, sem pagar um segundo LLM?
 
-**Decisão.** Um verificador sem modelo que extrai afirmações do texto gerado e as ancora no **registro da entidade citada**. Ele confere valores, datas, períodos, percentuais e identificadores; status, polaridade ("não há débitos") e inteiros pequenos; ações por lema, inclusive no futuro ("vou abrir"); e compromissos (parcelamento, desconto, isenção), que só valem como promessa se a mesma condição vier de uma orientação de serviço ou de um acordo ativo. "Dívida", "saldo" e "débito" ancoram o valor no total para quitar, e não em qualquer número da evidência. O que o aluno escreveu só vale como evidência se foi argumento de uma ferramenta que devolveu registro. Uma ação só é aceita com um `SA-` vindo de nota do sistema, nunca digitado pelo aluno.
+**Decisão.** Um verificador sem modelo que extrai afirmações do texto gerado e as ancora no **registro da entidade citada**. Confere valores, datas, percentuais, identificadores, status, polaridade ("não há débitos"), ações ("vou abrir") e compromissos (parcelamento, desconto), que só valem com orientação de serviço ou acordo ativo. "Dívida" e "saldo" ancoram no total para quitar. O que o aluno escreveu só vale se foi argumento de ferramenta que devolveu registro; uma ação só vale com um `SA-` vindo do sistema.
 
 **Alternativas.** Só prompt; um LLM verificador.
 
 **Trade-off.** É barato (sem chamada extra, sem ~1 s a mais) e auditável, mas tem limites declarados: um valor certo atribuído à entidade errada **quando a frase não cita entidade nenhuma** não é pego. Há risco de bloquear resposta correta, por isso o guard é medido nos dois sentidos: recall num conjunto de perturbação cego e bloqueio indevido nas rodadas reais. A degradação é por tipo, e o fallback é pelo domínio: uma pergunta de LMS nunca recebe o resumo financeiro.
 
-**Integridade da medição cega.** Em 2026-11-04 um smoke do guard mediu o conjunto cego real (código em 3d67e20), divulgado sem o número; a rodada oficial (semente 20261106, guard congelado) reproduziu o ponto e os controles do smoke. Divergência indicaria mudança no guard.
+**Integridade da medição cega.** Um smoke de 2026-11-04 (3d67e20) mediu o conjunto cego, divulgado sem o número; a rodada oficial, com o guard congelado, reproduziu o ponto.
 
 ### D8. Escrita restrita
 
@@ -104,16 +104,16 @@ Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 **Decisão.**
 
-- Um **oráculo** lê o CSV cru com a biblioteca padrão e não importa `core/`, `etl/` nem `app/`; ele só vale se cobre todos os protocolos e contas do LMS, e passa em dois autotestes (a resposta ideal passa; a ideal com um fato trocado reprova).
+- Um **oráculo** lê o CSV cru só com a biblioteca padrão, sem importar `core/`, `etl/` nem `app/`, e passa em dois autotestes (a resposta ideal passa; com um fato trocado, reprova).
 - O dataset tem pelo menos 50 templates de pergunta, e pelo menos 15 são `test_only`: escritos por um redator cego, que não vê prompt, ferramentas nem guard, e cifrados com `age` para a chave do autor.
-- O **pré-registro** (hashes do dataset, do plano de análise e do código de pontuação, em `evals/golden/dataset.sha256`) é pensado para carimbo por OpenTimestamps (`make stamp`). O carimbo foi feito em 2026-11-04, com aprovação do autor (`dataset.sha256.ots`); a confirmação no Bitcoin (`ots upgrade`) está pendente, e até lá o commit do git é a prova temporal.
+- O **pré-registro** (hashes do dataset, do plano de análise e do scorer, em `evals/golden/dataset.sha256`) foi carimbado no OpenTimestamps em 2026-11-04, já com confirmação no Bitcoin; a nota do §18 do plano, anterior a isso, ficou como estava porque o plano está no hash.
 - A métrica primária é o pass@1 do scorer determinístico na **primeira execução** no SHA congelado, com IC de 95% por bootstrap de dois fatores (aluno e template), estratificado pelas cotas. A meta é sobre o **limite inferior**.
-- O scorer é validado: o autor rotula às cegas 30 respostas e o resultado vira VPP e VPN com Wilson. O pass@1 corrigido por isso é só análise de sensibilidade.
+- O scorer é validado com 30 respostas rotuladas às cegas (por um agente de IA, não pelo autor: desvio, seção 11), em VPP e VPN; o pass@1 corrigido é sensibilidade.
 - Toda reprovação é atribuída pelo trace a um estágio (roteamento, dados, redação, guard bloqueou resposta certa, recusa indevida, gabarito).
 
 **Alternativas.** Conversas escolhidas a dedo; LLM-juiz como métrica principal.
 
-**Trade-off.** É caro e lento de montar, e a amostra é enriquecida por cotas (o que é declarado, e por isso o IC é estratificado). O juiz de qualidade roda só para medir concordância com o scorer, porque um juiz como métrica herdaria os vieses do próprio modelo.
+**Trade-off.** É caro de montar e a amostra é enriquecida por cotas (IC estratificado). Um juiz como métrica herdaria os vieses do modelo; ele mediria só a concordância com o scorer, e não rodou. A lição do teste: o build não validava `expected_tools` do holdout contra os nomes das ferramentas, e o defeito só apareceu depois da rodada.
 
 ### D15. A2A 1.0 sobre o mesmo TurnService
 
@@ -122,11 +122,7 @@ Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 **Decisão.** Um servidor A2A 1.0 (JSON-RPC, sem modo de compatibilidade 0.3) sobre o `TurnService`, com Agent Card declarando só consulta e orientação. O `RedisTaskStore` guarda cada tarefa com o dono e um TTL, e filtra por dono em toda leitura. Admissão recusada vira tarefa `REJECTED` com `metadata.retry_after_s`. O `contextId` é ligado ao dono: o de outro aluno cria uma conversa nova e vazia do próprio chamador.
 
-O spike com o cliente real do SDK mostrou três fatos:
-
-- tarefa alheia em `GetTask`, `CancelTask` e `SendMessage` devolve `TaskNotFound` (<!-- num:a2a.TASK_NOT_FOUND -->-32001<!-- /num -->), e `ListTasks` de outro aluno devolve lista vazia;
-- um `contextId` alheio é **aceito** pelo SDK, então o isolamento da conversa é do executor, e não do protocolo;
-- uma exceção no executor, no TaskStore ou no context builder vira `InternalError(str(e))` com a mensagem original, e o SDK a registra. Por isso há wrappers com mensagem fixa, o executor captura tudo, o logger `a2a` é silenciado e a telemetria do SDK é desligada.
+O spike com o cliente real do SDK mostrou: tarefa alheia devolve `TaskNotFound` (<!-- num:a2a.TASK_NOT_FOUND -->-32001<!-- /num -->) e `ListTasks` alheio vem vazio; um `contextId` alheio é **aceito** pelo SDK, então o isolamento da conversa é do executor; e exceções viram `InternalError` com a mensagem original, por isso há wrappers com mensagem fixa e o logger `a2a` silenciado.
 
 **Alternativa.** Só HTTP próprio.
 
@@ -148,7 +144,7 @@ O spike com o cliente real do SDK mostrou três fatos:
 
 **Pergunta difícil:** "escalável" significa o quê, quando o gargalo real é a cota do modelo?
 
-**Decisão.** O `TurnService.admit()` roda **antes** do stream e reserva a estimativa de requisições e de tokens num balde RPM+TPM global (script Lua no Redis), dimensionado a 90% da cota, mais uma **vaga por turno**, como lease com TTL. O `settle()` roda sempre, em `finally` sob `asyncio.shield`, inclusive se o cliente cair antes do primeiro byte. Sem cota, HTTP 503 com `Retry-After`. O deadline do turno é propagado e o timeout de cada chamada é o deadline restante. Há orçamento diário por aluno e teto global de gasto: a 80%, o perfil padrão reduz as rodadas e dispensa o retry do guard; a 100%, devolve 503.
+**Decisão.** `TurnService.admit()` roda **antes** do stream: reserva requisições e tokens num balde RPM+TPM global (Lua no Redis, a 90% da cota) e uma **vaga por turno** com TTL; sem cota, 503 com `Retry-After`. O `settle()` roda sempre (`finally` sob `asyncio.shield`). O deadline do turno limita cada chamada. Há cota diária por aluno e teto global de gasto: a 80%, menos rodadas e sem retry do guard; a 100%, 503.
 
 **Alternativa.** Ilimitado.
 
@@ -159,15 +155,13 @@ O spike com o cliente real do SDK mostrou três fatos:
 
 **Pergunta difícil:** como responder a maior parte das perguntas com uma única chamada ao modelo, mantendo o cache do prefixo?
 
-**Decisão.** Um resumo do aluno de até 400 tokens (estimados; `tests/integration/test_card.py`), sem nome, é entregue como `functionResponse` de uma chamada sintética a `get_student_card`. Traz matrículas, total para quitar, próximo vencimento, protocolos abertos, próxima avaliação e cobertura de dados. O prompt de sistema e as 11 declarações de ferramenta são idênticos para todos os alunos, então o cache implícito do provedor é preservado.
+**Decisão.** Um resumo do aluno de até 400 tokens, sem nome (matrículas, total para quitar, próximo vencimento, protocolos abertos, próxima avaliação, cobertura), vai como `functionResponse` de uma chamada sintética a `get_student_card`. Prompt e as 11 ferramentas são iguais para todos, o que preserva o cache do provedor.
 
 **Alternativas.** Só ferramentas (uma chamada a mais em toda pergunta); cartão como texto da mensagem do usuário.
 
-**Trade-off.** Um `functionResponse` não pode ser forjado pelo aluno, que um texto de usuário poderia imitar. O custo é que o provedor pode exigir a declaração da função sintética e a assinatura de pensamento; isso é checado no portão do primeiro dia (**pendente: teste live com chave**). Se exigido, a função entra sem parâmetros e devolve o mesmo cartão.
+**Trade-off.** Um `functionResponse` não pode ser forjado pelo aluno, que um texto de usuário poderia imitar. Com o Claude funciona (todas as rodadas usaram o cartão); no Gemini, que pode exigir a função declarada e a assinatura de pensamento, segue sem teste por falta de chave.
 
 ## 3. Decisões menores
-
-O motivo de não serem centrais: ou são consequência direta de uma central, ou a alternativa não era plausível.
 
 | # | Decisão | Alternativa | Por que não é central |
 |---|---|---|---|
@@ -211,8 +205,8 @@ graph TD;
 Pontos que o diagrama não mostra:
 
 - O diagrama é a saída de `draw_mermaid()` (`docs/evidence/graph.md`). O nó `tools` recalcula o `tainted` a cada rodada e aplica `Tool.allowed`. O laço `llm` e `tools` vai até `max_rounds` (4; 2 sob custo); a última rodada e o retry do guard vão sem ferramentas.
-- Se a rodada emitiu um rascunho, o turno faz sempre mais uma chamada, com as ferramentas ainda declaradas, e a instrução "responda só ao resto da mensagem, ou nada". A resposta final é o texto fixo do servidor mais o resto, e **só o resto** passa pelo guard.
-- O guard confere apenas texto gerado pelo modelo. Textos do servidor (rascunho, "Solicitação SA-… aberta", fallback, recusas fixas) ficam fora.
+- Com rascunho emitido, o turno faz mais uma chamada ("responda só ao resto da mensagem, ou nada"); a resposta é o texto fixo do servidor mais esse resto, e **só o resto** passa pelo guard.
+- Textos do servidor (rascunho, "Solicitação SA-… aberta", fallback, recusas fixas) não passam pelo guard.
 
 ## 5. Dados
 
@@ -226,7 +220,7 @@ O ETL recria o schema `canon` a cada carga, numa transação: cria as tabelas, f
 
 Os quatro sistemas não compartilham chave. A resolução foi verificada nos CSV e contra um oráculo independente:
 
-- **Pessoa:** pelo CPF. O `PERSON_ID` não serve: 15 CPFs têm dois (`docs/research/2026-11-03-perfil-dos-dados.md`).
+- **Pessoa:** pelo CPF; o `PERSON_ID` não serve (15 CPFs têm dois).
 - **Matrícula:** (marca, RA) com dígito verificador mod 11. Nunca só o RA, porque há 173 RAs repetidos em 2 a 5 marcas EAD (mesma fonte).
 - **LMS:** SSO por tenant e padrão `PRES_nnnnn` ou `EAD_nnnnn`, mais as contas manuais ligadas por `user_loggedin`. Resultado: <!-- num:data.lms_accounts -->1003<!-- /num --> contas. Contas de professor, administração, integração e `aluno.teste*` não entram em contagem nenhuma.
 - **Financeiro:** pelo contrato da matrícula (<!-- num:data.contracts -->1065<!-- /num --> contratos resolvidos), nunca por `taxId` nem `customerId`.
@@ -267,7 +261,7 @@ Texto escrito por humanos nos sistemas de origem é o canal natural de injeção
 ## 6. Segurança
 
 
-A pergunta de projeto é se a segurança sobrevive a um modelo comprometido. Por isso há duas classes de prova: **testes de arquitetura**, que não usam o LLM, e **ataques com LLM real**, que medem comportamento.
+A segurança precisa sobreviver a um modelo comprometido. Há duas provas: **testes de arquitetura**, sem LLM (saída em `docs/evidence/security-tests.txt`), e **ataques com LLM real**, que medem comportamento.
 
 | Ameaça | Defesa de arquitetura | Prova |
 |---|---|---|
@@ -300,60 +294,61 @@ O método está em D11. Modelo sob teste: `claude-haiku-5-5`, escolhido antes de
 | Medida | Desenvolvimento | Teste |
 |---|---|---|
 | pass@1 primário (IC 95%) | <!-- num:quality.dev.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> | <!-- num:quality.test.pass1 -->43,5% [34,0%; 53,4%]<!-- /num --> |
-| Templates vistos | <!-- num:quality.seen.pass1 -->64,3% [53,3%; 74,8%]<!-- /num --> | |
+| Templates vistos (alunos novos) | | <!-- num:quality.seen.pass1 -->64,3% [53,3%; 74,8%]<!-- /num --> |
 | Templates não vistos (`test_only`) | | <!-- num:quality.unseen.pass1 -->10,3% [0,0%; 20,7%]<!-- /num --> |
 | Recusa correta | | <!-- num:quality.test.refusal_ok -->96,9% [89,4%; 100,0%]<!-- /num --> |
 | Recusa indevida | | <!-- num:quality.test.refusal_wrong -->0,0% [0,0%; 0,0%]<!-- /num --> |
 | pass@1 corrigido (validação do scorer) | | <!-- num:quality.test.corrected -->77,1% [57,2%; 93,2%]<!-- /num --> |
 | Sem o critério de ferramenta-domínio (teto) | | <!-- num:quality.test.domain_tools -->75,8% [67,5%; 83,5%]<!-- /num --> |
 | Perguntas que cruzam sistemas | | <!-- num:quality.test.cross -->6,0% [0,5%; 13,5%]<!-- /num --> |
-| Bloqueio indevido do guard | | <!-- num:guard.false_block -->0/43 (0,0% [0,0%; 8,2%])<!-- /num --> |
+| Respostas certas bloqueadas pelo guard | | <!-- num:quality.test.guard_blocked_ok -->124 de 3321 itens (3,7%)<!-- /num --> |
+| Bloqueio indevido do guard (controles sintéticos) | | <!-- num:guard.false_block -->0/43 (0,0% [0,0%; 8,2%])<!-- /num --> |
 | Recall do guard (perturbação cega) | | <!-- num:guard.blind_recall -->91,8% [78,8%; 100,0%]<!-- /num --> |
 
-**Três rodadas de desenvolvimento**, com as 2 iterações de prompt que o plano permite (`docs/evidence/quality/dev-r{1,2,3}`):
+**Três rodadas de dev**, com as 2 iterações de prompt permitidas (`quality/dev-r{1,2,3}`):
 
 1. Linha de base: <!-- num:quality.dev.r1.pass1 -->49,1% [36,9%; 61,2%]<!-- /num -->. Os 58 itens inválidos (56 de um caso, provável queda da API) ficam fora do denominador.
 2. Iteração 1: <!-- num:quality.dev.r2.pass1 -->62,4% [49,6%; 74,5%]<!-- /num -->. Consultar a ferramenta antes de responder, rascunho na hora, recusa só sem dado do aluno, nenhum valor em pedido vago; corrige a data de referência do cartão.
 3. Iteração 2: <!-- num:quality.dev.r3.pass1 -->70,4% [59,0%; 80,6%]<!-- /num -->. Ferramenta a cada pergunta, números em algarismos, recusa só fora do atendimento, rascunho mesmo com protocolo aberto do serviço.
 
-A meta (limite inferior de 85%) **não foi atingida** nem no desenvolvimento nem no teste; o número sai como está. Na dev 3 dominam falhas de redação (105) e respostas certas bloqueadas pelo guard (30); o multiturno, secundário, ficou em 44,2% (n=77).
+A meta (limite inferior de 85%) **não foi atingida** nem no desenvolvimento nem no teste; o número sai como está. Na dev 3 dominam falhas de redação (105) e respostas certas bloqueadas pelo guard (30); o multiturno, secundário, ficou em 44,2% (n=77) na dev e 35,0% (n=309) no teste. O P(meta) registrado antes do teste já era 0 com acerto real de 75%.
 
 **Teste cego** (3.321 itens, 40 alunos fora da dev, `quality/test-r1`). O primário vale como rodou (§6 do plano de análise); duas sensibilidades mudam a leitura:
 
 1. **Defeito do gabarito.** O redator cego não conhecia as ferramentas e escreveu o domínio (`financeiro`, `lms`) em `expected_tools`; o scorer compara com o nome da ferramenta. Todo item `test_only` que exige ferramenta reprova, seja qual for a resposta: daí o número dos não vistos. Sem esse critério, e só ele, vem a linha "teto" da tabela (`test-r1/ferramenta-dominio`, com anexo); é teto porque a ferramenta deixa de ser exigida.
 2. **Validação do scorer** (30 respostas sorteadas, rótulo às cegas): VPP <!-- num:quality.test.vpp -->100,0% [86,2%; 100,0%]<!-- /num -->, VPN <!-- num:quality.test.vpn -->33,3% [9,7%; 70,0%]<!-- /num -->. O scorer não aprovou resposta errada, mas 4 das 6 reprovações sorteadas eram respostas certas. Daí o pass@1 corrigido.
 
-O número mais limpo é o dos templates vistos, em alunos novos; cruzamento entre sistemas é o pior grupo.
+Os templates vistos medem alunos novos, mas guiaram as iterações de prompt. Nos não vistos, sem o critério defeituoso, o pass@1 sobe a 94% (teto), porque o oráculo dos vistos é mais rígido (abaixo). O cruzamento (6,0%) também é quase todo efeito do defeito: nos vistos, 12 de 120.
 
-**Rigidez do oráculo.** O oráculo carimbado não mudou. Para aluno sem fatura vencida ele proíbe qualquer "R$", inclusive "R$ 0,00" e o próximo vencimento verdadeiro; na dev 2, 46 itens falharam só por isso (cerca de 9,7 p.p.). Não ajustamos o agente ao gabarito.
+**Rigidez do oráculo.** O oráculo carimbado não mudou. Para aluno sem fatura vencida ele proíbe qualquer "R$", inclusive "R$ 0,00" e o próximo vencimento verdadeiro; na dev 2, 46 itens falharam só por isso (cerca de 9,7 p.p.). A regra que só serviria ao gabarito (não citar R$ sem fatura vencida) não entrou, mas a iteração 2 (algarismos, nenhum R$ em dado inexistente) também ajuda o scorer: parte do ganho da dev é de formato.
 
-**Bugs da rodada real, corrigidos antes do congelamento:** fatos de resumo fora dos registros (o guard degradava respostas certas); cota diária do perfil de avaliação baixa demais (subiu para 5 milhões de tokens, sem mudar o teto de gasto); latência sem componentes por chamada.
+**Bugs da rodada real, corrigidos antes do congelamento:** fatos de resumo fora dos registros (o guard degradava respostas certas); cota diária do perfil de avaliação baixa demais (subiu para 5 milhões de tokens); latência sem componentes por chamada.
 
-**Guard congelado, conjunto cego oficial:** recall e bloqueio indevido na tabela. Fracos: `status_word`, com <!-- num:guard.weak.status_word -->0/10<!-- /num --> pegos, e `flip_negation`, com <!-- num:guard.weak.flip_negation -->7/10<!-- /num -->. A seção "rascunhos do dev × scorer" de `guard.md` tem viés de seleção (o rascunho só é gravado quando a guarda mexeu) e não mede bloqueio indevido.
+**Guard congelado, conjunto cego oficial:** recall e bloqueio indevido na tabela. Fracos: `status_word`, com <!-- num:guard.weak.status_word -->0/10<!-- /num --> pegos, e `flip_negation`, com <!-- num:guard.weak.flip_negation -->7/10<!-- /num -->. A seção "rascunhos do dev × scorer" de `guard.md` tem viés de seleção (o rascunho só é gravado quando a guarda mexeu) e não mede bloqueio indevido. Nas janelas de latência o guard degradou 10% a 20% dos turnos, contra 5% previstos: é o custo de calar em vez de inventar.
 
 
-O que esta avaliação **não** garante: a amostra de 40 alunos é enriquecida por cotas (o IC estratificado reconhece, não elimina); o scorer foi validado com 30 respostas, rotuladas por um agente de IA às cegas e não pelo autor, então o pass@1 corrigido é sensibilidade; o holdout só é cego para quem não viu o código. O gabarito de acadêmico e LMS não tem fonte externa, e a conferência à mão de 20 itens prevista (`oracle_check.csv`) não foi feita.
+O que esta avaliação **não** garante: a amostra de 40 alunos é enriquecida por cotas (o IC estratificado reconhece, não elimina); o scorer foi validado com 30 respostas, rotuladas por um agente de IA às cegas e não pelo autor, então o pass@1 corrigido é sensibilidade; o holdout só é cego para quem não viu o código. O gabarito de acadêmico e LMS não tem fonte externa, e a conferência à mão de 20 itens prevista (`oracle_check.csv`) não foi feita. Não rodaram o kappa do juiz, o McNemar do 2º nível, as paráfrases nem a utilidade (§13, §14 e §16 do plano). A recusa indevida "0,0%" é 0 em 2.692 itens, detectada pelo prefixo fixo de recusa.
 
 ## 8. Latência, capacidade e custo
 
 
 **Latência** é medida por classe de turno: `card` (nenhuma ferramenta), `1` e `2+`. As metas vêm de uma fórmula registrada antes de medir: uma lognormal por componente (chamada que emite ferramenta, chamada que responde, overhead), com Monte Carlo por classe **incluindo o retry do guard**, para todos os quantis e o tempo até o primeiro evento (TTFE). A meta de cada quantil é o maior valor entre a inicial e a prevista. A fórmula é reajustada uma vez e congelada; a fonte é `slo_targets.yaml`.
 
-Trade-offs: o TTFE do `card` é a latência total, porque o guard precisa do texto inteiro; o orçamento do grafo é o p99 previsto da classe `2+` vezes 1,2.
+Trade-offs: o guard precisa do texto inteiro, então o texto útil só chega no fim do turno; o TTFE de `1` e `2+` mede o evento de progresso, e o do `card` é a latência total. O orçamento do grafo é o p99 previsto da classe `2+` vezes 1,2.
 
-A janela A (300 turnos, `latency-A.json`, tabela abaixo) mediu o agente **antes** das iterações de prompt e fez o reajuste: o orçamento do grafo foi de 25,22 para 12,26 s. A regra do máximo deixa o p99 abaixo do p95 (só há meta inicial para p50 e p95). Janelas B e C (prompt final, `latency-{B,C}.json`): p95 geral 6,49 e 6,72 s, sem corte; falham só metas vindas da previsão (p99 do `card` e p90 da classe `1` na B; p90 e p99 da classe `1`, com 14 turnos, na C).
+A janela A (300 turnos) mediu o agente **antes** das iterações de prompt e fez o reajuste único: o orçamento do grafo foi de 25,22 para 12,26 s. A regra do máximo deixa o p99 abaixo do p95 (só há meta inicial para p50 e p95). A tabela é da janela B (300 turnos, prompt final); a C (150, SHA congelado) confirma: p95 geral 6,49 e 6,72 s, sem corte. Falham só metas vindas da previsão (p99 do `card` e p90 da classe `1` na B; p90 e p99 da classe `1` na C). B e C ficaram abaixo dos 100 turnos pré-registrados em `card` e `1` (14 na classe `1` da C): o p99 por classe é indicativo.
 
 | Classe | p50 | p95 | TTFE p95 |
 |---|---|---|---|
-| `card` | <!-- num:latency.card.p50 -->2,26 s<!-- /num --> | <!-- num:latency.card.p95 -->5,27 s<!-- /num --> | <!-- num:latency.card.ttfe_p95 -->5,25 s<!-- /num --> |
-| `1` | <!-- num:latency.one.p50 -->3,88 s<!-- /num --> | <!-- num:latency.one.p95 -->7,31 s<!-- /num --> | <!-- num:latency.one.ttfe_p95 -->1,98 s<!-- /num --> |
-| `2+` | <!-- num:latency.two_plus.p50 -->4,55 s<!-- /num --> | <!-- num:latency.two_plus.p95 -->7,34 s<!-- /num --> | <!-- num:latency.two_plus.ttfe_p95 -->2,08 s<!-- /num --> |
+| `card` | <!-- num:latency.card.p50 -->1,39 s<!-- /num --> | <!-- num:latency.card.p95 -->3,00 s<!-- /num --> | <!-- num:latency.card.ttfe_p95 -->3,00 s<!-- /num --> |
+| `1` | <!-- num:latency.one.p50 -->3,10 s<!-- /num --> | <!-- num:latency.one.p95 -->5,60 s<!-- /num --> | <!-- num:latency.one.ttfe_p95 -->1,91 s<!-- /num --> |
+| `2+` | <!-- num:latency.two_plus.p50 -->3,48 s<!-- /num --> | <!-- num:latency.two_plus.p95 -->7,29 s<!-- /num --> | <!-- num:latency.two_plus.ttfe_p95 -->1,80 s<!-- /num --> |
 
-Overhead de infraestrutura (tudo que não é modelo): <!-- num:latency.overhead.p95 -->0,08 s<!-- /num -->. Turnos que estouraram o orçamento do grafo na janela A: <!-- num:latency.budget_exceeded -->0,0%<!-- /num -->.
+Overhead de infraestrutura (tudo que não é modelo): <!-- num:latency.overhead.p95 -->0,08 s<!-- /num -->. Turnos que estouraram o orçamento do grafo na janela B: <!-- num:latency.budget_exceeded -->0,0%<!-- /num -->.
 
-**Capacidade.** "Milhares simultâneos" vira mensagens por minuto, RPM e TPM contra a cota e, só depois, réplicas pela CPU por turno; o TPM limita antes. Vagas e pool seguem a lei de Little. A carga usa um `LoadTestLLM` (latências das lognormais) em duas escadas de laço aberto: (a) com limitador e cota simulada, (b) sem limitador. Resultado: <!-- num:latency.load.plateau -->escada (a) aprovada: 89 turnos admitidos no degrau mais alto, pico de 89<!-- /num -->. Sem limitador, 1 container com 1 CPU aguenta 25 turnos/s; a 50 turnos/s, 34% são cortados pelo prazo, com 1 ou 2 workers (`load-b-w*.json`).
+**Capacidade.** "Milhares simultâneos" vira mensagens por minuto, RPM e TPM contra a cota e, só depois, réplicas pela CPU por turno; o TPM limita antes. Vagas e pool seguem a lei de Little. A carga usa um `LoadTestLLM` (latências das lognormais) em duas escadas de laço aberto: (a) com limitador e cota simulada, (b) sem limitador. Resultado: <!-- num:latency.load.plateau -->escada (a) aprovada: 89 turnos admitidos no degrau mais alto, pico de 89<!-- /num -->. Sem limitador, 1 container com 1 CPU aguenta 25 turnos/s; a 50 turnos/s, 34% são cortados pelo prazo, com 1 ou 2 workers (`load-b-w*.json`). A carga mede o app com LLM falso e cota simulada, não o provedor; "milhares simultâneos" é extrapolação. As premissas `est_tokens` e `turn_usage` ficaram provisórias (cerca de 5 mil tokens por turno, contra 14 mil medidos) e subestimam o TPM.
 
-**Custo** por turno (entrada, saída, raciocínio e cache) na janela A: <!-- num:latency.cost.per_turn -->US$ 0,0007<!-- /num -->; US$ 0,0008 na C.
+**Custo** por turno (entrada, saída, raciocínio e cache), estimado pela tabela de preços e não pela fatura, na janela B: <!-- num:latency.cost.per_turn -->US$ 0,0008<!-- /num -->.
 
 Duas alavancas ficam desligadas: o hedge da primeira chamada no p90 (com orçamento, contado na cota e no gasto) e a comparação de modelos por classe.
 
@@ -370,15 +365,16 @@ A decisão está em D16. Em operação:
 
 Esta seção descreve o caminho, não algo já feito.
 
-- **Dados:** hoje o ETL carrega CSV numa carga única. Em produção, a entrada seria CDC dos bancos de origem ou APIs dos sistemas, com o mesmo contrato por coluna e as mesmas verificações de contagem. A escrita do rascunho confirmado sairia por **outbox**, na mesma transação do INSERT, para um worker que abre o protocolo no sistema da secretaria com retry idempotente por `draft_id`.
-- **Identidade:** o JWT de desenvolvimento dá lugar a um provedor de identidade da instituição. O A2A usaria **token exchange (RFC 8693)**: o agente chamador troca o token do aluno por um token de audiência `a2a` com claim `act`, de modo que o `sub` continua sendo o aluno e o chamador fica registrado.
-- **Modelo:** Vertex AI com cota provisionada, com o mesmo código (`llm_backend`, projeto e região) e a conta de serviço montada somente leitura. O balde de admissão passa a ser dimensionado pela cota contratada.
+- **Dados:** CDC ou APIs dos sistemas no lugar da carga de CSV, com o mesmo contrato por coluna e as mesmas contagens. O rascunho confirmado sai por **outbox**, na transação do INSERT, para um worker que abre o protocolo na secretaria com retry idempotente por `draft_id`.
+- **Identidade:** um IdP da instituição no lugar do JWT de desenvolvimento; no A2A, **token exchange (RFC 8693)** com claim `act`: o `sub` segue sendo o aluno e o chamador fica registrado.
+- **Modelo:** Vertex AI com cota provisionada, mesmo código (`llm_backend`, projeto e região); o balde de admissão segue a cota contratada.
 - **Orquestradores:** o Langflow 1.13.1 consome o agente pelo A2A (`make langflow-demo`: Chat Input, A2A Agent, Chat Output; resposta em `docs/evidence/langflow-a2a.json`). O ADK é desenho, não demonstrado.
 - **Escala:** réplicas sem estado; o estado é Redis e Postgres. A CPU por turno da escada de carga define as réplicas por RPM.
 
 ## 11. Limites honestos
 
-- Limites de segurança conhecidos: a pilha de avaliação local compartilha banco, Redis e o segredo do JWT com a API; o `init-secrets` monta o repositório só-leitura como root; `/metrics` e o Phoenix não têm autenticação (só em 127.0.0.1); o JWT não tem `iss`; o teto de corpo olha só o `Content-Length`.
+- Limites de segurança conhecidos: a pilha de avaliação local compartilha banco, Redis e o segredo do JWT com a API; o `init-secrets` monta o repositório só-leitura como root; `/metrics` e o Phoenix não têm autenticação (só em 127.0.0.1); o JWT não tem `iss`; o teto de corpo olha só o `Content-Length`. A identidade em produção é premissa externa (IdP): o JWT HS256 de desenvolvimento emite e verifica com o mesmo segredo. Os padrões do compose são de desenvolvimento (`APP_ENV=dev`, login de dev ligado).
+- Um aluno pode ocupar as 8 vagas globais de turno: não há limite de turnos simultâneos por aluno, e o limite por minuto e a cota diária não impedem isso.
 - O guard não pega um valor correto atribuído à entidade errada quando a frase não cita nenhuma entidade.
 - Os <!-- num:data.protocols_unlinked -->22<!-- /num --> protocolos sem vínculo (ver 5.3) não aparecem para nenhum aluno, por escolha de precisão.
 - A regra de média e aprovação não existe nos dados, e o agente diz isso em vez de inferir.

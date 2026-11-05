@@ -6,6 +6,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "package.sh"
+# o zip de entrega (git archive) não traz .git: o empacotamento só se testa no repositório
+pytestmark = pytest.mark.skipif(not (ROOT / ".git").exists(), reason="sem .git (pacote de entrega)")
 FORBIDDEN_PREFIX = (
     ".git/",
     "data/",

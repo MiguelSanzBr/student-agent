@@ -1,8 +1,11 @@
 # Fonte única dos números operacionais.
-# Metas, TTFE e orçamento: fórmula pré-registrada (evals/latency/formula.py) aplicada a PRIORS do modelo
-# padrão gemini-3.8-flash (docs/evidence/spikes.md); a atualização única vem depois da janela A.
-# Previsão do gemini-3.5-flash-lite (fallback) em docs/evidence/spikes.json.
-frozen: false
+# Metas, TTFE e orçamento: fórmula pré-registrada (evals/latency/formula.py). As metas começaram com
+# PRIORS do gemini-3.8-flash (docs/evidence/spikes.md, histórico); o reajuste único veio da janela A
+# real com claude-haiku-5-5 (2026-11-04) e o arquivo está congelado: não há segundo reajuste.
+# p99 abaixo do p95 vem da regra pré-registrada max(meta inicial, previsto): é indicativo.
+# est_tokens, turn_usage e card_share ficaram com os valores provisórios; o turno medido tem ~14 mil
+# tokens de entrada (docs/evidence/quality/notes.md).
+frozen: true
 quotas:  # PROVISÓRIO: cotas reais (RPM/TPM/RPD) pendentes, sem GEMINI_API_KEY
   gemini-3.8-flash: {rpm: 1000, tpm: 1000000, rpd: 10000}
   gemini-3.5-flash-lite: {rpm: 4000, tpm: 4000000, rpd: 50000}
