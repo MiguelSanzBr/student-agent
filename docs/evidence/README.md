@@ -8,7 +8,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 |---|---|---|
 | `data-quality` | Contagens da carga (SQL contra memória), resolução por regra, invariantes, cobertura | Gerado |
 | `spikes` | Comportamento medido do A2A 1.0, do LangGraph e do Phoenix; versões fixadas | Gerado |
-| `quality` | pass@1 com IC, vistos e não vistos, recusa, cruzamento, erro por causa | Dev 1 a 3 e teste gerados (`quality/dev-r{1,2,3}`, `quality/test-r1`, `rounds.jsonl`); sensibilidades do teste em `test-r1/quality.resummarized.*` (validação do scorer) e `test-r1/ferramenta-dominio/` (gabarito, com anexo) |
+| `quality` | pass@1 com IC, vistos e não vistos, recusa, cruzamento, erro por causa | Dev 1 a 3 e teste gerados (`quality/dev-r{1,2,3}`, `quality/test-r1`, a 2ª rodada `quality/test-r2`, `rounds.jsonl`); sensibilidades do teste em `test-r1/quality.resummarized.*` (validação do scorer) e `test-r1/ferramenta-dominio/` (gabarito, com anexo) |
 | `guard` | Recall por tipo, bloqueio indevido, perturbação cega | Gerado (`quality/guard/`); ver a nota sobre o conjunto cego e o viés da seção "rascunhos do dev × scorer" |
 | `security` | Testes de arquitetura e ataques com LLM real | Gerado: dev, rodada plantada e holdout cego (`security-blind.md`); rótulos às cegas × juiz em `security-labels.md`; saída do pytest dos testes de arquitetura em `security-tests.txt` |
 | `latency` | Previsto contra medido por classe, cascata por componente, carga, custo | `latency.md` traz os critérios, escritos antes das rodadas; `latency-{A,B,C}.json` e escadas de carga `load-{a,b}-w*.json` gerados |

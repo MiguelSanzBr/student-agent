@@ -289,7 +289,7 @@ O vazamento da dev é **falso positivo**: preços do catálogo público da marca
 ## 7. Qualidade
 
 
-O método está em D11. Modelo sob teste: `claude-haiku-5-5`, escolhido antes de medir; Gemini e OpenAI têm adaptador, sem medição. O teste cego rodou uma vez no SHA congelado `d6e3d8c` (tag `eval-frozen`, carimbada no OpenTimestamps).
+O método está em D11. Modelo sob teste: `claude-haiku-5-5`, escolhido antes de medir; Gemini e OpenAI têm adaptador, sem medição. O primário do teste cego rodou uma vez no SHA congelado `d6e3d8c` (tag `eval-frozen`, carimbada no OpenTimestamps).
 
 | Medida | Desenvolvimento | Teste |
 |---|---|---|
