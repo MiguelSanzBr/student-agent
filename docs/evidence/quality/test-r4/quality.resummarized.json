@@ -1,0 +1,213 @@
+{
+  "split": "test",
+  "round": 4,
+  "model": "claude-haiku-5-5",
+  "sha": "4c00de488b4d981025f1176e84ac88e5af20465b",
+  "dirty": false,
+  "paraphrase": false,
+  "perfil": "eval",
+  "rehearsal": false,
+  "primary_run": false,
+  "frozen_sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd",
+  "served_models": {
+    "claude-haiku-5-5": 3590
+  },
+  "test_rounds": [
+    {
+      "round": 1,
+      "sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd",
+      "aborted": false
+    },
+    {
+      "round": 2,
+      "sha": "dad845eca7972012dcf5e3a8aa0833ee24c0f86a",
+      "aborted": false
+    },
+    {
+      "round": 3,
+      "sha": "17f8704167a0a600d16c08a2a76f060ec6a76cad",
+      "aborted": false
+    },
+    {
+      "round": 4,
+      "sha": "4c00de488b4d981025f1176e84ac88e5af20465b",
+      "aborted": false
+    }
+  ],
+  "domain_tools": true,
+  "holdout": "v2/templates_v2.yaml.age",
+  "aborted": false,
+  "abort_reason": "",
+  "items": 3321,
+  "invalid": 0,
+  "redone": 0,
+  "primary": {
+    "n": 3052,
+    "low": 0.827984995791076,
+    "high": 0.9250006247917362,
+    "point": 0.8797509829619922
+  },
+  "meets_target": false,
+  "p_meta": {
+    "icc": 0.2157238740119328,
+    "p_dev": 0.9201680672268907,
+    "n_students": 40,
+    "n_templates": 87,
+    "n_sim": 200,
+    "p_meta": {
+      "0.870": 0.245,
+      "0.920": 1.0,
+      "0.970": 1.0
+    },
+    "se": {
+      "0.870": 0.030411757594719844,
+      "0.920": 0.0,
+      "0.970": 0.0
+    }
+  },
+  "by_category": {
+    "abertura_negativa": {
+      "n": 63,
+      "k": 63
+    },
+    "abertura_positiva": {
+      "n": 126,
+      "k": 126
+    },
+    "abertura_protocolo_negativa": {
+      "n": 40,
+      "k": 40
+    },
+    "abertura_protocolo_positiva": {
+      "n": 80,
+      "k": 79
+    },
+    "academico": {
+      "n": 320,
+      "k": 263
+    },
+    "ambigua": {
+      "n": 120,
+      "k": 120
+    },
+    "catalogo": {
+      "n": 240,
+      "k": 146
+    },
+    "consulta_pedido": {
+      "n": 23,
+      "k": 21
+    },
+    "cruzamento": {
+      "n": 240,
+      "k": 151
+    },
+    "dado_contraditorio": {
+      "n": 80,
+      "k": 61
+    },
+    "divergencia": {
+      "n": 80,
+      "k": 72
+    },
+    "financeiro": {
+      "n": 360,
+      "k": 334
+    },
+    "fora_cobertura": {
+      "n": 120,
+      "k": 118
+    },
+    "fora_escopo": {
+      "n": 240,
+      "k": 235
+    },
+    "lms": {
+      "n": 280,
+      "k": 257
+    },
+    "premissa_falsa": {
+      "n": 160,
+      "k": 142
+    },
+    "previsao": {
+      "n": 80,
+      "k": 79
+    },
+    "protocolos": {
+      "n": 240,
+      "k": 238
+    },
+    "sem_resposta": {
+      "n": 160,
+      "k": 140
+    }
+  },
+  "by_cause": {
+    "dados": 179,
+    "redacao": 133,
+    "guard_bloqueou_certa": 97,
+    "recusa_indevida": 21,
+    "roteamento": 10
+  },
+  "seen_unseen": {
+    "vistos(shared)": {
+      "n": 1852,
+      "low": 0.797269328479011,
+      "high": 0.9322860238353196,
+      "point": 0.8693304535637149
+    },
+    "nao_vistos(test_only)": {
+      "n": 1200,
+      "low": 0.8275,
+      "high": 0.9508333333333333,
+      "point": 0.8958333333333334
+    }
+  },
+  "refusal": {
+    "correta": {
+      "n": 360,
+      "low": 0.95,
+      "high": 1.0,
+      "point": 0.9805555555555555
+    },
+    "indevida_ausente": {
+      "n": 2692,
+      "low": 0.9739688640221733,
+      "high": 1.0,
+      "point": 0.9921991084695394
+    },
+    "cruzamento": {
+      "n": 240,
+      "low": 0.3541666666666667,
+      "high": 0.875,
+      "point": 0.6291666666666667
+    }
+  },
+  "multiturn": {
+    "n": 269,
+    "low": 0.6725444554377763,
+    "high": 0.7782667978506511,
+    "point": 0.7286245353159851
+  },
+  "sensitivity": {
+    "n_labels": 30,
+    "vpp": {
+      "low": 0.6899611872949993,
+      "high": 0.9565566591987655,
+      "point": 0.875
+    },
+    "vpn": {
+      "low": 0.1876163064826506,
+      "high": 0.8123836935173494,
+      "point": 0.5
+    },
+    "pass_corrigido": {
+      "low": 0.6597549675115256,
+      "high": 0.9136712634310564,
+      "point": 0.8045291864099204
+    }
+  },
+  "kappa_juiz": null,
+  "utility": null
+}
