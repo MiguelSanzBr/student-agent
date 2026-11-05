@@ -1,4 +1,4 @@
-# Spikes da Task 3 (2026-11-04)
+# Spikes iniciais (2026-11-04)
 
 > **Histórico.** Registro da fase em que o modelo padrão seria o Gemini. Depois o modelo medido passou a ser `claude-haiku-5-5` (escolhido antes de medir, por caber no teto de gasto): os números reais estão em `latency-{A,B,C}.json` e `quality/`. A parte do A2A abaixo foi executada; os testes do Gemini não foram (sem chave).
 
@@ -37,7 +37,7 @@ Container `sa-spike-phoenix` (6016→6006, 4327→4317), removido ao fim. Span r
 **Armadilha:** a imagem define `PHOENIX_HOST=::`; um host não-loopback liga a autenticação por padrão (401 "Invalid token" em tudo). O compose deve definir `PHOENIX_ENABLE_AUTH=false` (rede interna) ou provisionar segredos.
 
 ## Gemini (NADA foi executado: pendente, sem GEMINI_API_KEY)
-Nenhuma chamada ao Gemini foi feita na Task 3. Os testes abaixo existem em `tests/live/test_spikes.py` (`-m live`), pulam sem chave e rodam sem alteração quando a chave existir. Foram só coletados (collect-only/skip): podem precisar de ajuste na primeira execução real. Observações vão para `docs/evidence/gemini_observations.json`; amostras do portão para `docs/evidence/gemini_samples_<modelo>.json`.
+Nenhuma chamada ao Gemini foi feita nos spikes. Os testes abaixo existem em `tests/live/test_spikes.py` (`-m live`), pulam sem chave e rodam sem alteração quando a chave existir. Foram só coletados (collect-only/skip): podem precisar de ajuste na primeira execução real. Observações vão para `docs/evidence/gemini_observations.json`; amostras do portão para `docs/evidence/gemini_samples_<modelo>.json`.
 
 | Item | Teste | Estado |
 |---|---|---|

@@ -40,7 +40,7 @@ Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 **Pergunta difícil:** por que não deixar o modelo escrever SQL, que seria mais flexível?
 
-**Decisão.** O agente tem 11 ferramentas com parâmetros enumerados (`enrollment` é "1", "2" ou "3"; `status` e `kind` são enums). Nenhuma recebe identidade: quem fala é o `sub` do JWT, injetado no servidor. Cada ferramenta devolve registros tipados (`EntityRecord`) e valores já formatados (`R$ 1.234,56`, `dd/mm/aaaa`).
+**Decisão.** O agente tem 11 ferramentas com parâmetros enumerados (`enrollment` é "1", "2" ou "3"; status de fatura e `kind` são enums; status de protocolo é texto filtrado em código). Nenhuma recebe identidade: quem fala é o `sub` do JWT, injetado no servidor. Cada ferramenta devolve registros tipados (`EntityRecord`) e valores já formatados (`R$ 1.234,56`, `dd/mm/aaaa`).
 
 **Alternativas.** Text-to-SQL e um híbrido (ferramentas mais SQL livre para a cauda).
 
@@ -319,9 +319,9 @@ A meta própria (limite inferior de 85%) **não foi atingida** nem no desenvolvi
 2. **Validação do scorer** (30 respostas sorteadas, rótulo às cegas): VPP <!-- num:quality.test.vpp -->100,0% [86,2%; 100,0%]<!-- /num -->, VPN <!-- num:quality.test.vpn -->33,3% [9,7%; 70,0%]<!-- /num -->. O scorer não aprovou resposta errada, mas 4 das 6 reprovações sorteadas eram respostas certas. Daí o pass@1 corrigido.
 3. **2ª rodada, secundária e declarada** (§15, `quality/test-r2`): código final (`eval-final`; agente igual), com o runner aceitando o domínio escrito no gabarito como "uma ferramenta desse domínio" (`--domain-tools`), critério decidido depois de ver a r1. pass@1 <!-- num:quality.test.r2.pass1 -->73,5% [65,1%; 81,5%]<!-- /num -->; vistos <!-- num:quality.test.r2.seen -->63,8% [52,9%; 74,2%]<!-- /num -->, como na r1; não vistos <!-- num:quality.test.r2.unseen -->89,1% [77,4%; 99,1%]<!-- /num -->; corrigido pelos rótulos da própria rodada, <!-- num:quality.test.r2.corrected -->81,1% [68,1%; 91,9%]<!-- /num -->. Não substitui o primário.
 
-Os templates vistos medem alunos novos, mas guiaram as iterações de prompt. Nos não vistos, sem o critério defeituoso, o pass@1 sobe a 94% (teto), porque o oráculo dos vistos é mais rígido (abaixo). O cruzamento (6,0%) também é quase todo efeito do defeito: nos vistos, 12 de 120.
+Os templates vistos medem alunos novos, mas guiaram as iterações de prompt; o oráculo deles é mais rígido (abaixo). No cruzamento (6,0%), os não vistos reprovam pelo defeito (todos passam na r2), mas os vistos ficam em 12 de 120 nas duas rodadas: falha real (o agente não consulta o progresso curricular) somada à rigidez do R$.
 
-**Rigidez do oráculo.** O oráculo carimbado não mudou. Para aluno sem fatura vencida ele proíbe qualquer "R$", inclusive "R$ 0,00" e o próximo vencimento verdadeiro; na dev 2, 46 itens falharam só por isso (cerca de 9,7 p.p.). A regra que só serviria ao gabarito (não citar R$ sem fatura vencida) não entrou, mas a iteração 2 (algarismos, nenhum R$ em dado inexistente) também ajuda o scorer: parte do ganho da dev é de formato.
+**Rigidez do oráculo.** O oráculo carimbado não mudou. Para aluno sem fatura vencida ele proíbe qualquer "R$", inclusive "R$ 0,00" e o próximo vencimento verdadeiro; na dev 2, 46 itens falharam só por isso (cerca de 9,7 p.p.). Parte do ganho da dev é de formato (algarismos, nenhum R$ em dado inexistente).
 
 **Bugs da rodada real, corrigidos antes do congelamento:** fatos de resumo fora dos registros, cota diária do perfil de avaliação baixa e latência sem componentes por chamada.
 

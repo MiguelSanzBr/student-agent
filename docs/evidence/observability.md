@@ -1,4 +1,4 @@
-# Observabilidade (Task 29)
+# Observabilidade
 
 Smoke real contra `arizephoenix/phoenix:version-21.0.0@sha256:1f9a144a…` (profile `obs`, projeto compose
 `sa-t29`, porta 6029, derrubado com `down -v`). Teste: `PHOENIX_URL=http://127.0.0.1:6029 uv run pytest

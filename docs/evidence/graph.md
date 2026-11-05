@@ -1,6 +1,6 @@
 # Grafo do turno
 
-Gerado por `build_graph(...).get_graph().draw_mermaid()` (Task 22). `llm` -> `tools` repete até `max_rounds` (4; 2 sob custo); `guard` volta a `llm` 1x (retry do guard).
+Gerado por `build_graph(...).get_graph().draw_mermaid()`. `llm` -> `tools` repete até `max_rounds` (4; 2 sob custo); `guard` volta a `llm` 1x (retry do guard).
 
 ```mermaid
 ---

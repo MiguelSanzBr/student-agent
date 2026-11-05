@@ -1,4 +1,4 @@
-# Latência, carga e alavancas (Task 33)
+# Latência, carga e alavancas
 
 Histórico: v1 (sexta); v2 (revisão de fase, antes de qualquer rodada): removida a alavanca de frases
 em `answer_delta` (o guard precisa da resposta inteira, então não reduz o TTFE), hedge passa a ter
@@ -38,9 +38,9 @@ container); a capacidade por worker sai daí e alimenta `capacity()`.
 
 | Janela | Quando | n por classe | Critério |
 |---|---|---|---|
-| A | 1ª rodada dev (Task 31) | o que a rodada der | só amostras: `refit_after_window_a` reajusta lognormais e metas uma única vez; `budget_exceeded` ≤ 0,5% (senão recalcular o orçamento do grafo antes do M4) |
-| B | domingo 7h | ≥ 100 | p50, p90, p95, p99 e TTFE p95 de cada classe ≤ meta, com o IC 95% (bootstrap por aluno) reportado; classe sem amostra reprova; qualquer quantil acima da meta é publicado como falha |
-| C | segunda 9h, SHA congelado | ≈ 50 | igual a B, sem ajuste de meta (`frozen: true` no M4) |
+| A | 1ª rodada dev | o que a rodada der | só amostras: `refit_after_window_a` reajusta lognormais e metas uma única vez; `budget_exceeded` ≤ 0,5% (senão recalcular o orçamento do grafo antes do congelamento) |
+| B | prompt final | ≥ 100 | p50, p90, p95, p99 e TTFE p95 de cada classe ≤ meta, com o IC 95% (bootstrap por aluno) reportado; classe sem amostra reprova; qualquer quantil acima da meta é publicado como falha |
+| C | SHA congelado | ≈ 50 | igual a B, sem ajuste de meta (`frozen: true` no congelamento) |
 
 `make eval-latency` (runner HTTP real contra a API em perfil eval, um turno por vez; `--allow-sim` só
 ensaia o código e marca `"simulated": true`) reporta por rodada: IC por aluno, cascata por componente, todos os quantis contra as
