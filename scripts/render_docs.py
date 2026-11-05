@@ -84,6 +84,9 @@ def _quality(evidence_dir: Path) -> dict[str, str]:
                 f"quality.test.r{n}.seen": _ci(su2["vistos(shared)"], f"test-r{n}.vistos"),
                 f"quality.test.r{n}.unseen": _ci(su2["nao_vistos(test_only)"], f"test-r{n}.nao"),
             }
+            rs = _load(evidence_dir / "quality" / f"test-r{n}" / "quality.resummarized.json")
+            if rs and (sens2 := rs.get("sensitivity")):  # rótulos da própria rodada
+                out[f"quality.test.r{n}.corrected"] = _ci(sens2["pass_corrigido"], f"r{n}.corr")
     if (t := tests.get(first)) is not None:
         su, ref = t["seen_unseen"], t["refusal"]
         wrong = ref["indevida_ausente"]  # no JSON é a taxa de NÃO recusar indevidamente

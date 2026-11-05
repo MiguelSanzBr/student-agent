@@ -88,8 +88,9 @@ def _real_evidence(d: Path) -> None:
         )
         (d / "quality" / tag).mkdir(parents=True)
         (d / "quality" / tag / "quality.json").write_text(json.dumps(q))
-        if tag == "test-r1":  # sensibilidades: --resummarize com rótulos e ferramenta-domínio
+        if split == "test":  # sensibilidade: --resummarize com os rótulos da própria rodada
             (d / "quality" / tag / "quality.resummarized.json").write_text(json.dumps(q))
+        if tag == "test-r1":  # ferramenta-domínio só no primário
             (d / "quality" / tag / "ferramenta-dominio").mkdir()
             (d / "quality" / tag / "ferramenta-dominio" / "quality.json").write_text(json.dumps(q))
     rs = [

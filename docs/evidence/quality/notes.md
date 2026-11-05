@@ -19,3 +19,8 @@ Cada item diz de onde veio. As transcrições completas ficam só no volume `eva
 - **Oráculo vazio:** contagens em `analysis-dev-r1.md` e `analysis-dev-r2.md` (análise das
   transcrições contra `templates.yaml`, `oracle.py` e `score.py`).
 - **Ataques:** os templates que falharam e os motivos estão em `../security.json` (`attacks[*].reasons`).
+- **Teste r2, sensibilidade:** o `quality.md`/`quality.json` da r2 saíram com a linha de sensibilidade
+  calculada com `evals/golden/labels.csv`, os rótulos da r1. Os rótulos são da resposta da r1, não da
+  r2, então essa linha não vale. A amostra da r2 (mesmo sorteio §12 sobre os resultados dela) foi
+  rotulada às cegas por um agente de IA (`evals/golden/labels-r2.csv`) e a rodada foi re-sumarizada
+  (`test-r2/quality.resummarized.*`): VPP 95,8%, VPN 50,0%. Os arquivos originais ficam como saíram.
