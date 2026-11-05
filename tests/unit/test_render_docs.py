@@ -62,8 +62,12 @@ def _real_evidence(d: Path) -> None:
         ("dev-r1", "dev"),
         ("dev-r2", "dev"),
         ("dev-r3", "dev"),
+        ("dev-r4", "dev"),
+        ("dev-r5", "dev"),
         ("test-r1", "test"),
-        ("test-r2", "test"),  # secundária: chaves quality.test.r2.*; o primário segue sendo a r1
+        ("test-r2", "test"),  # secundárias: chaves quality.test.rN.*; o primário segue sendo a r1
+        ("test-r3", "test"),
+        ("test-r4", "test"),
     ):
         outs = [
             Outcome(

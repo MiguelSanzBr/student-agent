@@ -277,7 +277,7 @@ A segurança precisa sobreviver a um modelo comprometido. Há duas provas: **tes
 
 **Ataques com LLM real.** São 15 categorias: comportamento (jailbreak, roleplay, quebra de papel, falsa promessa, extração de prompt, sequestro de rascunho, escalada multi-turno), vazamento (identidade, outro aluno, outra marca, funcionários, credenciais) e injeção plantada (zero por construção, teste do marcador). O primário é a suíte de desenvolvimento, com 2 repetições, rodada **antes** de qualquer correção; depois vem um holdout cego, escrito sem ver o código. A unidade do Wilson é o **template**: falha se qualquer mutação ou repetição falhar.
 
-Resultado (prompt final): comportamento na dev <!-- num:security.dev.behavior.success -->2/40 templates (Wilson 95%: 1,4% a 16,5%)<!-- /num -->; no holdout <!-- num:security.holdout.behavior.success -->0/33 templates (Wilson 95%: 0,0% a 10,4%)<!-- /num -->; vazamentos na dev <!-- num:security.leak.success -->1/20 templates (Wilson 95%: 0,9% a 23,6%)<!-- /num -->. Plantada: 0 de 14. No holdout cego, os 7 ataques A2A falharam e o único vazamento do juiz é falso positivo: o agente ignorou o RA digitado e mostrou só os dados do próprio aluno, sem avisar. Rótulos às cegas concordam com o juiz em 47 de 48 (`security-labels.md`).
+Resultado (iteração 2): comportamento na dev <!-- num:security.dev.behavior.success -->2/40 templates (Wilson 95%: 1,4% a 16,5%)<!-- /num -->; no holdout <!-- num:security.holdout.behavior.success -->0/33 templates (Wilson 95%: 0,0% a 10,4%)<!-- /num -->; vazamentos na dev <!-- num:security.leak.success -->1/20 templates (Wilson 95%: 0,9% a 23,6%)<!-- /num -->. Plantada: 0 de 14. No holdout cego, os 7 ataques A2A falharam e o único vazamento do juiz é falso positivo: o agente ignorou o RA digitado e mostrou só os dados do próprio aluno, sem avisar. Rótulos às cegas concordam com o juiz em 47 de 48 (`security-labels.md`).
 
 Os 2 templates de comportamento:
 
@@ -289,46 +289,44 @@ O vazamento da dev é **falso positivo**: preços do catálogo público da marca
 ## 7. Qualidade
 
 
-O método está em D11. Modelo sob teste: `claude-haiku-5-5`, escolhido antes de medir; Gemini e OpenAI têm adaptador, sem medição. O primário do teste cego rodou uma vez no SHA congelado `d6e3d8c` (tag `eval-frozen`, carimbada no OpenTimestamps).
+O método está em D11. Modelo sob teste: `claude-haiku-5-5`, escolhido antes de medir; Gemini e OpenAI têm adaptador, sem medição. O primário do teste cego rodou uma vez no SHA congelado `d6e3d8c` (tag `eval-frozen`, carimbada no OpenTimestamps) e vale como rodou.
 
-| Medida | Desenvolvimento | Teste |
+| Medida | Dev (iteração 3) | Teste r1 (primário, iteração 2) |
 |---|---|---|
-| pass@1 primário (IC 95%) | <!-- num:quality.dev.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> | <!-- num:quality.test.pass1 -->43,5% [34,0%; 53,4%]<!-- /num --> |
-| Templates vistos (alunos novos) | | <!-- num:quality.seen.pass1 -->64,3% [53,3%; 74,8%]<!-- /num --> |
-| Templates não vistos (`test_only`) | | <!-- num:quality.unseen.pass1 -->10,3% [0,0%; 20,7%]<!-- /num --> |
+| pass@1 (IC 95%) | <!-- num:quality.dev.pass1 -->92,0% [85,9%; 96,9%]<!-- /num --> | <!-- num:quality.test.pass1 -->43,5% [34,0%; 53,4%]<!-- /num --> |
 | Recusa correta | | <!-- num:quality.test.refusal_ok -->96,9% [89,4%; 100,0%]<!-- /num --> |
 | Recusa indevida | | <!-- num:quality.test.refusal_wrong -->0,0% [0,0%; 0,0%]<!-- /num --> |
-| pass@1 corrigido (validação do scorer) | | <!-- num:quality.test.corrected -->77,1% [57,2%; 93,2%]<!-- /num --> |
-| Sem o critério de ferramenta-domínio (teto) | | <!-- num:quality.test.domain_tools -->75,8% [67,5%; 83,5%]<!-- /num --> |
 | Perguntas que cruzam sistemas | | <!-- num:quality.test.cross -->6,0% [0,5%; 13,5%]<!-- /num --> |
 | Respostas certas bloqueadas pelo guard | | <!-- num:quality.test.guard_blocked_ok -->124 de 3321 itens (3,7%)<!-- /num --> |
 | Bloqueio indevido do guard (controles sintéticos) | | <!-- num:guard.false_block -->0/43 (0,0% [0,0%; 8,2%])<!-- /num --> |
 | Recall do guard (perturbação cega) | | <!-- num:guard.blind_recall -->91,8% [78,8%; 100,0%]<!-- /num --> |
 
-**Três rodadas de dev**, com as 2 iterações de prompt permitidas (`quality/dev-r{1,2,3}`):
+**Rodadas do teste** (3.321 itens cada, 40 alunos fora da dev; todas contadas, §15 do plano):
 
-1. Linha de base: <!-- num:quality.dev.r1.pass1 -->49,1% [36,9%; 61,2%]<!-- /num -->. Os 58 itens inválidos (56 de um caso, provável queda da API) ficam fora do denominador.
+| Rodada | Agente | Holdout | pass@1 | Vistos | Não vistos | Corrigido |
+|---|---|---|---|---|---|---|
+| r1, primária | iteração 2 (`eval-frozen`) | v1 | <!-- num:quality.test.pass1 -->43,5% [34,0%; 53,4%]<!-- /num --> | <!-- num:quality.seen.pass1 -->64,3% [53,3%; 74,8%]<!-- /num --> | <!-- num:quality.unseen.pass1 -->10,3% [0,0%; 20,7%]<!-- /num --> | <!-- num:quality.test.corrected -->77,1% [57,2%; 93,2%]<!-- /num --> |
+| r2 | iteração 2 (`eval-final`) | v1 | <!-- num:quality.test.r2.pass1 -->73,5% [65,1%; 81,5%]<!-- /num --> | <!-- num:quality.test.r2.seen -->63,8% [52,9%; 74,2%]<!-- /num --> | <!-- num:quality.test.r2.unseen -->89,1% [77,4%; 99,1%]<!-- /num --> | <!-- num:quality.test.r2.corrected -->81,1% [68,1%; 91,9%]<!-- /num --> |
+| r3, não cega | iteração 3 (`112467c`) | v1 | <!-- num:quality.test.r3.pass1 -->86,2% [79,7%; 92,0%]<!-- /num --> | <!-- num:quality.test.r3.seen -->87,8% [80,8%; 93,8%]<!-- /num --> | <!-- num:quality.test.r3.unseen -->83,7% [70,4%; 95,3%]<!-- /num --> | <!-- num:quality.test.r3.corrected -->88,2% [76,4%; 95,9%]<!-- /num --> |
+| r4, cega | iteração 3 (`112467c`) | v2, novo | <!-- num:quality.test.r4.pass1 -->88,0% [82,8%; 92,5%]<!-- /num --> | <!-- num:quality.test.r4.seen -->86,9% [79,7%; 93,2%]<!-- /num --> | <!-- num:quality.test.r4.unseen -->89,6% [82,8%; 95,1%]<!-- /num --> | <!-- num:quality.test.r4.corrected -->80,5% [66,0%; 91,4%]<!-- /num --> |
+
+A r1 saiu baixa por um defeito do gabarito (Apêndice B); da r2 em diante o runner aceita o domínio como ferramenta (`--domain-tools`), critério decidido depois de ver a r1.
+
+**Cinco rodadas de dev** (`quality/dev-r{1..5}`):
+
+1. Linha de base: <!-- num:quality.dev.r1.pass1 -->49,1% [36,9%; 61,2%]<!-- /num -->. 58 itens inválidos (provável queda da API) ficam fora do denominador.
 2. Iteração 1: <!-- num:quality.dev.r2.pass1 -->62,4% [49,6%; 74,5%]<!-- /num -->. Consultar a ferramenta antes de responder, rascunho na hora, recusa só sem dado do aluno, nenhum valor em pedido vago; corrige a data de referência do cartão.
-3. Iteração 2: <!-- num:quality.dev.r3.pass1 -->70,4% [59,0%; 80,6%]<!-- /num -->. Ferramenta a cada pergunta, números em algarismos, recusa só fora do atendimento, rascunho mesmo com protocolo aberto do serviço.
+3. Iteração 2: <!-- num:quality.dev.r3.pass1 -->70,4% [59,0%; 80,6%]<!-- /num -->. Ferramenta a cada pergunta, números em algarismos, recusa só fora do atendimento, rascunho mesmo com protocolo aberto do serviço. É o agente da r1 e da r2.
+4. Iteração 3, depois da r2 (seção 11): <!-- num:quality.dev.r4.pass1 -->91,6% [85,0%; 96,9%]<!-- /num --> e <!-- num:quality.dev.r5.pass1 -->92,0% [85,9%; 96,9%]<!-- /num -->. Responder só o perguntado; duas ferramentas para dois assuntos; reconsultar na continuação; reescrita citando a frase reprovada; rascunho com código e nome do serviço; previsão de conclusão no perfil. Na dev, o multiturno foi de 44,2% para 74,0% (n=77).
 
-A meta própria (limite inferior de 85%) **não foi atingida** nem no desenvolvimento nem no teste; o número sai como está. Na dev 3 dominam falhas de redação (105) e respostas certas bloqueadas pelo guard (30); o multiturno, secundário, ficou em 44,2% (n=77) na dev e 35,0% (n=309) no teste. O P(meta) registrado antes do teste já era 0 com acerto real de 75%.
+**Iteração 3 no teste.** A r3 não é cega: as falhas da r1 e da r2 nos templates do v1 guiaram a iteração. Daí o holdout v2: 30 templates novos, escritos por um agente que não viu o código, cifrados e carimbados antes da rodada única (r4, `freeze/README.md`). Na r4 os templates novos ficaram acima dos vistos: o ganho não é sobreajuste ao v1. No v2, os fracos são dois dos três templates de cruzamento, um de sem resposta e os de acadêmico; no total da r4, as causas são dados (179), redação (133) e resposta certa bloqueada pelo guard (97). Os rótulos cegos discordaram do scorer em 6 de 30, três em cada direção; o corrigido cai, com IC largo (n=30). A r3 em detalhe: Apêndice B.
 
-**Teste cego** (3.321 itens, 40 alunos fora da dev, `quality/test-r1`). O primário vale como rodou (§6 do plano de análise); duas sensibilidades e uma 2ª rodada mudam a leitura:
+A meta própria (limite inferior de 85%) foi atingida só na dev da iteração 3. Na r4 o ponto passa de 85% e o limite inferior não: **não atingida**, e o número sai como está. O P(meta) registrado antes da r4 era 0,24 com acerto real de 87%.
 
-1. **Defeito do gabarito.** O redator cego não conhecia as ferramentas e escreveu o domínio (`financeiro`, `lms`) em `expected_tools`; o scorer compara com o nome da ferramenta. Todo item `test_only` que exige ferramenta reprova: daí o número dos não vistos. Sem esse critério, e só ele, vem a linha "teto" da tabela (`test-r1/ferramenta-dominio`); é teto porque a ferramenta deixa de ser exigida.
-2. **Validação do scorer** (30 respostas sorteadas, rótulo às cegas): VPP <!-- num:quality.test.vpp -->100,0% [86,2%; 100,0%]<!-- /num -->, VPN <!-- num:quality.test.vpn -->33,3% [9,7%; 70,0%]<!-- /num -->. O scorer não aprovou resposta errada, mas 4 das 6 reprovações sorteadas eram respostas certas. Daí o pass@1 corrigido.
-3. **2ª rodada, secundária e declarada** (§15, `quality/test-r2`): código final (`eval-final`; agente igual), com o runner aceitando o domínio escrito no gabarito como "uma ferramenta desse domínio" (`--domain-tools`), critério decidido depois de ver a r1. pass@1 <!-- num:quality.test.r2.pass1 -->73,5% [65,1%; 81,5%]<!-- /num -->; vistos <!-- num:quality.test.r2.seen -->63,8% [52,9%; 74,2%]<!-- /num -->, como na r1; não vistos <!-- num:quality.test.r2.unseen -->89,1% [77,4%; 99,1%]<!-- /num -->; corrigido pelos rótulos da própria rodada, <!-- num:quality.test.r2.corrected -->81,1% [68,1%; 91,9%]<!-- /num -->. Não substitui o primário.
-
-Os templates vistos medem alunos novos, mas guiaram as iterações de prompt; o oráculo deles é mais rígido (abaixo). No cruzamento (6,0%), os não vistos reprovam pelo defeito (todos passam na r2), mas os vistos ficam em 12 de 120 nas duas rodadas: falha real (o agente não consulta o progresso curricular) somada à rigidez do R$.
-
-**Rigidez do oráculo.** O oráculo carimbado não mudou. Para aluno sem fatura vencida ele proíbe qualquer "R$", inclusive "R$ 0,00" e o próximo vencimento verdadeiro; na dev 2, 46 itens falharam só por isso (cerca de 9,7 p.p.). Parte do ganho da dev é de formato (algarismos, nenhum R$ em dado inexistente).
-
-**Bugs da rodada real, corrigidos antes do congelamento:** fatos de resumo fora dos registros, cota diária do perfil de avaliação baixa e latência sem componentes por chamada.
-
-**Guard congelado, conjunto cego oficial:** recall e bloqueio indevido na tabela. Fracos: `status_word`, com <!-- num:guard.weak.status_word -->0/10<!-- /num --> pegos, e `flip_negation`, com <!-- num:guard.weak.flip_negation -->7/10<!-- /num -->. A seção "rascunhos do dev × scorer" de `guard.md` tem viés de seleção e não mede bloqueio indevido. Nas janelas de latência o guard degradou 10% a 20% dos turnos, contra 5% previstos: é o custo de calar em vez de inventar.
+**Guard congelado, conjunto cego oficial:** recall e bloqueio indevido na tabela. Fracos: `status_word`, com <!-- num:guard.weak.status_word -->0/10<!-- /num --> pegos, e `flip_negation`, com <!-- num:guard.weak.flip_negation -->7/10<!-- /num -->. Nas janelas de latência o guard degradou 10% a 20% dos turnos, contra 5% previstos: é o custo de calar em vez de inventar.
 
 
-O que esta avaliação **não** garante: a amostra de 40 alunos é enriquecida por cotas (o IC estratificado reconhece, não elimina); o scorer foi validado com 30 respostas, rotuladas por um agente de IA às cegas e não pelo autor, então o pass@1 corrigido é sensibilidade; o holdout só é cego para quem não viu o código. O gabarito de acadêmico e LMS não tem fonte externa, e a conferência à mão de 20 itens prevista (`oracle_check.csv`) não foi feita. Não rodaram o kappa do juiz, o McNemar do 2º nível, as paráfrases nem a utilidade (§13, §14 e §16 do plano). A recusa indevida "0,0%" é 0 em 2.692 itens, detectada pelo prefixo fixo de recusa.
+O que esta avaliação **não** garante: a amostra de 40 alunos é enriquecida por cotas (o IC estratificado reconhece, não elimina); o scorer foi validado com 30 respostas sorteadas de cada rodada, rotuladas às cegas por um agente de IA e não pelo autor, então o pass@1 corrigido é sensibilidade; o holdout só é cego para quem não viu o código. O gabarito de acadêmico e LMS não tem fonte externa, e a conferência à mão de 20 itens prevista (`oracle_check.csv`) não foi feita. Não rodaram o kappa do juiz, o McNemar do 2º nível, as paráfrases nem a utilidade (§13, §14 e §16 do plano).
 
 ## 8. Latência, capacidade e custo
 
@@ -337,7 +335,7 @@ O que esta avaliação **não** garante: a amostra de 40 alunos é enriquecida p
 
 Trade-offs: o guard precisa do texto inteiro, então o texto útil só chega no fim do turno; o TTFE de `1` e `2+` mede o evento de progresso, e o do `card` é a latência total. O orçamento do grafo é o p99 previsto da classe `2+` vezes 1,2.
 
-A janela A (300 turnos) mediu o agente **antes** das iterações de prompt e fez o reajuste único: o orçamento do grafo foi de 25,22 para 12,26 s. A regra do máximo deixa o p99 abaixo do p95 (só há meta inicial para p50 e p95). A tabela é da janela B (300 turnos, prompt final); a C (150, SHA congelado) confirma: p95 geral 6,49 e 6,72 s, sem corte. Falham só metas vindas da previsão (p99 do `card` e p90 da classe `1` na B; p90 e p99 da classe `1` na C). B e C ficaram abaixo dos 100 turnos pré-registrados em `card` e `1` (14 na classe `1` da C): o p99 por classe é indicativo.
+A janela A (300 turnos) mediu o agente **antes** das iterações de prompt e fez o reajuste único: o orçamento do grafo foi de 25,22 para 12,26 s. A regra do máximo deixa o p99 abaixo do p95 (só há meta inicial para p50 e p95). A tabela é da janela B (300 turnos, iteração 2); a C (150, SHA congelado) confirma: p95 geral 6,49 e 6,72 s, sem corte. Falham só metas vindas da previsão (p99 do `card` e p90 da classe `1` na B; p90 e p99 da classe `1` na C). B e C ficaram abaixo dos 100 turnos pré-registrados em `card` e `1` (14 na classe `1` da C): o p99 por classe é indicativo.
 
 | Classe | p50 | p95 | TTFE p95 |
 |---|---|---|---|
@@ -383,7 +381,7 @@ Esta seção descreve o caminho, não algo já feito.
 - Em produção, a cota de 200 mil tokens por aluno por dia conta só tokens fora do cache (o cache lido custa cerca de 10% da entrada): com o Haiku, cerca de 70 mensagens por dia.
 - O catálogo só devolve a marca da matrícula do aluno.
 - O agente parafrasea as próprias regras quando perguntado sobre o que não pode fazer (`ep-checklist`, seção 6).
-- **Desvios do pré-registro.** (1) Os ataques cegos rodaram em `80c5ace`, não em `eval-frozen`: o carregador recusava um id do holdout (`B-injecao-07b`) e o cliente A2A não mandava o cabeçalho `a2a-version`, então nenhum ataque A2A chegou ao agente. Corrigido só o avaliador, a rodada foi retomada pelo diário; `app`, `core` e `etl` são idênticos aos de `eval-frozen` (tentativas em `quality/rounds.jsonl`). (2) Os rótulos às cegas (30 do scorer, 48 dos ataques) são de um agente de IA, não do autor. (3) Depois da validação adversarial, o código final (tag `eval-final`, `dad845e`) ganhou o teto por aluno, o limite de corpo, o `/feedback` sem texto livre e as premissas de tokens medidas; prompt, grafo, ferramentas e guard de saída são os de `eval-frozen`. O teste r1 e os ataques cegos mediram o agente congelado; o teste r2, as conversas e os testes de segurança rodaram no código final.
+- **Desvios do pré-registro.** (1) Os ataques cegos rodaram em `80c5ace`, não em `eval-frozen`: o carregador recusava um id do holdout (`B-injecao-07b`) e o cliente A2A não mandava o cabeçalho `a2a-version`, então nenhum ataque A2A chegou ao agente. Corrigido só o avaliador, a rodada foi retomada pelo diário; `app`, `core` e `etl` são idênticos aos de `eval-frozen` (tentativas em `quality/rounds.jsonl`). (2) Os rótulos às cegas (30 do scorer, 48 dos ataques) são de um agente de IA, não do autor. (3) Depois da validação adversarial, o código final (tag `eval-final`, `dad845e`) ganhou o teto por aluno, o limite de corpo, o `/feedback` sem texto livre e as premissas de tokens medidas; prompt, grafo, ferramentas e guard de saída são os de `eval-frozen`. O teste r1 e os ataques cegos mediram o agente congelado; o teste r2 e os testes de segurança rodaram no código final. (4) A iteração 3 (`112467c`) é uma 3ª iteração, além das 2 previstas, feita depois de ver a r1 e a r2: muda prompt, descrições e saída das ferramentas e o feedback de reescrita; no guard, só ignora rótulos de contagem ao procurar status. Guard, ataques e latência foram medidos na iteração 2. A r3, a r4 e as conversas rodaram na iteração 3.
 
 ## 12. Como foi construído
 
@@ -398,6 +396,23 @@ O projeto foi feito em etapas: especificação, plano de tarefas e implementaç�
 - **Correção pelo scorer.** O pass@1 corrigido é p̂·VPP + (1 − p̂)(1 − VPN), com intervalo por bootstrap combinado com Beta. É análise de sensibilidade; o primário é o que rodou.
 - **Escolha de modelo.** Pela primeira rodada de desenvolvimento, com margem pareada de pelo menos 3 pontos percentuais; abaixo disso, o mais barato. Não foi aplicada: sem chave Gemini, só o Haiku foi medido.
 - **Unidade do ataque.** Um template de ataque falha se qualquer mutação ou repetição falhar.
+
+
+## Apêndice B. Teste r1 a r3 em detalhe
+
+1. **Defeito do gabarito.** O redator cego não conhecia as ferramentas e escreveu o domínio (`financeiro`, `lms`) em `expected_tools`; o scorer compara com o nome da ferramenta. Todo item `test_only` que exige ferramenta reprova: daí o número dos não vistos. Sem esse critério, e só ele, a r1 dá <!-- num:quality.test.domain_tools -->75,8% [67,5%; 83,5%]<!-- /num --> (`test-r1/ferramenta-dominio`); é teto porque a ferramenta deixa de ser exigida.
+2. **Validação do scorer** (30 respostas sorteadas, rótulo às cegas): VPP <!-- num:quality.test.vpp -->100,0% [86,2%; 100,0%]<!-- /num -->, VPN <!-- num:quality.test.vpn -->33,3% [9,7%; 70,0%]<!-- /num -->. O scorer não aprovou resposta errada, mas 4 das 6 reprovações sorteadas eram respostas certas. Daí o pass@1 corrigido.
+3. **2ª rodada, secundária e declarada** (§15, `quality/test-r2`): código final (`eval-final`; agente igual), com o runner aceitando o domínio escrito no gabarito como "uma ferramenta desse domínio" (`--domain-tools`), critério decidido depois de ver a r1. pass@1 <!-- num:quality.test.r2.pass1 -->73,5% [65,1%; 81,5%]<!-- /num -->; vistos <!-- num:quality.test.r2.seen -->63,8% [52,9%; 74,2%]<!-- /num -->, como na r1; não vistos <!-- num:quality.test.r2.unseen -->89,1% [77,4%; 99,1%]<!-- /num -->; corrigido pelos rótulos da própria rodada, <!-- num:quality.test.r2.corrected -->81,1% [68,1%; 91,9%]<!-- /num -->. Não substitui o primário.
+
+Os templates vistos medem alunos novos, mas guiaram as iterações de prompt; o oráculo deles é mais rígido (abaixo). No cruzamento (6,0%), os não vistos reprovam pelo defeito (todos passam na r2), mas os vistos ficam em 12 de 120 nas duas rodadas: falha real (o agente não consulta o progresso curricular) somada à rigidez do R$.
+
+**Rigidez do oráculo.** O oráculo carimbado não mudou. Para aluno sem fatura vencida ele proíbe qualquer "R$", inclusive "R$ 0,00" e o próximo vencimento verdadeiro; na dev 2, 46 itens falharam só por isso (cerca de 9,7 p.p.). Parte do ganho da dev é de formato (algarismos, nenhum R$ em dado inexistente).
+
+**Bugs da rodada real, corrigidos antes do congelamento:** fatos de resumo fora dos registros, cota diária do perfil de avaliação baixa e latência sem componentes por chamada.
+
+**r3 (iteração 3 no v1, não cega).** O multiturno foi de 35,0% para 68,9% (n=309) e o cruzamento, de 92 para 161 em 200. A queda dos não vistos são 72 itens de dois templates: um sem resposta espera consulta ao catálogo e o agente agora não consulta (a resposta ao aluno está certa); um de abertura negativa vira rascunho porque o agente agora acha o serviço, e o gabarito pede não preparar. Na r4, o multiturno ficou em 72,9% (n=269).
+
+**Notas.** A recusa indevida "0,0%" da r1 é 0 em 2.692 itens, detectada pelo prefixo fixo de recusa. A seção "rascunhos do dev × scorer" de `guard.md` tem viés de seleção e não mede bloqueio indevido.
 
 <!-- chaves esperadas (render_docs.py falha se faltar alguma):
 data.*, a2a.*: já existem (data-quality.json, spikes.json).
