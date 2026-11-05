@@ -32,6 +32,7 @@ REFUSALS = {
     "spend": "Estamos com muitos atendimentos agora. Tente de novo em instantes.",
     "quota": "Estamos com muitos atendimentos agora. Tente de novo em instantes.",
     "slots": "Estamos com muitos atendimentos agora. Tente de novo em instantes.",
+    "inflight": "Espere a resposta anterior terminar e tente de novo.",
 }
 
 

@@ -5,7 +5,7 @@ from uuid import UUID
 
 RKey = NewType("RKey", str)
 RKind = Literal["conv", "draft", "ticket", "labels", "a2a_task", "rate", "budget",
-                "spend", "bucket", "slots", "turn_out"]  # fmt: skip
+                "spend", "bucket", "slots", "turn_out", "inflight"]  # fmt: skip
 GLOBAL_KINDS: frozenset[RKind] = frozenset({"ticket", "labels", "spend", "bucket", "slots"})
 
 

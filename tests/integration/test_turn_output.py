@@ -252,8 +252,13 @@ async def test_confirm_note_grounds_action_claim(env: Env) -> None:
 async def test_feedback_isolated(env: Env) -> None:
     await TurnOutputCache(env.redis).put(env.person(1), "t1", {"status": "ok"})
     async with env.client(1) as c:
-        r = await c.post("/feedback", json={"trace_id": "t1", "useful": True, "comment": "ok"})
-    assert r.status_code == 200
+        r = await c.post("/feedback", json={"trace_id": "t1", "useful": True})
+        again = await c.post("/feedback", json={"trace_id": "t1", "useful": False})
+        free_text = await c.post(
+            "/feedback", json={"trace_id": "t1", "useful": True, "comment": "x"}
+        )
+    assert r.status_code == 200 and again.status_code == 200  # o 2º voto não grava outra linha
+    assert free_text.status_code == 422  # sem texto livre
     for case, expect in ((1, 1), (2, 0)):
         async with with_scope(env.pool, env.person(case), ()) as conn:
             n = (await (await conn.execute("SELECT count(*) FROM agent_rw.feedback")).fetchone())[0]  # type: ignore[index]

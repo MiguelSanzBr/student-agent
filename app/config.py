@@ -66,6 +66,7 @@ class Limits(BaseModel):
     max_rounds: int
     degrade_at: float | None  # None: nunca degrada (perfil eval)
     degrade_rounds: int
+    turns_in_flight: int = 2  # turnos simultâneos por aluno: um aluno não ocupa as vagas de todos
 
 
 class Quantiles(BaseModel):

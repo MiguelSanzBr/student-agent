@@ -358,8 +358,12 @@ CREATE TABLE IF NOT EXISTS agent_rw.feedback (
   trace_id text,
   person_key uuid,
   useful boolean,
-  comment text
+  comment text  -- legado: a API não grava mais texto livre
 );
+-- um voto por turno e aluno (bancos antigos: remove repetidos antes do índice)
+DELETE FROM agent_rw.feedback a USING agent_rw.feedback b
+ WHERE a.ctid < b.ctid AND a.trace_id = b.trace_id AND a.person_key = b.person_key;
+CREATE UNIQUE INDEX IF NOT EXISTS feedback_once ON agent_rw.feedback (trace_id, person_key);
 CREATE TABLE IF NOT EXISTS agent_rw.turn_output (
   trace_id text primary key,
   person_key uuid not null,

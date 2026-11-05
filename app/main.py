@@ -1,4 +1,5 @@
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
@@ -53,7 +54,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await asyncio.to_thread(tracing.shutdown)  # esvazia o BatchSpanProcessor
 
 
-app = FastAPI(title="student-agent", lifespan=lifespan)
+_PROD = os.environ.get("APP_ENV") == "prod"  # em produção, sem /docs nem /openapi.json
+app = FastAPI(
+    title="student-agent", lifespan=lifespan,
+    docs_url=None if _PROD else "/docs", redoc_url=None if _PROD else "/redoc",
+    openapi_url=None if _PROD else "/openapi.json",
+)  # fmt: skip
 app.add_middleware(BodyLimit)
 for _router in ROUTERS:
     app.include_router(_router)

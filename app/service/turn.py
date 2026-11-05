@@ -55,7 +55,7 @@ class Admission:
     status: Literal[200, 429, 503]
     retry_after_s: int | None
     ticket: str | None
-    reason: Literal["ok", "rate", "budget", "spend", "quota", "slots"]
+    reason: Literal["ok", "rate", "budget", "spend", "quota", "slots", "inflight"]
     spend_level: SpendLevel = "normal"
     sub: UUID | None = None
     channel: Channel = "web"
@@ -176,7 +176,7 @@ class DefaultTurnService:
         return await self.bucket.utilization() > self.settings.slo.hedge.bucket_max_util
 
     async def _refuse(
-        self, reason: Literal["rate", "budget", "spend", "quota", "slots"],
+        self, reason: Literal["rate", "budget", "spend", "quota", "slots", "inflight"],
         status: Literal[429, 503], wait: int,
     ) -> Admission:  # fmt: skip
         METRICS["agent_admission_rejected_total"].labels(reason=reason).inc()  # type: ignore[union-attr]
@@ -195,8 +195,10 @@ class DefaultTurnService:
         if not res.ok or res.ticket is None:
             return await self._refuse("quota", 503, res.retry_after_s or 1)
         ttl = self.settings.slo.graph_budget_s + SLOT_MARGIN_S
-        if not await self.slots.acquire(res.ticket, ttl):
+        if (got := await self.slots.acquire_for(res.ticket, ttl, sub)) != 1:
             await self.bucket.settle(res.ticket, 0, 0)  # devolve a reserva: nada vai rodar
+            if got < 0:  # o próprio aluno já tem turnos em voo: 429, as vagas de todos ficam livres
+                return await self._refuse("inflight", 429, RETRY_SLOTS_S)
             return await self._refuse("slots", 503, RETRY_SLOTS_S)
         METRICS["agent_turn_slots_in_use"].inc()  # type: ignore[union-attr]
         self._meters[res.ticket] = _Meter(self.llm, self.hedger)
@@ -374,7 +376,7 @@ class DefaultTurnService:
             # sem nenhuma chamada ao LLM (erro antes dela) não há o que estimar: só a reserva volta
             if meter is None or (calls and _tokens(u) < adm.est_tokens):
                 u, calls = Usage(output_tokens=adm.est_tokens), max(calls, adm.est_requests)
-        await self._safe("vaga", self.slots.release(admission.ticket))
+        await self._safe("vaga", self.slots.release(admission.ticket, admission.sub))
         METRICS["agent_turn_slots_in_use"].dec()  # type: ignore[union-attr]
         if cancelled:
             METRICS["agent_turns_total"].labels(status="cancelled", channel=admission.channel).inc()  # type: ignore[union-attr]

@@ -30,8 +30,7 @@ _OMITTED = "[omitido]"
 class FeedbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     trace_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    useful: bool
-    comment: str | None = Field(default=None, max_length=500)
+    useful: bool  # sem texto livre: comentário seria dado pessoal e injeção para quem analisa
 
 
 @cache
@@ -85,11 +84,15 @@ async def feedback(
         return JSONResponse({"mensagem": "Turno não encontrado."}, status_code=404)
     now = wall_now()
     async with with_scope(st.pool, pk, ()) as conn:
-        await conn.execute(
-            "INSERT INTO agent_rw.feedback (trace_id, person_key, useful, comment)"
-            " VALUES (%s, %s, %s, %s)",
-            (body.trace_id, pk, body.useful, body.comment),
-        )
+        try:
+            async with conn.transaction():
+                await conn.execute(
+                    "INSERT INTO agent_rw.feedback (trace_id, person_key, useful)"
+                    " VALUES (%s, %s, %s)",
+                    (body.trace_id, pk, body.useful),
+                )
+        except errors.UniqueViolation:  # um voto por turno: o repetido não grava nem anota
+            return JSONResponse({"status": "ok"})
         if not body.useful:
             # agent_app não tem SELECT: ON CONFLICT não serve; o 👎 repetido vira UniqueViolation
             with contextlib.suppress(errors.UniqueViolation):
@@ -102,5 +105,5 @@ async def feedback(
                     )  # fmt: skip
     METRICS["agent_feedback_total"].labels(useful=str(body.useful).lower()).inc()  # type: ignore[union-attr]
     annotate(body.trace_id, "feedback", "up" if body.useful else "down",
-             1.0 if body.useful else 0.0, body.comment)  # fmt: skip
+             1.0 if body.useful else 0.0, None)  # fmt: skip
     return JSONResponse({"status": "ok"})

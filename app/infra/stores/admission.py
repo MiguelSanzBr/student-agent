@@ -1,7 +1,7 @@
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.config import AppSettings
 from app.infra.redis import RedisClient
@@ -81,6 +81,20 @@ local u = math.max(ur, ut)
 return math.floor(u * 1000)
 """
 
+# vaga global + teto por aluno, atômicos: 1 = ok, 0 = vagas globais cheias, -1 = aluno no teto
+_ACQUIRE_STUDENT = """
+local now = tonumber(ARGV[5])
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', now)
+if redis.call('ZCARD', KEYS[2]) >= tonumber(ARGV[4]) then return -1 end
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then return 0 end
+local exp = now + tonumber(ARGV[3])
+redis.call('ZADD', KEYS[1], exp, ARGV[1])
+redis.call('ZADD', KEYS[2], exp, ARGV[1])
+redis.call('PEXPIRE', KEYS[2], math.ceil(tonumber(ARGV[3]) * 1000))
+return 1
+"""
+
 _ACQUIRE = """
 local now = tonumber(ARGV[#ARGV])
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
@@ -143,6 +157,7 @@ class TurnSlots:
         self._clock = clock
         self._redis = redis
         self._cap = settings.slo.turn_slots
+        self._per_student = settings.limits.turns_in_flight
         self._key = rkey("slots", "global", "-", "pool")
 
     async def acquire(self, ticket: str, ttl_s: float) -> bool:
@@ -150,5 +165,14 @@ class TurnSlots:
             await self._redis.eval(_ACQUIRE, [self._key], [ticket, self._cap, ttl_s, self._clock()])
         )
 
-    async def release(self, ticket: str) -> None:
+    async def acquire_for(self, ticket: str, ttl_s: float, sub: UUID) -> int:
+        """Vaga global e teto de turnos do aluno: 1 ok, 0 vagas cheias, -1 aluno no teto."""
+        keys = [self._key, rkey("inflight", sub, "-", "turns")]
+        args: list[str | int | float] = [ticket, self._cap, ttl_s, self._per_student, self._clock()]
+        return int(await self._redis.eval(_ACQUIRE_STUDENT, keys, args))
+
+    async def release(self, ticket: str, sub: UUID | None = None) -> None:
         await self._redis.eval("return redis.call('ZREM', KEYS[1], ARGV[1])", [self._key], [ticket])
+        if sub is not None:
+            key = rkey("inflight", sub, "-", "turns")
+            await self._redis.eval("return redis.call('ZREM', KEYS[1], ARGV[1])", [key], [ticket])
