@@ -19,3 +19,5 @@
 {"split": "dev", "round": 5, "sha": "112467c6bf61f7edd1ede4dfe6f4f0254203317f", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 553, "status": "done"}
 {"split": "test", "round": 3, "sha": "17f8704167a0a600d16c08a2a76f060ec6a76cad", "model": "claude-haiku-5-5", "primary_run": false, "items": 3321, "status": "started"}
 {"split": "test", "round": 3, "sha": "17f8704167a0a600d16c08a2a76f060ec6a76cad", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 3321, "status": "done"}
+{"split": "test", "round": 4, "sha": "4c00de488b4d981025f1176e84ac88e5af20465b", "model": "claude-haiku-5-5", "primary_run": false, "items": 3321, "status": "started"}
+{"split": "test", "round": 4, "sha": "4c00de488b4d981025f1176e84ac88e5af20465b", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 3321, "status": "done"}
