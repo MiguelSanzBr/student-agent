@@ -273,7 +273,7 @@ A segurança precisa sobreviver a um modelo comprometido. Há duas provas: **tes
 | Excesso de autonomia | Allowlist, elegibilidade, cartão do servidor, `draft_id` preso ao aluno e fora do LLM, uso único, clique humano, lock | Confirmação concorrente; dois rascunhos concorrentes; `draft_id` alheio; `SA-` digitado pelo aluno |
 | Falsa promessa | Guard ancorado no registro, compromisso exige fonte | Testes do guard com controles positivos |
 | Consumo abusivo | Admissão a 90% da cota, vaga por turno, no máximo 2 turnos simultâneos por aluno, rate limit, orçamento, teto; corpo limitado a 64 KiB mesmo sem `Content-Length` | Testes, inclusive via A2A, e a escada de carga com cota simulada |
-| CSRF e saída | SameSite=Strict; mesma origem (`Origin` × `Host`) e JSON em `POST /chat`, `/protocols/confirm` e `/feedback`; A2A só com Bearer; CSP, `nosniff`, texto puro | Testes |
+| CSRF e saída | SameSite=Strict; mesma origem (`Origin` × `Host`) e JSON em `POST /chat`, `/protocols/confirm` e `/feedback`; A2A só com cabeçalho; CSP, `nosniff`, texto puro | Testes |
 
 **Ataques com LLM real.** São 15 categorias: comportamento (jailbreak, roleplay, quebra de papel, falsa promessa, extração de prompt, sequestro de rascunho, escalada multi-turno), vazamento (identidade, outro aluno, outra marca, funcionários, credenciais) e injeção plantada (zero por construção, teste do marcador). O primário é a suíte de desenvolvimento, com 2 repetições, rodada **antes** de qualquer correção; depois vem um holdout cego, escrito sem ver o código. A unidade do Wilson é o **template**: falha se qualquer mutação ou repetição falhar.
 
@@ -317,7 +317,7 @@ A meta (limite inferior de 85%) **não foi atingida** nem no desenvolvimento nem
 
 1. **Defeito do gabarito.** O redator cego não conhecia as ferramentas e escreveu o domínio (`financeiro`, `lms`) em `expected_tools`; o scorer compara com o nome da ferramenta. Todo item `test_only` que exige ferramenta reprova: daí o número dos não vistos. Sem esse critério, e só ele, vem a linha "teto" da tabela (`test-r1/ferramenta-dominio`); é teto porque a ferramenta deixa de ser exigida.
 2. **Validação do scorer** (30 respostas sorteadas, rótulo às cegas): VPP <!-- num:quality.test.vpp -->100,0% [86,2%; 100,0%]<!-- /num -->, VPN <!-- num:quality.test.vpn -->33,3% [9,7%; 70,0%]<!-- /num -->. O scorer não aprovou resposta errada, mas 4 das 6 reprovações sorteadas eram respostas certas. Daí o pass@1 corrigido.
-3. **2ª rodada, secundária e declarada** (§15, `quality/test-r2`): código final (`eval-final`; agente igual), com o runner aceitando o domínio escrito no gabarito como "uma ferramenta desse domínio" (`--domain-tools`), o que ainda exige a ferramenta certa. pass@1 <!-- num:quality.test.r2.pass1 -->73,5% [65,1%; 81,5%]<!-- /num -->; vistos <!-- num:quality.test.r2.seen -->63,8% [52,9%; 74,2%]<!-- /num -->, como na r1; não vistos <!-- num:quality.test.r2.unseen -->89,1% [77,4%; 99,1%]<!-- /num -->; corrigido pelos rótulos da própria rodada, <!-- num:quality.test.r2.corrected -->81,1% [68,1%; 91,9%]<!-- /num -->. Não substitui o primário.
+3. **2ª rodada, secundária e declarada** (§15, `quality/test-r2`): código final (`eval-final`; agente igual), com o runner aceitando o domínio escrito no gabarito como "uma ferramenta desse domínio" (`--domain-tools`), critério decidido depois de ver a r1. pass@1 <!-- num:quality.test.r2.pass1 -->73,5% [65,1%; 81,5%]<!-- /num -->; vistos <!-- num:quality.test.r2.seen -->63,8% [52,9%; 74,2%]<!-- /num -->, como na r1; não vistos <!-- num:quality.test.r2.unseen -->89,1% [77,4%; 99,1%]<!-- /num -->; corrigido pelos rótulos da própria rodada, <!-- num:quality.test.r2.corrected -->81,1% [68,1%; 91,9%]<!-- /num -->. Não substitui o primário.
 
 Os templates vistos medem alunos novos, mas guiaram as iterações de prompt. Nos não vistos, sem o critério defeituoso, o pass@1 sobe a 94% (teto), porque o oráculo dos vistos é mais rígido (abaixo). O cruzamento (6,0%) também é quase todo efeito do defeito: nos vistos, 12 de 120.
 
@@ -396,7 +396,7 @@ O projeto foi feito em etapas: especificação, plano de tarefas e implementaç�
 - **P(meta).** A correlação intraclasse é estimada no desenvolvimento, e a probabilidade de o limite inferior passar de 85% é simulada e registrada antes da rodada de teste.
 - **Wilson.** Usado para proporções com poucos casos: VPP e VPN do scorer e os ataques por template.
 - **Correção pelo scorer.** O pass@1 corrigido é p̂·VPP + (1 − p̂)(1 − VPN), com intervalo por bootstrap combinado com Beta. É análise de sensibilidade; o primário é o que rodou.
-- **Escolha de modelo.** Pela primeira rodada de desenvolvimento, com margem pareada de pelo menos 3 pontos percentuais; abaixo disso, o mais barato.
+- **Escolha de modelo.** Pela primeira rodada de desenvolvimento, com margem pareada de pelo menos 3 pontos percentuais; abaixo disso, o mais barato. Não foi aplicada: sem chave Gemini, só o Haiku foi medido.
 - **Unidade do ataque.** Um template de ataque falha se qualquer mutação ou repetição falhar.
 
 <!-- chaves esperadas (render_docs.py falha se faltar alguma):

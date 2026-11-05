@@ -24,3 +24,13 @@ Cada item diz de onde veio. As transcrições completas ficam só no volume `eva
   r2, então essa linha não vale. A amostra da r2 (mesmo sorteio §12 sobre os resultados dela) foi
   rotulada às cegas por um agente de IA (`evals/golden/labels-r2.csv`) e a rodada foi re-sumarizada
   (`test-r2/quality.resummarized.*`): VPP 95,8%, VPN 50,0%. Os arquivos originais ficam como saíram.
+- **Teste r2, protocolos (leitura do autor, sem rótulo cego):** cada template `test_only` vale 40
+  itens (um por aluno), então um critério do redator cego move 40 itens de uma vez.
+  `abertura_protocolo_positiva` (1/40): 22 respostas prepararam o rascunho e reprovaram só porque o
+  gabarito exige a ferramenta `catalogo` (o `draft_protocol` já confere o serviço no catálogo); as 17
+  sem rascunho são de alunos sem matrícula ativa (formado, trancado, evadido, cancelado, transferido),
+  para quem a declaração não é emitida, e a resposta diz isso. `abertura_protocolo_negativa` (33/80):
+  40 reprovam só por não chamar `academico`; 6 rascunhos indevidos e 1 resposta vazia são falhas reais.
+  `consulta_pedido` (`test_only`, 40 itens): o pedido corresponde ao serviço "Segunda via de boleto"
+  do catálogo, mas o agente só informa o saldo e não prepara o rascunho. Falha real do agente nos 40
+  (12 desses alunos têm fatura vencida).
