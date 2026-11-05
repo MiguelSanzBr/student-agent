@@ -63,6 +63,7 @@ def _real_evidence(d: Path) -> None:
         ("dev-r2", "dev"),
         ("dev-r3", "dev"),
         ("test-r1", "test"),
+        ("test-r2", "test"),  # secundária: chaves quality.test.r2.*; o primário segue sendo a r1
     ):
         outs = [
             Outcome(
@@ -82,12 +83,12 @@ def _real_evidence(d: Path) -> None:
             RoundResult(outs),
             strata={f"s{i}": "x" for i in range(4)},
             n_boot=50,
-            meta={"split": split, "round": int(tag[-1])},
+            meta={"split": split, "round": int(tag[-1]), "primary_run": tag == "test-r1"},
             labels=[Label(i % 2 == 0, i % 3 != 0) for i in range(12)] if split == "test" else (),
         )
         (d / "quality" / tag).mkdir(parents=True)
         (d / "quality" / tag / "quality.json").write_text(json.dumps(q))
-        if split == "test":  # sensibilidades: --resummarize com rótulos e ferramenta-domínio
+        if tag == "test-r1":  # sensibilidades: --resummarize com rótulos e ferramenta-domínio
             (d / "quality" / tag / "quality.resummarized.json").write_text(json.dumps(q))
             (d / "quality" / tag / "ferramenta-dominio").mkdir()
             (d / "quality" / tag / "ferramenta-dominio" / "quality.json").write_text(json.dumps(q))

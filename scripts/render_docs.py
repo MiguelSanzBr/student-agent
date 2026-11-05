@@ -71,7 +71,20 @@ def _quality(evidence_dir: Path) -> dict[str, str]:
         out[f"quality.dev.r{n}.pass1"] = _ci(q["primary"], f"dev-r{n}.primary")
     if (dev := _round(evidence_dir, "dev")) is not None:
         out["quality.dev.pass1"] = _ci(dev["primary"], "dev.primary")
-    if (t := _round(evidence_dir, "test")) is not None:
+    tests = _rounds(evidence_dir, "test")
+    # o primário é a rodada marcada primary_run (a 1ª no SHA congelado); as outras são secundárias
+    first = min(
+        (n for n, q in tests.items() if q.get("primary_run")), default=min(tests, default=0)
+    )
+    for n, q in sorted(tests.items()):
+        if n != first:
+            su2 = q["seen_unseen"]
+            out |= {
+                f"quality.test.r{n}.pass1": _ci(q["primary"], f"test-r{n}.primary"),
+                f"quality.test.r{n}.seen": _ci(su2["vistos(shared)"], f"test-r{n}.vistos"),
+                f"quality.test.r{n}.unseen": _ci(su2["nao_vistos(test_only)"], f"test-r{n}.nao"),
+            }
+    if (t := tests.get(first)) is not None:
         su, ref = t["seen_unseen"], t["refusal"]
         wrong = ref["indevida_ausente"]  # no JSON é a taxa de NÃO recusar indevidamente
         inv = {"point": 1 - wrong["point"]} | (

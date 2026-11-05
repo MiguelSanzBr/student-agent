@@ -55,7 +55,7 @@ Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 **Alternativas.** Loop próprio; `AgentExecutor` do LangChain; `langchain-google-genai`.
 
-**Trade-off.** O grafo dá um desenho publicável (`draw_mermaid`) e eventos de progresso. Ligar o SDK direto evita uma camada que esconderia `thought_signature`, contagem de tokens de cache e raciocínio, e timeouts por chamada, justamente o que a latência e o custo exigem. O raciocínio (assinatura do Gemini, blocos do Claude com `drop_block`, itens cifrados do GPT) volta só ao mesmo modelo. O custo é manter três adaptadores, com a política de retry comum em `app/agent/retry.py`.
+**Trade-off.** O grafo dá desenho publicável (`draw_mermaid`) e eventos de progresso. O SDK direto não esconde `thought_signature`, tokens de cache e raciocínio nem os timeouts por chamada, que latência e custo exigem; o raciocínio volta só ao mesmo modelo. O custo é manter três adaptadores, com retry comum (`app/agent/retry.py`).
 
 ### D3. Isolamento em camadas
 
@@ -71,7 +71,7 @@ Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 **Alternativa.** Filtro por aluno na camada de aplicação.
 
-**Trade-off.** RLS forçado complica a carga: antes do COPY o RLS bloquearia o dono, e depois do FORCE o dono lê 0 linhas. Por isso a carga mede as contagens por SQL antes de aplicar `rls.sql`. Um `WHERE` esquecido devolve zero linhas, não dados alheios.
+**Trade-off.** RLS forçado complica a carga: depois do FORCE o dono lê 0 linhas, então as contagens SQL são medidas antes de aplicar `rls.sql`. Um `WHERE` esquecido devolve zero linhas, não dados alheios.
 
 ### D6. EvidenceGuard determinístico
 
@@ -91,7 +91,7 @@ Cada uma responde a uma pergunta da banca. As demais estão na seção 3.
 
 **Pergunta difícil:** o agente abre protocolos. Como impedir que um texto malicioso faça ele abrir o que não deve?
 
-**Decisão.** O modelo nunca abre nada. Ele pode **preparar um rascunho** com `draft_protocol`, e só passam serviços de uma allowlist e que o aluno pode pedir (elegibilidade por regra: por exemplo, diploma só se formado e sem diploma emitido; revisão de nota e segunda chamada checadas por disciplina). O cartão do rascunho é montado pelo servidor; o rascunho fica no Redis preso ao aluno, com um `draft_id` (uuid4) que vai por um evento próprio do SSE e nunca é serializado para o modelo. A confirmação é um clique no chat web, que consome o `draft_id` uma vez (GETDEL), revalida serviço e elegibilidade, toma um `pg_advisory_xact_lock(hashtextextended(...))` calculado no SQL e faz um INSERT idempotente (`draft_id UNIQUE`). Se a conversa já teve texto livre de sistema (taint), `draft_protocol` é recusado na execução.
+**Decisão.** O modelo nunca abre nada: pode **preparar um rascunho** com `draft_protocol`, só de serviços da allowlist que o aluno pode pedir (elegibilidade por regra, como diploma só para formado). O servidor monta o cartão; o rascunho fica no Redis preso ao aluno, com um `draft_id` que vai por evento próprio do SSE e nunca chega ao modelo. A confirmação é um clique no chat web: consome o `draft_id` uma vez (GETDEL), revalida serviço e elegibilidade, toma um advisory lock e faz INSERT idempotente (`draft_id UNIQUE`). Se a conversa já teve texto livre de sistema (taint), `draft_protocol` é recusado na execução.
 
 **Alternativas.** O modelo abre direto; `interrupt()` do LangGraph; confirmação pelo A2A.
 
@@ -272,7 +272,7 @@ A segurança precisa sobreviver a um modelo comprometido. Há duas provas: **tes
 | Injeção indireta | `texto_livre` nunca ao LLM; texto tipificado; taint fixo | Marcador plantado em **toda** célula de texto dos 47 CSV, passado pelo ETL e por um LLM comprometido: nenhum marcador em saída confiável |
 | Excesso de autonomia | Allowlist, elegibilidade, cartão do servidor, `draft_id` preso ao aluno e fora do LLM, uso único, clique humano, lock | Confirmação concorrente; dois rascunhos concorrentes; `draft_id` alheio; `SA-` digitado pelo aluno |
 | Falsa promessa | Guard ancorado no registro, compromisso exige fonte | Testes do guard com controles positivos |
-| Consumo abusivo | Admissão a 90% da cota, vaga por turno, rate limit, orçamento, teto | Testes, inclusive via A2A, e a escada de carga com cota simulada |
+| Consumo abusivo | Admissão a 90% da cota, vaga por turno, no máximo 2 turnos simultâneos por aluno, rate limit, orçamento, teto; corpo limitado a 64 KiB mesmo sem `Content-Length` | Testes, inclusive via A2A, e a escada de carga com cota simulada |
 | CSRF e saída | SameSite=Strict; mesma origem (`Origin` × `Host`) e JSON em `POST /chat`, `/protocols/confirm` e `/feedback`; A2A só com Bearer; CSP, `nosniff`, texto puro | Testes |
 
 **Ataques com LLM real.** São 15 categorias: comportamento (jailbreak, roleplay, quebra de papel, falsa promessa, extração de prompt, sequestro de rascunho, escalada multi-turno), vazamento (identidade, outro aluno, outra marca, funcionários, credenciais) e injeção plantada (zero por construção, teste do marcador). O primário é a suíte de desenvolvimento, com 2 repetições, rodada **antes** de qualquer correção; depois vem um holdout cego, escrito sem ver o código. A unidade do Wilson é o **template**: falha se qualquer mutação ou repetição falhar.
@@ -357,7 +357,7 @@ Duas alavancas ficam desligadas: o hedge da primeira chamada no p90 (com orçame
 
 A decisão está em D16. Em operação:
 
-- **Spans:** `chat.turn` (AGENT, aberto antes do evento `meta`) contém `agent.call_model` (LLM), `agent.tool` (TOOL, com `db.query`) e `agent.guard` (GUARDRAIL, com desfecho e kinds). Atributos de modelo, tokens (com cache e raciocínio) e hashes do prompt, das ferramentas e do dataset.
+- **Spans:** `chat.turn` (AGENT) contém `agent.call_model` (LLM), `agent.tool` (TOOL, com `db.query`) e `agent.guard` (GUARDRAIL), com modelo, tokens e hashes do prompt, das ferramentas e do dataset.
 - **Métricas** Prometheus em modo multiprocesso, com buckets vindos de `slo_targets.yaml`: turnos, latência, TTFE, erros e retries de LLM, admissão, vagas, guard, tipo de resposta, funil do rascunho, tokens, custo e feedback.
 - **SLO:** latência e TTFE por classe, custo por dia e qualidade (degradado mais fallback, 👎, recusa e vazio por domínio). Status `degraded` e `fallback` contam como disponíveis, mas entram no SLO de qualidade. O alerta fica proposto, não implantado.
 
@@ -373,8 +373,7 @@ Esta seção descreve o caminho, não algo já feito.
 
 ## 11. Limites honestos
 
-- Limites de segurança conhecidos: a pilha de avaliação local compartilha banco, Redis e o segredo do JWT com a API; o `init-secrets` monta o repositório só-leitura como root; `/metrics` e o Phoenix não têm autenticação (só em 127.0.0.1); o JWT não tem `iss`; o teto de corpo olha só o `Content-Length`. A identidade em produção é premissa externa (IdP): o JWT HS256 de desenvolvimento emite e verifica com o mesmo segredo. Os padrões do compose são de desenvolvimento (`APP_ENV=dev`, login de dev ligado).
-- Um aluno pode ocupar as 8 vagas globais de turno: não há limite de turnos simultâneos por aluno, e o limite por minuto e a cota diária não impedem isso.
+- Limites de segurança conhecidos: a pilha de avaliação local compartilha banco, Redis e o segredo do JWT com a API; o `init-secrets` monta o repositório só-leitura como root; `/metrics` e o Phoenix não têm autenticação (só em 127.0.0.1); o JWT não tem `iss`. A identidade em produção é premissa externa (IdP): o JWT HS256 de desenvolvimento emite e verifica com o mesmo segredo. Os padrões do compose são de desenvolvimento (`APP_ENV=dev`, login de dev ligado).
 - O guard não pega um valor correto atribuído à entidade errada quando a frase não cita nenhuma entidade.
 - Os <!-- num:data.protocols_unlinked -->22<!-- /num --> protocolos sem vínculo (ver 5.3) não aparecem para nenhum aluno, por escolha de precisão.
 - A regra de média e aprovação não existe nos dados, e o agente diz isso em vez de inferir.
@@ -383,7 +382,7 @@ Esta seção descreve o caminho, não algo já feito.
 - Em produção, a cota de 200 mil tokens por aluno por dia conta só tokens fora do cache (o cache lido custa cerca de 10% da entrada): com o Haiku, cerca de 70 mensagens por dia.
 - O catálogo só devolve a marca da matrícula do aluno.
 - O agente parafrasea as próprias regras quando perguntado sobre o que não pode fazer (`ep-checklist`, seção 6).
-- **Desvios do pré-registro.** (1) Os ataques cegos rodaram em `80c5ace`, não em `eval-frozen`: o carregador recusava um id do holdout (`B-injecao-07b`) e o cliente A2A não mandava o cabeçalho `a2a-version`, então nenhum ataque A2A chegou ao agente. Corrigido só o avaliador, a rodada foi retomada pelo diário; `app`, `core` e `etl` são idênticos aos de `eval-frozen` (tentativas em `quality/rounds.jsonl`). (2) Os rótulos às cegas (30 do scorer, 48 dos ataques) são de um agente de IA, não do autor.
+- **Desvios do pré-registro.** (1) Os ataques cegos rodaram em `80c5ace`, não em `eval-frozen`: o carregador recusava um id do holdout (`B-injecao-07b`) e o cliente A2A não mandava o cabeçalho `a2a-version`, então nenhum ataque A2A chegou ao agente. Corrigido só o avaliador, a rodada foi retomada pelo diário; `app`, `core` e `etl` são idênticos aos de `eval-frozen` (tentativas em `quality/rounds.jsonl`). (2) Os rótulos às cegas (30 do scorer, 48 dos ataques) são de um agente de IA, não do autor. (3) Depois da validação adversarial, o código final (tag `eval-final`, `dad845e`) ganhou o teto por aluno, o limite de corpo, o `/feedback` sem texto livre e as premissas de tokens medidas; prompt, grafo, ferramentas e guard de saída são os de `eval-frozen`. O teste r1 e os ataques cegos mediram o agente congelado; o teste r2, as conversas e os testes de segurança rodaram no código final.
 
 ## 12. Como foi construído
 
