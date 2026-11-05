@@ -1,5 +1,6 @@
-# Saída do pytest dos testes de segurança (2026-11-05, raia c: Postgres 17 e Redis reais)
+# Saída do pytest dos testes de segurança no código final (eval-final, dad845e), raia c: Postgres 17 e Redis reais
 # uv run pytest -v tests/integration/test_rls.py tests/integration/test_marker_never_trusted.py tests/integration/test_compromised_llm.py tests/integration/test_canon_dump.py tests/e2e/test_a2a.py
+# Suíte inteira de integração e e2e no mesmo código: 363 passaram, 1 pulado.
 tests/integration/test_rls.py::test_copy_then_rls_order_works PASSED
 tests/integration/test_rls.py::test_owner_reads_zero_after_force PASSED
 tests/integration/test_rls.py::test_copy_after_force_fails PASSED
@@ -105,4 +106,4 @@ tests/e2e/test_a2a.py::test_context_id_must_match_web_regex[\xe7] PASSED
 tests/e2e/test_a2a.py::test_task_id_must_match_web_regex PASSED
 tests/e2e/test_a2a.py::test_valid_ids_still_work PASSED
 tests/e2e/test_a2a.py::test_settle_survives_a_second_cancellation PASSED
-================= 105 passed, 13 warnings in 76.51s (0:01:16) ==================
+================= 105 passed, 13 warnings in 63.52s (0:01:03) ==================

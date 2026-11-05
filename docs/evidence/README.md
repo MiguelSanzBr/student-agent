@@ -12,7 +12,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 | `guard` | Recall por tipo, bloqueio indevido, perturbação cega | Gerado (`quality/guard/`); ver a nota sobre o conjunto cego e o viés da seção "rascunhos do dev × scorer" |
 | `security` | Testes de arquitetura e ataques com LLM real | Gerado: dev, rodada plantada e holdout cego (`security-blind.md`); rótulos às cegas × juiz em `security-labels.md`; saída do pytest dos testes de arquitetura em `security-tests.txt` |
 | `latency` | Previsto contra medido por classe, cascata por componente, carga, custo | `latency.md` traz os critérios, escritos antes das rodadas; `latency-{A,B,C}.json` e escadas de carga `load-{a,b}-w*.json` gerados |
-| `conversations` | Roteiros do vídeo e falhas rotuladas | A gerar |
+| `conversations.md` | 10 roteiros fixos (financeiro, cruzamento, AVA, rascunho, multiturno, premissa falsa, recusas, A2A) rodados uma vez contra a API real no código final, com rótulo de cada um e as falhas | Gerado (`evals/conversations.py`) |
 | `video/demo.webm` | Demo ao vivo (chat, protocolo, recusas, A2A) gravada com Playwright contra o app real; tomadas fora do roteiro foram refeitas, como o próprio vídeo declara | Gerado |
 | `observability` | Spans, anotações e métricas | `observability.md` traz o smoke contra um Phoenix real; o export da rodada de teste não foi feito |
 | `graph.md` | Grafo gerado por `draw_mermaid` | Gerado |
