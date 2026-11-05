@@ -14,6 +14,12 @@ __all__ = [
     "TAINT_NO_DRAFT", "card_messages", "wrap_tool_result",
 ]  # fmt: skip
 
+# Antes da pergunta de um turno de continuação: os dados de respostas anteriores podem ter
+# mudado, e a pergunta curta ("e o mais recente?") depende do assunto da conversa.
+FOLLOWUP_NOTE = (
+    "Nota do atendimento: a próxima mensagem continua esta conversa. Entenda pelo histórico de "
+    "que assunto ela trata e chame de novo a ferramenta desse assunto antes de responder."
+)
 REST_INSTRUCTION = (
     "Responda só ao resto da mensagem do aluno, sem repetir o pedido preparado. "
     "Se não houver resto, responda vazio."

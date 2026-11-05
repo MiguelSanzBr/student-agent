@@ -374,3 +374,20 @@ def test_pt_unknown_enum_strict_and_prod_fallback(monkeypatch, caplog) -> None: 
     with caplog.at_level("WARNING"):
         assert academic._pt("enrollment_status", "NAO_EXISTE") == "NAO_EXISTE"
     assert "NAO_EXISTE" in caplog.text
+
+
+@pytest.mark.parametrize(("enr", "want"), [(G1, "2028/2"), (G4, "2028/1")])
+async def test_core_trio_in_both_academic_tools(pool, loaded_db: Loaded, enr, want) -> None:  # type: ignore[no-untyped-def]
+    """Situação, percentual e previsão saem das duas ferramentas: a frase "ativa, X% e previsão"
+    tem evidência seja qual for a ferramenta chamada (dev r4: 7 cortes por previsão sem fonte)."""
+    prof = await call(pool, loaded_db, enr, "get_academic_profile")
+    prog = await call(pool, loaded_db, enr, "get_curriculum_progress")
+    assert prof.data["previsao"] == prog.data["previsao"] == f"{want}, se cursar regularmente"
+    assert prog.data["status"] == prof.data["status"] == "Ativa"
+    assert prof.records[0].fields["previsao"] == prof.data["previsao"]
+    assert any(r.fields.get("status") == "Ativa" for r in prog.records)
+
+
+async def test_profile_no_forecast_when_not_active(pool, loaded_db: Loaded) -> None:  # type: ignore[no-untyped-def]
+    out = await call(pool, loaded_db, G9, "get_academic_profile", on=G9_GRAD)
+    assert "previsao" not in out.data

@@ -21,6 +21,7 @@ from app.agent.messages import (
     BUDGET_EXCEEDED_TEXT,
     DRAFT_SHOWN_TEMPLATE,
     FERRAMENTA_INDISPONIVEL,
+    FOLLOWUP_NOTE,
     LLM_UNAVAILABLE_TEXT,
     REST_INSTRUCTION,
     TAINT_NO_DRAFT,
@@ -548,7 +549,8 @@ async def run_turn(
         tuple(m.text for t in conversation.turns for m in t if m.role == "system_note" and m.text),
     )  # fmt: skip
     init: _S = {
-        "msgs": [*card_messages(card), *_history(conversation, model, lim.history_turns), user],
+        "msgs": [*card_messages(card), *(hist := _history(conversation, model, lim.history_turns)),
+                 *([Message("user", FOLLOWUP_NOTE, turn=turn)] if hist else []), user],
         "new": [user], "rnd": 0, "llm_calls": 0, "usage": Usage(), "text": None, "calls": (),
         "meta": None, "model": model, "trace": [], "records": [],
         "tainted": conversation.tainted, "draft": None, "taint_refused": False,

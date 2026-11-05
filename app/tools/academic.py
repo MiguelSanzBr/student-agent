@@ -109,6 +109,15 @@ def _others(ctx: ToolContext, chosen: str) -> tuple[list[dict[str, str]], list[E
     return data, recs
 
 
+def _forecast(e: Mapping[str, Any], term: str) -> str | None:
+    """Só matrícula ativa; o semestre corrente conta: já cursados = nível - 1."""
+    if e["status"] != "ACTIVE":
+        return None
+    return graduation_forecast(
+        Progress(max(0, int(e["semester"]) - 1), int(e["duration_semesters"])), term
+    )
+
+
 async def get_academic_profile(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     a = validate_args(PROFILE.spec, args)
     ref = resolve_enrollment(ctx.scope, a.get("enrollment"), None)
@@ -117,6 +126,7 @@ async def get_academic_profile(ctx: ToolContext, args: Mapping[str, Any]) -> Too
         events = await q.events(conn, ref.enrollment_key)
         regs = await q.term_registrations(conn, ref.enrollment_key)
         docs = await q.documents(conn, ref.enrollment_key)
+        term = await q.current_term(conn)
     status = _pt("enrollment_status", e["status"])
     d: dict[str, Any] = {
         "status": status,
@@ -138,6 +148,8 @@ async def get_academic_profile(ctx: ToolContext, args: Mapping[str, Any]) -> Too
         d["conclusao"] = fmt_pct(e["completion_pct"])
     if e["origin_brand"]:
         d["origem"] = e["origin_brand"]
+    if (prev := _forecast(e, term)) is not None:  # mesma previsão do progresso na matriz
+        d["previsao"] = prev
     d["historico"] = [
         {
             "data": _date(h["event_date"]),
@@ -291,9 +303,9 @@ async def get_curriculum_progress(ctx: ToolContext, args: Mapping[str, Any]) -> 
         d["carga_total_horas"] = str(int(total_hours))
     if len(pending) > len(items):
         d["aviso_limite"] = f"Mostrando as {MAX_ITEMS} primeiras de {len(pending)} pendentes."
-    if e["status"] == "ACTIVE":  # semestre corrente conta: já cursados = nível - 1
-        prog = Progress(max(0, int(e["semester"]) - 1), int(e["duration_semesters"]))
-        d["previsao"] = graduation_forecast(prog, term)
+    d["status"] = _pt("enrollment_status", e["status"])  # situação junto do progresso
+    if (prev := _forecast(e, term)) is not None:
+        d["previsao"] = prev
     if len(ctx.scope.enrollments) > 1:
         d["matricula"] = ref.label
     # o resumo (cumpridas/matriz, horas, conclusão, previsão) é evidência: vai antes das pendentes

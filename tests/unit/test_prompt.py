@@ -103,6 +103,9 @@ def test_iter3_rules_in_prompt() -> None:
         "também é fora do escopo: use a frase de recusa",
         "não use a frase de recusa e não chame ferramenta",
         "não repita a premissa como verdade",
+        'zero é "0", não "nenhum"',
+        "responda da ativa e diga que há outra, sem detalhar a situação dela",
+        "Se o cartão ou uma ferramenta mostrar protocolo aberto do mesmo serviço",
     ):
         assert frag in SYSTEM_PREFIX, frag
 

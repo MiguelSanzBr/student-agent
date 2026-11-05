@@ -16,6 +16,7 @@ from app.agent.messages import (
     DEGRADE_NOTICES,
     DRAFT_SHOWN_TEMPLATE,
     FERRAMENTA_INDISPONIVEL,
+    FOLLOWUP_NOTE,
     REST_INSTRUCTION,
     TAINT_NO_DRAFT,
 )
@@ -493,6 +494,7 @@ async def test_history_cut_by_turn_and_compacted() -> None:
     await run(llm, conv=Conversation(tuple(turns), False, False, False), settings=None)
     sent = llm.calls[0].messages
     users = [m.text for m in sent if m.role == "user"]
+    users = [u for u in users if u != FOLLOWUP_NOTE]  # a nota de continuação vem antes da pergunta
     assert users == [f"pergunta {i}" for i in range(2, 7)] + ["quanto devo?"]  # 5 turnos inteiros
     tool = next(m for m in sent if m.tool_name == "get_financial_summary")
     assert tool.tool_result is not None
@@ -761,3 +763,16 @@ async def test_successful_empty_call_sustains_absence_claim() -> None:
 
 
 EMPTY_MSG = "Nenhum registro encontrado."
+
+
+async def test_followup_turn_gets_reconsult_note_before_question() -> None:
+    """Continuação reconsulta a ferramenta (dev r4: mt-03 respondia de memória 10/10); a nota
+    vem antes da pergunta, que segue sendo a última mensagem do usuário (replay a acha)."""
+    first = ScriptedLLM([R(OK)])
+    r1 = await run(first)
+    assert all(m.text != FOLLOWUP_NOTE for m in first.calls[0].messages)
+    second = ScriptedLLM([R(OK)])
+    await run(second, conv=Conversation((r1.new_messages,), False, False, False), text="e agora?")
+    msgs = second.calls[0].messages
+    assert [m.text for m in msgs[-2:]] == [FOLLOWUP_NOTE, "e agora?"]
+    assert FOLLOWUP_NOTE not in [m.text for m in r1.new_messages]
