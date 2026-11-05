@@ -420,3 +420,28 @@ def test_load_dataset_test_checks_holdout_sha_against_manifest(tmp_path, monkeyp
         )
     )
     verify.verify_plain(y, "templates_test_only.yaml.age")  # confere: sem erro
+
+
+def test_holdout_matches_v1_or_v2_manifest(tmp_path, monkeypatch):
+    """O holdout v2 (pasta v2/, carimbado à parte) é aceito pelo hash do texto claro; o v1
+    continua conferido contra o próprio manifesto, e texto desconhecido para a rodada."""
+    import hashlib
+
+    from evals.holdout import verify
+
+    man = tmp_path / "manifest.json"
+    (tmp_path / "v2").mkdir()
+    y1, y2, y3 = (tmp_path / f"t{i}.yaml" for i in (1, 2, 3))
+    for i, y in enumerate((y1, y2, y3)):
+        y.write_text(f"templates: [{i}]\n")
+
+    def h(p):  # type: ignore[no-untyped-def]
+        return {"plain_sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
+
+    man.write_text(json.dumps({"templates_test_only.yaml.age": h(y1)}))
+    (tmp_path / "v2" / "manifest.json").write_text(json.dumps({"templates_v2.yaml.age": h(y2)}))
+    monkeypatch.setattr(verify, "MANIFEST", man)
+    assert verify.match_templates(y1) == "templates_test_only.yaml.age"
+    assert verify.match_templates(y2) == "v2/templates_v2.yaml.age"
+    with pytest.raises(SystemExit, match="SHA-256"):
+        verify.match_templates(y3)

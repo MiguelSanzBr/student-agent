@@ -40,7 +40,7 @@ import httpx
 from evals.client import ChatClient, Rejected
 from evals.golden.error_cause import attribute_cause
 from evals.golden.score import DatasetItem, TurnRecord, is_refusal, score_item
-from evals.holdout.verify import verify_plain
+from evals.holdout.verify import match_templates
 from evals.stats import (
     CI,
     ItemResult,
@@ -604,7 +604,7 @@ def load_dataset(split: str, *, raw: Any, hmac_key: bytes, holdout_yaml: Path | 
     else:
         if holdout_yaml is None:
             raise SystemExit("--split test exige --holdout-yaml (templates test_only decifrados)")
-        verify_plain(holdout_yaml, "templates_test_only.yaml.age")  # antes de ler/usar o YAML
+        match_templates(holdout_yaml)  # v1 ou v2, antes de ler/usar o YAML
         templates += build.load_templates(holdout_yaml)
         people = resolve_people(raw["sag/person"], hmac_key)
         by_pk = {p.person_key: p for p in people.values()}
@@ -713,7 +713,7 @@ def write_summary(out: Path, s: Mapping[str, Any], stem: str = "quality") -> Non
 
 _META_KEYS = ("split", "round", "model", "sha", "dirty", "paraphrase", "perfil", "rehearsal",
               "primary_run", "frozen_sha", "served_models", "test_rounds",
-              "domain_tools")  # fmt: skip
+              "domain_tools", "holdout")  # fmt: skip
 
 
 def resummarize(
@@ -890,7 +890,8 @@ async def amain(a: argparse.Namespace) -> int:
     meta = {"split": a.split, "round": a.round, "model": a.model, "sha": sha, "dirty": dirty,
             "paraphrase": a.paraphrase, "perfil": "eval", "rehearsal": a.rehearsal,
             "frozen_sha": frozen, "primary_run": primary,
-            "domain_tools": a.domain_tools}  # fmt: skip
+            "domain_tools": a.domain_tools,
+            "holdout": match_templates(a.holdout_yaml) if a.holdout_yaml else None}  # fmt: skip
     if counted:  # ANTES de rodar: se o processo morrer, a rodada continua contada
         claim_round(ledger, {"split": a.split, "round": a.round, "sha": sha, "model": a.model,
                              "primary_run": primary, "items": len(items)})  # fmt: skip
