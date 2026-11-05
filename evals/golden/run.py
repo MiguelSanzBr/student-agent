@@ -30,6 +30,7 @@ from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
+from functools import cache
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -107,6 +108,29 @@ class RoundResult:
         return len(self.outcomes) - len(self.valid)
 
 
+@cache
+def _tool_domains() -> dict[str, str]:
+    """Nome da ferramenta -> domínio (`app/tools`), a fonte do que é um `expected_tools` válido."""
+    from app.tools.registry import build_tools
+
+    return {t.spec.name: t.domain for t in build_tools()}
+
+
+def with_domains(rec: TurnRecord) -> TurnRecord:
+    """`--domain-tools` (2ª rodada do teste): o domínio de cada ferramenta chamada também conta,
+    porque o redator cego escreveu o domínio (`financeiro`) em `expected_tools`."""
+    doms = _tool_domains()
+    extra = tuple(dict.fromkeys(doms[t] for t in rec.tools_called if t in doms))
+    return replace(rec, tools_called=rec.tools_called + extra)
+
+
+def check_expected_tools(items: Sequence[DatasetItem], *, allow_domains: bool) -> list[str]:
+    """`template: valor` de todo `expected_tools` que nenhum agente consegue cumprir."""
+    valid = set(_tool_domains()) | (set(_tool_domains().values()) if allow_domains else set())
+    return sorted({f"{i.template_id}: {t}" for i in items for c in i.steps
+                   for t in c.expected_tools if t not in valid})  # fmt: skip
+
+
 async def _turn(
     client: ChatClient, token: str, cid: str, text: str, sleep: Sleep, rr: RoundResult
 ) -> TurnRecord | None:
@@ -132,7 +156,7 @@ async def _turn(
 
 async def _item(
     item: DatasetItem, token: str, client: ChatClient, sleep: Sleep, rr: RoundResult,
-    expect_model: str | None,
+    expect_model: str | None, domain_tools: bool = False,
 ) -> Outcome:  # fmt: skip
     sid = item.id.rsplit("@", 1)[-1]
     base: dict[str, Any] = dict(
@@ -156,7 +180,7 @@ async def _item(
                     f"modelo servido {served!r} != --model {expect_model!r}" if served
                     else "modelo servido ausente (done.model): não dá para conferir --model"
                 )  # fmt: skip
-            turns.append(rec)
+            turns.append(with_domains(rec) if domain_tools else rec)
             metas.append(meta)
         if bad:
             rr.redone += attempt == 1
@@ -181,7 +205,7 @@ async def _item(
 async def run_round(
     items: Sequence[DatasetItem], tokens: Mapping[str, str] | Callable[[str], str],
     client: ChatClient, *, sleep: Sleep = asyncio.sleep, annotate: Annotate | None = None,
-    expect_model: str | None = None,
+    expect_model: str | None = None, domain_tools: bool = False,
 ) -> RoundResult:  # fmt: skip
     """`tokens`: aluno -> token (mapa ou função; chamada só quando o aluno aparece).
     Qualquer exceção inesperada aborta a rodada, mantendo o que já foi medido."""
@@ -191,7 +215,7 @@ async def run_round(
         try:
             if sid not in cache:
                 cache[sid] = tokens(sid) if callable(tokens) else tokens[sid]
-            o = await _item(item, cache[sid], client, sleep, rr, expect_model)
+            o = await _item(item, cache[sid], client, sleep, rr, expect_model, domain_tools)
         except _Abort as e:
             rr.aborted, rr.abort_reason = True, str(e)
             break
@@ -688,7 +712,8 @@ def write_summary(out: Path, s: Mapping[str, Any], stem: str = "quality") -> Non
 
 
 _META_KEYS = ("split", "round", "model", "sha", "dirty", "paraphrase", "perfil", "rehearsal",
-              "primary_run", "frozen_sha", "served_models", "test_rounds")  # fmt: skip
+              "primary_run", "frozen_sha", "served_models", "test_rounds",
+              "domain_tools")  # fmt: skip
 
 
 def resummarize(
@@ -751,6 +776,11 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--tokens-per-call", type=int, default=3000)
     ap.add_argument("--n-boot", type=int, default=N_BOOT)
     ap.add_argument("--allow-dirty", action="store_true")
+    ap.add_argument(
+        "--domain-tools",
+        action="store_true",
+        help="domínio em expected_tools vale por qualquer ferramenta dele (teste r2)",
+    )
     ap.add_argument("--limit", type=int, help="só os N primeiros itens (smoke; exige --rehearsal)")
     return ap.parse_args(argv)
 
@@ -827,6 +857,11 @@ async def amain(a: argparse.Namespace) -> int:
     items, pks, strata, templates = load_dataset(
         a.split, raw=raw, hmac_key=settings.hmac_key.encode(), holdout_yaml=a.holdout_yaml
     )
+    if bad := check_expected_tools(items, allow_domains=a.domain_tools):  # antes de gastar
+        print(
+            "expected_tools sem ferramenta correspondente: " + ", ".join(bad[:10]), file=sys.stderr
+        )
+        return 2
     if a.paraphrase:
         items = apply_paraphrases(items, templates)
     if a.limit:
@@ -854,7 +889,8 @@ async def amain(a: argparse.Namespace) -> int:
     primary = a.split == "test" and counted and is_primary(frozen, sha, prior=prior)
     meta = {"split": a.split, "round": a.round, "model": a.model, "sha": sha, "dirty": dirty,
             "paraphrase": a.paraphrase, "perfil": "eval", "rehearsal": a.rehearsal,
-            "frozen_sha": frozen, "primary_run": primary}  # fmt: skip
+            "frozen_sha": frozen, "primary_run": primary,
+            "domain_tools": a.domain_tools}  # fmt: skip
     if counted:  # ANTES de rodar: se o processo morrer, a rodada continua contada
         claim_round(ledger, {"split": a.split, "round": a.round, "sha": sha, "model": a.model,
                              "primary_run": primary, "items": len(items)})  # fmt: skip
@@ -867,7 +903,8 @@ async def amain(a: argparse.Namespace) -> int:
     client = ChatClient(a.base_url, timeout=90.0)
     try:
         rr = await run_round(items, lambda sid: mint(pks[sid], "chat"), client,
-                             annotate=annotate, expect_model=a.model)  # fmt: skip
+                             annotate=annotate, expect_model=a.model,
+                             domain_tools=a.domain_tools)  # fmt: skip
     finally:
         await client.aclose()
     if annotate:
