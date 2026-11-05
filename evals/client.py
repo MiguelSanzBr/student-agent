@@ -107,7 +107,8 @@ class ChatClient:
         msg = {"messageId": uuid4().hex, "contextId": context_id, "role": "ROLE_USER",
                "parts": [{"text": text}]}  # fmt: skip
         body = {"jsonrpc": "2.0", "id": 1, "method": "SendMessage", "params": {"message": msg}}
-        r = await self._http.post("/a2a", json=body, headers={"Authorization": f"Bearer {token}"})
+        h = {"Authorization": f"Bearer {token}", "a2a-version": "1.0"}  # sem ele o SDK assume 0.3
+        r = await self._http.post("/a2a", json=body, headers=h)
         r.raise_for_status()
         return dict(r.json())
 

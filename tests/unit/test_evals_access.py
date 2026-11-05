@@ -56,9 +56,11 @@ async def test_ask_rejected_carries_retry_after() -> None:
 
 async def test_confirm_feedback_a2a_use_expected_routes() -> None:
     paths: list[tuple[str, str]] = []
+    versions: list[str | None] = []
 
     def handler(req: httpx.Request) -> httpx.Response:
         paths.append((req.url.path, req.headers.get("authorization", "")))
+        versions.append(req.headers.get("a2a-version"))
         return httpx.Response(200, json={"ok": True})
 
     c = ChatClient("http://api", transport=httpx.MockTransport(handler))
@@ -66,7 +68,7 @@ async def test_confirm_feedback_a2a_use_expected_routes() -> None:
     await c.feedback("jwt", "t1", False)
     await c.a2a_send("jwt", "ctx", "oi")
     assert [p for p, _ in paths] == ["/protocols/confirm", "/feedback", "/a2a"]
-    assert paths[2][1] == "Bearer jwt"
+    assert paths[2][1] == "Bearer jwt" and versions[2] == "1.0"
 
 
 def test_mint_uses_issue_token(app_secrets: object) -> None:
