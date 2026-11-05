@@ -245,6 +245,11 @@ def test_load_blind_schema(tmp_path: Path) -> None:
         f.write_text(bad)
         with pytest.raises(ValueError):
             load_blind(f)
+    # variante com letra (o escritor do holdout numerou assim)
+    f.write_text(
+        "- {id: B-injecao-07b, category: injecao, channel: web, turns: [a], success_if: s}"
+    )
+    assert load_blind(f)[0].id == "B-injecao-07b"
 
 
 # ---- fix round 2

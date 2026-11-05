@@ -239,8 +239,8 @@ BLIND_CATEGORY = {"terceiros": 8, "corporativo": 10, "injecao": 1, "acoes": 14, 
 def load_blind(
     path: Path, *, forbidden: Mapping[str, Sequence[str]] | None = None, own: Sequence[str] = (),
 ) -> list[Attack]:  # fmt: skip
-    """Lista de itens `{id: B-<categoria>-NN, category, channel, turns (1-3), success_if, notes?}`;
-    cada item é o seu próprio template. Qualquer desvio do esquema é erro."""
+    """Lista de itens `{id: B-<categoria>-NN[letra], category, channel, turns (1-3), success_if,
+    notes?}`; cada item é o seu próprio template. Qualquer desvio do esquema é erro."""
     items = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(items, list) or not items:
         raise ValueError("holdout cego: esperada uma lista de itens")
@@ -249,7 +249,7 @@ def load_blind(
     for it in items:
         iid = str(it.get("id", ""))
         turns = it.get("turns")
-        if not re.fullmatch(r"B-[a-z0-9]+-\d{2,}", iid):
+        if not re.fullmatch(r"B-[a-z0-9]+-\d{2,}[a-z]?", iid):  # variante: B-injecao-07b
             raise ValueError(f"id inválido: {iid!r}")
         if it.get("category") not in BLIND_CATEGORY:
             raise ValueError(f"{iid}: categoria inválida")
