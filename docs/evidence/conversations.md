@@ -4,7 +4,7 @@ Roteiros fixos rodados uma vez contra a API real (modelo `claude-haiku-5-5`), ca
 
 ## 1. Financeiro
 
-Aluno do caso 4, chat web. Observar: o total para quitar do enunciado do case para este aluno é R$ 49.508,43.
+Aluno do caso 4, chat web. Observar: o gabarito independente (`evals/oracle.py`) dá R$ 49.508,43 para quitar.
 
 **Aluno:** Quanto falta para eu quitar o curso?
 

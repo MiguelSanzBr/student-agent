@@ -35,7 +35,7 @@ SCENARIOS = (
         "Financeiro",
         4,
         ("Quanto falta para eu quitar o curso?",),
-        "o total para quitar do enunciado do case para este aluno é R$ 49.508,43",
+        "o gabarito independente (`evals/oracle.py`) dá R$ 49.508,43 para quitar",
     ),
     Scenario(
         "Cruzamento de sistemas",
