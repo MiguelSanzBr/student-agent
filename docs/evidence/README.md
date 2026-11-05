@@ -13,6 +13,7 @@ Cada arquivo de evidência é gerado por script, com um `.json` de números e um
 | `security` | Testes de arquitetura e ataques com LLM real | Gerado: dev, rodada plantada e holdout cego (`security-blind.md`); rótulos às cegas × juiz em `security-labels.md` |
 | `latency` | Previsto contra medido por classe, cascata por componente, carga, custo | `latency.md` traz os critérios, escritos antes das rodadas; `latency-{A,B,C}.json` e escadas de carga `load-{a,b}-w*.json` gerados |
 | `conversations` | Roteiros do vídeo e falhas rotuladas | A gerar |
+| `video/demo.webm` | Demo ao vivo (chat, protocolo, recusas, A2A) gravada com Playwright contra o app real; tomadas fora do roteiro foram refeitas, como o próprio vídeo declara | Gerado |
 | `observability` | Spans, anotações e métricas | `observability.md` traz o smoke contra um Phoenix real; a rodada de teste fica a gerar |
 | `graph.md` | Grafo gerado por `draw_mermaid` | Gerado |
 | `phoenix/` | Export dos spans e anotações da rodada de teste (`make phoenix-import` reimporta) | A gerar |

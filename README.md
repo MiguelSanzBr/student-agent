@@ -38,6 +38,6 @@ Sem chave, a interface mostra a faixa "modo demonstração" e sugestões de perg
 
 - Requisito, mecanismo, teste e número: [docs/evidence/README.md](docs/evidence/README.md).
 - Arquitetura, decisões e trade-offs, com o diagrama: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-- Vídeo de demonstração: <!-- autor: link do vídeo -->a definir.
+- Vídeo de demonstração: [docs/evidence/video/demo.webm](docs/evidence/video/demo.webm) (menos de 3 minutos, sem áudio, com painel explicativo; gravado ao vivo contra o app real).
 
 Como foi construído: [docs/ARCHITECTURE.md, seção 12](docs/ARCHITECTURE.md#12-como-foi-construído).
