@@ -1,0 +1,7 @@
+{
+  "templates_v2.yaml.age": {
+    "plain_sha256": "3613112842509d3e0be32e0006aa2f5daf36e21f33bee047d7a0ffac851d91fe",
+    "sha256": "fbb199f6fcb1b136223efc3daf1fb26a718f966b7be736232073fa88731c53a9",
+    "test_only": 30
+  }
+}
