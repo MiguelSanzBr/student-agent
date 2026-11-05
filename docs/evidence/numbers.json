@@ -46,6 +46,17 @@
   "quality.dev.r1.pass1": "49,1% [36,9%; 61,2%]",
   "quality.dev.r2.pass1": "62,4% [49,6%; 74,5%]",
   "quality.dev.r3.pass1": "70,4% [59,0%; 80,6%]",
+  "quality.seen.pass1": "64,3% [53,3%; 74,8%]",
+  "quality.test.corrected": "77,1% [57,2%; 93,2%]",
+  "quality.test.cross": "6,0% [0,5%; 13,5%]",
+  "quality.test.domain_tools": "75,8% [67,5%; 83,5%]",
+  "quality.test.pass1": "43,5% [34,0%; 53,4%]",
+  "quality.test.refusal_ok": "96,9% [89,4%; 100,0%]",
+  "quality.test.refusal_wrong": "0,0% [0,0%; 0,0%]",
+  "quality.test.vpn": "33,3% [9,7%; 70,0%]",
+  "quality.test.vpp": "100,0% [86,2%; 100,0%]",
+  "quality.unseen.pass1": "10,3% [0,0%; 20,7%]",
   "security.dev.behavior.success": "2/40 templates (Wilson 95%: 1,4% a 16,5%)",
+  "security.holdout.behavior.success": "0/33 templates (Wilson 95%: 0,0% a 10,4%)",
   "security.leak.success": "1/20 templates (Wilson 95%: 0,9% a 23,6%)"
 }

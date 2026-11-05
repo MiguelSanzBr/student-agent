@@ -5,14 +5,16 @@ A segurança é de arquitetura (RLS forçado, ferramentas sem identidade, texto 
 
 ## Resultados
 
-Modelo medido: `claude-haiku-5-5` (Anthropic). Gemini e OpenAI têm adaptador, mas não foram medidos. O teste cego ainda não rodou ("a medir"). Na dev, o pass@1 foi de <!-- num:quality.dev.r1.pass1 -->49,1% [36,9%; 61,2%]<!-- /num --> para <!-- num:quality.dev.r2.pass1 -->62,4% [49,6%; 74,5%]<!-- /num --> e <!-- num:quality.dev.r3.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> em duas iterações de prompt. A meta (limite inferior de 85%) não foi atingida.
+Modelo medido: `claude-haiku-5-5` (Anthropic). Gemini e OpenAI têm adaptador, mas não foram medidos. O teste cego rodou uma vez no SHA congelado. Na dev, o pass@1 foi de <!-- num:quality.dev.r1.pass1 -->49,1% [36,9%; 61,2%]<!-- /num --> para <!-- num:quality.dev.r2.pass1 -->62,4% [49,6%; 74,5%]<!-- /num --> e <!-- num:quality.dev.r3.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> em duas iterações de prompt. A meta (limite inferior de 85%) não foi atingida.
+
+No teste cego, o primário saiu baixo por um defeito do gabarito: o redator cego escreveu o domínio (`financeiro`) em vez do nome da ferramenta, e todo item novo que exige ferramenta reprova. As duas sensibilidades previstas dão <!-- num:quality.test.corrected -->77,1% [57,2%; 93,2%]<!-- /num --> (pass@1 corrigido pela validação do scorer) e <!-- num:quality.test.domain_tools -->75,8% [67,5%; 83,5%]<!-- /num --> (sem esse critério, teto). Detalhes e desvios declarados: ARCHITECTURE, seções 7 e 11.
 
 <!-- chaves esperadas: quality.dev.pass1, quality.test.pass1, quality.seen.pass1, quality.unseen.pass1, security.holdout.behavior.success, latency.two_plus.p95 -->
 | Número (IC 95%) | Desenvolvimento | Teste |
 |---|---|---|
-| pass@1 (primário) | <!-- num:quality.dev.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> | <!-- num:quality.test.pass1 -->a medir<!-- /num --> |
-| pass@1 em templates vistos × não vistos | <!-- num:quality.seen.pass1 -->a medir<!-- /num --> | <!-- num:quality.unseen.pass1 -->a medir<!-- /num --> |
-| Ataques de comportamento bem-sucedidos (holdout cego) | | <!-- num:security.holdout.behavior.success -->a medir<!-- /num --> |
+| pass@1 (primário) | <!-- num:quality.dev.pass1 -->70,4% [59,0%; 80,6%]<!-- /num --> | <!-- num:quality.test.pass1 -->43,5% [34,0%; 53,4%]<!-- /num --> |
+| pass@1 em templates vistos × não vistos | <!-- num:quality.seen.pass1 -->64,3% [53,3%; 74,8%]<!-- /num --> | <!-- num:quality.unseen.pass1 -->10,3% [0,0%; 20,7%]<!-- /num --> |
+| Ataques de comportamento bem-sucedidos (holdout cego) | | <!-- num:security.holdout.behavior.success -->0/33 templates (Wilson 95%: 0,0% a 10,4%)<!-- /num --> |
 | Latência p95, turnos com 2 ou mais ferramentas | | <!-- num:latency.two_plus.p95 -->7,34 s<!-- /num --> |
 
 Ataques de comportamento na dev: <!-- num:security.dev.behavior.success -->2/40 templates (Wilson 95%: 1,4% a 16,5%)<!-- /num -->. Recall do guard no conjunto cego: <!-- num:guard.blind_recall -->91,8% [78,8%; 100,0%]<!-- /num -->, com <!-- num:guard.false_block -->0/43 (0,0% [0,0%; 8,2%])<!-- /num --> bloqueios indevidos.
@@ -38,4 +40,4 @@ Sem chave, a interface mostra a faixa "modo demonstração" e sugestões de perg
 - Arquitetura, decisões e trade-offs, com o diagrama: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - Vídeo de demonstração: <!-- autor: link do vídeo -->a definir.
 
-<!-- autor: a seção "Como foi construído" (ARCHITECTURE.md, §12) depende da sua escolha de transparência; ver a proposta lá. -->
+Como foi construído: [docs/ARCHITECTURE.md, seção 12](docs/ARCHITECTURE.md#12-como-foi-construído).
