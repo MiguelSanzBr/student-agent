@@ -1,0 +1,142 @@
+{
+  "split": "dev",
+  "round": 4,
+  "model": "claude-haiku-5-5",
+  "sha": "a1014f61e9c583027484a0b8b91ab7122d520136",
+  "dirty": false,
+  "paraphrase": false,
+  "perfil": "eval",
+  "rehearsal": false,
+  "frozen_sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd",
+  "primary_run": false,
+  "domain_tools": false,
+  "served_models": {
+    "claude-haiku-5-5": 630
+  },
+  "aborted": false,
+  "abort_reason": "",
+  "items": 553,
+  "invalid": 0,
+  "redone": 0,
+  "primary": {
+    "n": 476,
+    "low": 0.85,
+    "high": 0.9690721649484536,
+    "point": 0.9159663865546218
+  },
+  "meets_target": true,
+  "p_meta": null,
+  "by_category": {
+    "abertura_negativa": {
+      "n": 19,
+      "k": 19
+    },
+    "abertura_positiva": {
+      "n": 38,
+      "k": 34
+    },
+    "academico": {
+      "n": 50,
+      "k": 41
+    },
+    "ambigua": {
+      "n": 20,
+      "k": 20
+    },
+    "catalogo": {
+      "n": 50,
+      "k": 44
+    },
+    "consulta_pedido": {
+      "n": 9,
+      "k": 7
+    },
+    "cruzamento": {
+      "n": 30,
+      "k": 22
+    },
+    "dado_contraditorio": {
+      "n": 20,
+      "k": 16
+    },
+    "divergencia": {
+      "n": 20,
+      "k": 19
+    },
+    "financeiro": {
+      "n": 50,
+      "k": 49
+    },
+    "fora_cobertura": {
+      "n": 20,
+      "k": 20
+    },
+    "fora_escopo": {
+      "n": 30,
+      "k": 30
+    },
+    "lms": {
+      "n": 40,
+      "k": 36
+    },
+    "premissa_falsa": {
+      "n": 20,
+      "k": 19
+    },
+    "protocolos": {
+      "n": 40,
+      "k": 40
+    },
+    "sem_resposta": {
+      "n": 20,
+      "k": 20
+    }
+  },
+  "by_cause": {
+    "dados": 25,
+    "guard_bloqueou_certa": 13,
+    "roteamento": 16,
+    "redacao": 19
+  },
+  "seen_unseen": {
+    "vistos(shared)": {
+      "n": 476,
+      "low": 0.85,
+      "high": 0.9690721649484536,
+      "point": 0.9159663865546218
+    },
+    "nao_vistos(test_only)": null
+  },
+  "refusal": {
+    "correta": {
+      "n": 50,
+      "low": 1.0,
+      "high": 1.0,
+      "point": 1.0
+    },
+    "indevida_ausente": {
+      "n": 426,
+      "low": 1.0,
+      "high": 1.0,
+      "point": 1.0
+    },
+    "cruzamento": {
+      "n": 30,
+      "low": 0.2,
+      "high": 1.0,
+      "point": 0.7333333333333333
+    }
+  },
+  "multiturn": {
+    "n": 77,
+    "low": 0.46010532061427006,
+    "high": 0.6759634757739535,
+    "point": 0.5714285714285714
+  },
+  "sensitivity": null,
+  "kappa_juiz": null,
+  "utility": null,
+  "k": 436,
+  "n": 476,
+  "icc": 0.3654767927218456
+}

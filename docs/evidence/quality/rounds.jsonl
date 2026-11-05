@@ -13,3 +13,5 @@
 {"split": "redteam", "round": 1, "status": "note", "note": "1a tentativa (68e5bb8, 23:28) com 15/88 inválidos: 14 A2A sem o cabeçalho a2a-version (nenhum chegou ao agente) e 1 PermissionError ao gravar este registro; corrigido o cliente (80c5ace), a mesma rodada foi retomada pelo diário (--resume): só esses 15 rodaram; os 73 válidos foram mantidos. Agente (app/core/etl) idêntico a eval-frozen."}
 {"split": "test", "round": 2, "sha": "dad845eca7972012dcf5e3a8aa0833ee24c0f86a", "model": "claude-haiku-5-5", "primary_run": false, "items": 3321, "status": "started"}
 {"split": "test", "round": 2, "sha": "dad845eca7972012dcf5e3a8aa0833ee24c0f86a", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 3321, "status": "done"}
+{"split": "dev", "round": 4, "sha": "a1014f61e9c583027484a0b8b91ab7122d520136", "model": "claude-haiku-5-5", "primary_run": false, "items": 553, "status": "started"}
+{"split": "dev", "round": 4, "sha": "a1014f61e9c583027484a0b8b91ab7122d520136", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 553, "status": "done"}
