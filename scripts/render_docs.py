@@ -80,6 +80,12 @@ def _quality(evidence_dir: Path) -> dict[str, str]:
             "quality.test.refusal_wrong": _ci(inv, "refusal.indevida"),
             "quality.test.cross": _ci(ref["cruzamento"], "refusal.cruzamento"),
         }
+        d = evidence_dir / "quality" / f"test-r{t['round']}"
+        if (r := _load(d / "quality.resummarized.json")) and (sens := r.get("sensitivity")):
+            keys = (("corrected", "pass_corrigido"), ("vpp", "vpp"), ("vpn", "vpn"))
+            out |= {f"quality.test.{k}": _ci(sens[f], f"sensitivity.{f}") for k, f in keys}
+        if (f := _load(d / "ferramenta-dominio" / "quality.json")) is not None:  # §6: sensibilidade
+            out["quality.test.domain_tools"] = _ci(f["primary"], "ferramenta-dominio.primary")
     return out
 
 

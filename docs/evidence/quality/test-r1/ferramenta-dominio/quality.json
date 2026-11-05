@@ -1,0 +1,174 @@
+{
+  "split": "test",
+  "round": 1,
+  "model": "claude-haiku-5-5",
+  "sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd",
+  "dirty": false,
+  "paraphrase": false,
+  "perfil": "eval",
+  "rehearsal": false,
+  "primary_run": true,
+  "frozen_sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd",
+  "served_models": {
+    "claude-haiku-5-5": 3590
+  },
+  "test_rounds": [
+    {
+      "round": 1,
+      "sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd",
+      "aborted": false
+    }
+  ],
+  "aborted": false,
+  "abort_reason": "",
+  "items": 3321,
+  "invalid": 0,
+  "redone": 0,
+  "primary": {
+    "n": 3012,
+    "low": 0.675481276488557,
+    "high": 0.8345980000918894,
+    "point": 0.7583001328021248
+  },
+  "meets_target": false,
+  "p_meta": {
+    "icc": 0.4787169892283665,
+    "p_dev": 0.7037815126050421,
+    "n_students": 40,
+    "n_templates": 87,
+    "n_sim": 200,
+    "p_meta": {
+      "0.654": 0.0,
+      "0.704": 0.0,
+      "0.754": 0.0
+    },
+    "se": {
+      "0.654": 0.0,
+      "0.704": 0.0,
+      "0.754": 0.0
+    }
+  },
+  "by_category": {
+    "abertura_negativa": {
+      "n": 63,
+      "k": 63
+    },
+    "abertura_positiva": {
+      "n": 126,
+      "k": 126
+    },
+    "abertura_protocolo_negativa": {
+      "n": 80,
+      "k": 71
+    },
+    "abertura_protocolo_positiva": {
+      "n": 40,
+      "k": 23
+    },
+    "academico": {
+      "n": 360,
+      "k": 313
+    },
+    "ambigua": {
+      "n": 160,
+      "k": 160
+    },
+    "catalogo": {
+      "n": 240,
+      "k": 144
+    },
+    "consulta_pedido": {
+      "n": 63,
+      "k": 22
+    },
+    "cruzamento": {
+      "n": 200,
+      "k": 92
+    },
+    "dado_contraditorio": {
+      "n": 120,
+      "k": 105
+    },
+    "divergencia": {
+      "n": 120,
+      "k": 65
+    },
+    "financeiro": {
+      "n": 320,
+      "k": 152
+    },
+    "fora_cobertura": {
+      "n": 120,
+      "k": 110
+    },
+    "fora_escopo": {
+      "n": 240,
+      "k": 240
+    },
+    "lms": {
+      "n": 240,
+      "k": 150
+    },
+    "premissa_falsa": {
+      "n": 160,
+      "k": 101
+    },
+    "protocolos": {
+      "n": 200,
+      "k": 200
+    },
+    "sem_resposta": {
+      "n": 160,
+      "k": 147
+    }
+  },
+  "by_cause": {
+    "dados": 191,
+    "redacao": 407,
+    "guard_bloqueou_certa": 124,
+    "roteamento": 207
+  },
+  "seen_unseen": {
+    "vistos(shared)": {
+      "n": 1852,
+      "low": 0.5327879348397269,
+      "high": 0.7477740674658943,
+      "point": 0.6430885529157667
+    },
+    "nao_vistos(test_only)": {
+      "n": 1160,
+      "low": 0.8603448275862069,
+      "high": 0.9991379310344828,
+      "point": 0.9422413793103448
+    }
+  },
+  "refusal": {
+    "correta": {
+      "n": 320,
+      "low": 0.89375,
+      "high": 1.0,
+      "point": 0.96875
+    },
+    "indevida_ausente": {
+      "n": 2692,
+      "low": 1.0,
+      "high": 1.0,
+      "point": 1.0
+    },
+    "cruzamento": {
+      "n": 200,
+      "low": 0.085,
+      "high": 0.83,
+      "point": 0.46
+    }
+  },
+  "multiturn": {
+    "n": 309,
+    "low": 0.2984932047450288,
+    "high": 0.40423161839517036,
+    "point": 0.34951456310679613
+  },
+  "sensitivity": null,
+  "kappa_juiz": null,
+  "utility": null
+}

@@ -37,6 +37,9 @@ def test_build_numbers_from_real_evidence() -> None:
     assert n["data.rule.ra_cpf"] == "3455"
     assert n["data.lms_accounts"] == "1003"
     assert n["a2a.TASK_NOT_FOUND"] == "-32001"
+    # teste cego: sensibilidades ao lado do primário (validação do scorer e ferramenta-domínio)
+    assert n["quality.test.corrected"].startswith("77,1% [")
+    assert n["quality.test.domain_tools"].startswith("75,8% [")
     assert all(isinstance(v, str) for v in n.values())
 
 
@@ -52,7 +55,7 @@ def _real_evidence(d: Path) -> None:
     from evals.redteam.check import Attack
     from evals.redteam.run import Result
     from evals.redteam.run import summarize as redteam
-    from evals.stats import wilson
+    from evals.stats import Label, wilson
 
     for tag, split in (
         ("dev-r1", "dev"),
@@ -79,9 +82,14 @@ def _real_evidence(d: Path) -> None:
             strata={f"s{i}": "x" for i in range(4)},
             n_boot=50,
             meta={"split": split, "round": int(tag[-1])},
+            labels=[Label(i % 2 == 0, i % 3 != 0) for i in range(12)] if split == "test" else (),
         )
         (d / "quality" / tag).mkdir(parents=True)
         (d / "quality" / tag / "quality.json").write_text(json.dumps(q))
+        if split == "test":  # sensibilidades: --resummarize com rótulos e ferramenta-domínio
+            (d / "quality" / tag / "quality.resummarized.json").write_text(json.dumps(q))
+            (d / "quality" / tag / "ferramenta-dominio").mkdir()
+            (d / "quality" / tag / "ferramenta-dominio" / "quality.json").write_text(json.dumps(q))
     rs = [
         Result(Attack(f"a#{i}", 1 + 7 * (i > 2), f"t{i}", ("x",)), 0, i == 0, i == 4, ())
         for i in range(6)
