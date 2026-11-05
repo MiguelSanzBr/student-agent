@@ -254,14 +254,20 @@ async def check_eligibility(
     return eligibility(code, facts, subject=subject)
 
 
+def _agent_services() -> list[str]:
+    """ "código nome" dos serviços que o agente prepara: o LLM acha o código pelo pedido."""
+    onto = default_ontology()
+    return [f"{c} {onto.service(c).name_pt}" for c in onto.service_codes()
+            if onto.service(c).mode == "agent"]  # fmt: skip
+
+
 async def _draft(ctx: ToolContext, args: Mapping[str, Any]) -> ToolOutput:
     args = _args("draft_protocol", args)
     code, onto = str(args["service_code"]), default_ontology()
     try:
         svc = onto.service(code)
     except KeyError:
-        valid = [c for c in onto.service_codes() if onto.service(c).mode == "agent"]
-        return ToolOutput({"erro": "serviço não encontrado", "servicos_validos": valid})
+        return ToolOutput({"erro": "serviço não encontrado", "servicos_validos": _agent_services()})
     if svc.mode != "agent":  # só orienta (ACA-010/012/013/014) e oferece a secretaria
         return ToolOutput(
             {**orientation(code), "alternativa": onto.service("GEN-090").ui_label},
@@ -347,7 +353,7 @@ TOOLS: tuple[Tool, ...] = (
                 {
                     "service_code": {
                         "type": "string",
-                        "description": "Código do serviço, ex.: DOC-001",
+                        "description": "Código do serviço: " + "; ".join(_agent_services()),
                     },
                     "enrollment": ENROLLMENT,
                     "subject": {

@@ -283,7 +283,8 @@ async def test_orientation_lock(pool, loaded_db) -> None:  # type: ignore[no-unt
     assert await ctx.drafts.pending(ctx.scope.person_key, ctx.conversation_id) is None
     unknown = await _run("draft_protocol", ctx, service_code="XXX-999")
     assert unknown.draft is None and unknown.data["erro"] == "serviço não encontrado"
-    assert "DOC-001" in unknown.data["servicos_validos"] and not unknown.records
+    assert "DOC-001 Declaração de matrícula" in unknown.data["servicos_validos"]
+    assert not unknown.records
 
 
 async def test_gen090_label_and_deadline_in_text(pool, loaded_db) -> None:  # type: ignore[no-untyped-def]

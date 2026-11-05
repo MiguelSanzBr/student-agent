@@ -105,3 +105,13 @@ def test_iter3_rules_in_prompt() -> None:
         "não repita a premissa como verdade",
     ):
         assert frag in SYSTEM_PREFIX, frag
+
+
+def test_draft_tool_lists_service_codes_with_names() -> None:
+    """O pedido "boleto" acha FIN-030 pelo nome (r2: 40 pedidos de boleto sem rascunho)."""
+    from app.tools.registry import build_tools
+
+    draft = next(t for t in build_tools() if t.spec.name == "draft_protocol")
+    desc = draft.spec.parameters["properties"]["service_code"]["description"]
+    assert "FIN-030 Segunda via de boleto" in desc and "DOC-001 Declaração de matrícula" in desc
+    assert "GEN-090" in desc and "ACA-010" not in desc  # só serviços que o agente prepara
