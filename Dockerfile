@@ -27,8 +27,9 @@ COPY evals/client.py evals/stats.py evals/preflight.py evals/tokens.py ./evals/
 COPY evals/golden ./evals/golden
 COPY evals/redteam ./evals/redteam
 COPY evals/guard ./evals/guard
-# só o verificador do holdout e o manifesto (SHA-256); nunca o .age, o seal.py nem a chave
+# só o verificador do holdout e os manifestos v1 e v2 (SHA-256); nunca o .age, o seal.py nem a chave
 COPY evals/holdout/__init__.py evals/holdout/verify.py evals/holdout/manifest.json ./evals/holdout/
+COPY evals/holdout/v2/manifest.json ./evals/holdout/v2/
 # o guard importa perturb_dev, que usa estes fixtures de teste
 COPY tests/__init__.py ./tests/__init__.py
 COPY tests/fixtures/__init__.py tests/fixtures/entity_records.py ./tests/fixtures/

@@ -445,3 +445,13 @@ def test_holdout_matches_v1_or_v2_manifest(tmp_path, monkeypatch):
     assert verify.match_templates(y2) == "v2/templates_v2.yaml.age"
     with pytest.raises(SystemExit, match="SHA-256"):
         verify.match_templates(y3)
+
+
+def test_eval_image_ships_every_holdout_manifest():
+    """A imagem eval leva os dois manifestos que match_templates lê (o v2 faltava e a rodada
+    cega parou na largada); nunca o .age."""
+    root = Path(__file__).resolve().parents[2]
+    docker, ignore = (root / "Dockerfile").read_text(), (root / ".dockerignore").read_text()
+    for mf in ("evals/holdout/manifest.json", "evals/holdout/v2/manifest.json"):
+        assert mf in docker and f"!{mf}" in ignore.splitlines()
+    assert not [ln for ln in docker.splitlines() if ln.startswith("COPY") and ".age" in ln]

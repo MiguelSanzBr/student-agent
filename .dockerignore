@@ -19,3 +19,6 @@ evals/holdout/*
 !evals/holdout/__init__.py
 !evals/holdout/verify.py
 !evals/holdout/manifest.json
+!evals/holdout/v2/
+evals/holdout/v2/*
+!evals/holdout/v2/manifest.json
