@@ -62,6 +62,7 @@ def test_package_excludes(tmp_path: Path, mode: str) -> None:
         assert "/__pycache__/" not in n
     if mode == "b":
         assert not any(n.startswith("docs/superpowers/") for n in names)
+        assert not {"AGENTS.md", "CLAUDE.md"} & set(names)
         assert not (tmp_path / "student-agent.bundle").exists()
     else:
         heads = subprocess.run(
