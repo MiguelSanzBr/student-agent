@@ -25,10 +25,11 @@ def clone(tmp_path: Path, branch: str = "main") -> Path:
                           check=True).stdout.strip()  # fmt: skip
     subprocess.run(["git", "clone", "-q", "--no-checkout", str(ROOT), str(repo)], check=True)
     subprocess.run(["git", "checkout", "-q", "-B", branch, head], cwd=repo, check=True)
-    if branch != "main":  # main fica no HEAD e a branch anda um commit vazio: não exige histórico (CI clona raso)
+    if branch != "main":  # main no HEAD e a branch anda um commit vazio: sem histórico (CI raso)
         subprocess.run(["git", "branch", "-f", "main", head], cwd=repo, check=True)
-        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty",
-                        "-m", "outra"], cwd=repo, check=True)  # fmt: skip
+        who = ["-c", "user.name=t", "-c", "user.email=t@t"]
+        subprocess.run(["git", *who, "commit", "-q", "--allow-empty", "-m", "outra"], cwd=repo,
+                       check=True)  # fmt: skip
     return repo
 
 
