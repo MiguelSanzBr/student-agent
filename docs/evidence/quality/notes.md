@@ -9,7 +9,11 @@ Cada item diz de onde veio. As transcrições completas ficam só no volume `eva
   com LLM indisponível nas 553 transcrições.
 - **Tokens por turno:** sondas pela API com `claude-haiku-5-5` mostraram ~13,5 mil tokens de entrada por
   turno (~11,6 mil em cache) e ~0,8–1 mil de saída e raciocínio (evento `debug.usage`). Com 200 mil
-  tokens/aluno/dia contando o cache, isso dá ~13 turnos por dia.
+  tokens/aluno/dia contando o cache, isso dá ~13 turnos por dia; a cota passou a contar só tokens fora
+  do cache (~70 turnos por dia). Essas medidas viraram `est_tokens` e `turn_usage` em `slo_targets.yaml`.
+- **Cache:** `cache_ratio` (tokens em cache sobre tokens de entrada) é 48% na janela B e ~86% nas sondas.
+  A diferença é a carga: a janela usa 10 alunos e conversas novas (o prefixo comum fica em cache, o
+  cartão e o histórico não); as sondas eram um aluno repetindo perguntas.
 - **Perfil eval:** `limits.eval.tokens_per_day` subiu de 200 mil para 5 milhões (`slo_targets.yaml`)
   porque a rodada dev faria ~16 turnos por aluno sintético; o teto de gasto (US$ 40/dia) ficou igual.
 - **Oráculo vazio:** contagens em `analysis-dev-r1.md` e `analysis-dev-r2.md` (análise das

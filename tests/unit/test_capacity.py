@@ -10,8 +10,8 @@ def test_capacity_known_values() -> None:
     assert c.turns_per_s == 35
     assert c.in_flight == 210
     assert abs(c.tpm - 10_000_000) / 10_000_000 < 0.02
-    assert c.rpm == 6300  # est_requests = 3 chamadas por turno
-    assert c.replicas == 11  # ceil(9,87M / (0,9 x 1M TPM)); RPM: ceil(6300 / 900) = 7
+    assert c.rpm == 4200  # est_requests = 2 chamadas por turno (janela B)
+    assert c.replicas == 11  # ceil(9,87M / (0,9 x 1M TPM)); RPM: ceil(4200 / 900) = 5
 
 
 def test_monthly_cost_scales_and_doubles_in_2027() -> None:

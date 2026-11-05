@@ -19,7 +19,8 @@ SLO = load_slo_targets()
 
 
 def test_quota_turns_per_s_from_yaml() -> None:
-    assert quota_turns_per_s(SLO, "gemini-3.8-flash") == 1000 * 0.9 / 60 / 3
+    est = SLO.admission.est_requests
+    assert quota_turns_per_s(SLO, "gemini-3.8-flash") == 1000 * 0.9 / 60 / est
 
 
 def test_derive_quota_binds_below_slot_capacity() -> None:

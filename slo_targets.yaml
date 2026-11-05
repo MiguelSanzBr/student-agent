@@ -3,8 +3,8 @@
 # PRIORS do gemini-3.8-flash (docs/evidence/spikes.md, histórico); o reajuste único veio da janela A
 # real com claude-haiku-5-5 (2026-11-04) e o arquivo está congelado: não há segundo reajuste.
 # p99 abaixo do p95 vem da regra pré-registrada max(meta inicial, previsto): é indicativo.
-# est_tokens, turn_usage e card_share ficaram com os valores provisórios; o turno medido tem ~14 mil
-# tokens de entrada (docs/evidence/quality/notes.md).
+# est_requests, est_tokens e turn_usage: medidos em 2026-11-04 (janela B e sondas de
+# debug.usage, docs/evidence/quality/notes.md); não mexem nas metas de latência.
 frozen: true
 quotas:  # PROVISÓRIO: cotas reais (RPM/TPM/RPD) pendentes, sem GEMINI_API_KEY
   gemini-3.8-flash: {rpm: 1000, tpm: 1000000, rpd: 10000}
@@ -17,20 +17,20 @@ quotas:  # PROVISÓRIO: cotas reais (RPM/TPM/RPD) pendentes, sem GEMINI_API_KEY
   gpt-6-luna: {rpm: 1000, tpm: 1000000, rpd: 10000}
 admission:
   quota_fraction: 0.9
-  est_requests: 3  # PROVISÓRIO: E[chamadas ao LLM por turno] p/ reserve (spec §5); refit após janela A
-  est_tokens: 6000  # PROVISÓRIO: E[tokens por turno] p/ reserve; refit após janela A
+  est_requests: 2  # E[chamadas ao LLM por turno]: 2,03 na janela B, 1,97 na C
+  est_tokens: 14500  # E[tokens por turno]: ~13,5 mil de entrada + ~1 mil de saída e raciocínio
 components:  # reajuste único da janela A (2026-11-04, claude-haiku-5-5, n=answer_call 390/overhead 300/tool_call 215)
   tool_call: {mu: 0.3475, sigma: 0.229}
   answer_call: {mu: 0.7234, sigma: 0.2724}
   overhead: {mu: -3.1075, sigma: 0.3681}
 hedge:  # alavanca lever_hedge_first_call (app/agent/levers.py): só dispara dentro deste orçamento
   quantile: 0.9  # da 1ª chamada do turno
-  card_share: 0.45  # fração de turnos `card` (1ª chamada = resposta); PROVISÓRIO, refit na janela A
+  card_share: 0.45  # premissa do hedge (alavanca desligada); a janela B mediu 0,24 de turnos `card`
   max_fraction: 0.10  # hedges/min <= 10% das chamadas
   floor_per_min: 3
   bucket_max_util: 0.8  # sem hedge com o balde de admissão acima de 80%
 model_constants:  # premissas fora dos componentes; testes amarram os módulos a estes valores
-  turn_usage: {input: 4000, output: 300, thinking: 400}  # turno médio de capacity.monthly_cost
+  turn_usage: {input: 13500, output: 500, thinking: 400}  # turno médio medido (capacity.monthly_cost)
   ladder_a: {plateau: 0.9, p95_factor: 1.1, retry_max: 0.10, cut_max: 0.005}
   initial_targets: {card: {p50: 3.5, p95: 6.0}, "1": {p95: 8.0, ttfe_p95: 4.0}, "2+": {p95: 12.0, ttfe_p95: 4.0}}
   k_tools: {card: [0], "1": [1], "2+": [2, 2, 3, 4]}
