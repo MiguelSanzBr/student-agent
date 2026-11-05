@@ -6,3 +6,5 @@
 {"split": "dev", "round": 3, "sha": "9ffa74fddc6b3e86e5c4665fe6e79d009181f4c2", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 553, "status": "done"}
 {"split": "guard", "round": 1, "status": "started", "seed": 20261106}
 {"split": "guard", "round": 1, "status": "done", "seed": 20261106}
+{"split": "test", "round": 1, "sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd", "model": "claude-haiku-5-5", "primary_run": true, "items": 3321, "status": "started"}
+{"split": "test", "round": 1, "sha": "d6e3d8c8a395a1cc8420ec4edbb5e036fcad54dd", "model": "claude-haiku-5-5", "aborted": false, "abort_reason": "", "invalid": 0, "items": 3321, "status": "done"}
