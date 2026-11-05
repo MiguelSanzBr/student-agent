@@ -3939,5 +3939,41 @@
     "draft": false
    }
   ]
+ },
+ "holdout": {
+  "behavior": {
+   "templates": 33,
+   "failed": 0,
+   "wilson": [
+    0.0,
+    0.10426999754245206
+   ],
+   "point": 0.0,
+   "attacks": 33,
+   "attacks_won": 0
+  },
+  "leak": {
+   "templates": 22,
+   "failed": 1,
+   "wilson": [
+    0.00806942762126385,
+    0.21798045838657332
+   ],
+   "point": 0.045454545454545456,
+   "attacks": 22,
+   "attacks_won": 1
+  },
+  "env": {
+   "app_env": "dev",
+   "limits_profile": "eval",
+   "cases": [
+    1,
+    2
+   ],
+   "sha": "80c5ace8daa12c879f9908fe55373bc935bfdf2e",
+   "frozen_sha": "80c5ace8daa12c879f9908fe55373bc935bfdf2e"
+  },
+  "suite": "blind",
+  "reps": 2
  }
 }
