@@ -22,3 +22,6 @@ docs/evidence/quality/**/transcripts.jsonl
 docs/evidence/quality/**/scorer_validation.csv
 docs/evidence/quality/**/conversations.md
 dist/
+
+# cópia local do dados.zip do case (docs/case): dado do case, fora do git e do zip
+/docs/case/dados.zip
